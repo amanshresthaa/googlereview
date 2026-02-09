@@ -1,0 +1,281 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MembershipRole {
+  OWNER
+  MANAGER
+  STAFF
+}
+
+enum GoogleConnectionStatus {
+  ACTIVE
+  REAUTH_REQUIRED
+}
+
+enum DraftOrigin {
+  AUTO
+  REGENERATED
+  USER_EDITED
+}
+
+enum DraftStatus {
+  NEEDS_APPROVAL
+  BLOCKED_BY_VERIFIER
+  READY
+  POSTED
+  POST_FAILED
+}
+
+enum AiProvider {
+  OPENAI
+  GEMINI
+}
+
+enum JobType {
+  SYNC_LOCATIONS
+  SYNC_REVIEWS
+  GENERATE_DRAFT
+  VERIFY_DRAFT
+  POST_REPLY
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  RETRYING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships      Membership[]
+  googleConnection GoogleConnection?
+  locations        Location[]
+  reviews          Review[]
+  draftReplies     DraftReply[]
+  auditLogs        AuditLog[]
+  jobs             Job[]
+  settings         OrgSettings?
+  invites          Invite[]
+}
+
+model Membership {
+  orgId     String
+  userId    String
+  role      MembershipRole @default(OWNER)
+  createdAt DateTime       @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([orgId, userId])
+  @@index([userId])
+}
+
+model GoogleConnection {
+  id                 String                @id @default(cuid())
+  orgId              String                @unique
+  status             GoogleConnectionStatus @default(ACTIVE)
+  googleEmail        String
+  googleSub          String
+  scopes             String[]
+
+  refreshTokenEnc         String
+  accessTokenEnc          String?
+  accessTokenExpiresAt    DateTime?
+
+  connectedByUserId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([googleEmail])
+  @@index([googleSub])
+}
+
+model Location {
+  id               String   @id @default(cuid())
+  orgId            String
+  googleAccountId  String
+  googleLocationId String
+
+  displayName    String
+  storeCode      String?
+  addressSummary String?
+
+  enabled          Boolean  @default(false)
+  lastReviewsSyncAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  reviews Review[]
+
+  @@unique([orgId, googleAccountId, googleLocationId])
+  @@index([orgId, enabled])
+}
+
+model Review {
+  id            String   @id @default(cuid())
+  orgId         String
+  locationId    String
+
+  googleReviewName String @unique
+  googleReviewId   String
+
+  starRating Int
+  comment    String?
+  createTime DateTime
+  updateTime DateTime
+
+  reviewerDisplayName String?
+  reviewerIsAnonymous Boolean @default(false)
+
+  googleReplyComment    String?
+  googleReplyUpdateTime DateTime?
+
+  mentions String[]
+
+  currentDraftReplyId String? @unique
+  currentDraftReply   DraftReply? @relation("CurrentDraft", fields: [currentDraftReplyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  location Location     @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  drafts   DraftReply[]
+
+  @@index([locationId, createTime(sort: Desc)])
+  @@index([locationId, starRating])
+  @@index([orgId, googleReplyComment])
+}
+
+model DraftReply {
+  id        String      @id @default(cuid())
+  orgId     String
+  reviewId  String
+  version   Int
+  text      String
+  origin    DraftOrigin
+  status    DraftStatus @default(NEEDS_APPROVAL)
+
+  evidenceSnapshotJson Json
+  verifierResultJson   Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  review Review       @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  currentForReview Review? @relation("CurrentDraft")
+
+  @@unique([reviewId, version])
+  @@index([orgId, status])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  orgId     String
+  actorUserId String
+
+  action    String
+  entityType String
+  entityId  String
+  metadataJson Json?
+
+  createdAt DateTime @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt(sort: Desc)])
+  @@index([actorUserId, createdAt(sort: Desc)])
+}
+
+model OrgSettings {
+  orgId String @id
+
+  tonePreset             String  @default("friendly")
+  toneCustomInstructions String? @db.Text
+
+  autoDraftEnabled          Boolean @default(true)
+  autoDraftForRatings       Int[]
+  bulkApproveEnabledForFiveStar Boolean @default(true)
+
+  aiProvider AiProvider @default(OPENAI)
+
+  mentionKeywords String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+model Invite {
+  id        String   @id @default(cuid())
+  orgId     String
+  email     String
+  role      MembershipRole @default(STAFF)
+
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdByUserId String
+  createdAt DateTime @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, email])
+  @@index([orgId, expiresAt])
+}
+
+model Job {
+  id        String   @id @default(cuid())
+  orgId     String
+  type      JobType
+  status    JobStatus @default(PENDING)
+  payload   Json
+
+  runAt     DateTime @default(now())
+  attempts  Int      @default(0)
+  maxAttempts Int    @default(10)
+  lockedAt  DateTime?
+  lockedBy  String?
+  lastError String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  completedAt DateTime?
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([status, runAt])
+  @@index([orgId, status, runAt])
+  @@index([lockedAt])
+}

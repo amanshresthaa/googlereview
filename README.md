@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+GBP Reviews v1: Connect + Ingest + Inbox + AI Draft + Approve/Publish (No Photo Support)
 
-## Getting Started
+This app syncs Google Business Profile reviews into a database, generates AI draft replies, verifies them for unsupported claims, and publishes approved replies back to Google.
 
-First, run the development server:
+**Core routes**
+- `/signin`: Google SSO + `business.manage` consent
+- `/onboarding/locations`: sync and select locations to manage
+- `/inbox`: review inbox + filters + bulk approve (5 star only)
+- `/reviews/[id]`: evidence (text-only) + AI draft + verifier + approve/publish
+- `/settings`: tone, automation, AI provider selection, team invites
+
+## Setup
+
+### 1) Environment variables
+
+Copy `.env.example` to `.env` and configure the required values.
+
+For Supabase + Vercel + Google OAuth details, see:
+- `docs/SETUP.md`
+
+### 2) Database migrations (Supabase Postgres)
+
+This repo uses Prisma v7. Migrations live in `prisma/migrations/`.
+
+Run:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm prisma:deploy
+pnpm prisma:generate
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3) Start the dev server
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open `http://localhost:3000`.
 
-## Learn More
+## Cron worker
 
-To learn more about Next.js, take a look at the following resources:
+The worker endpoint is `GET /api/cron/worker` and requires:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`Authorization: Bearer $CRON_SECRET`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Local test:
 
-## Deploy on Vercel
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/worker
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+On Vercel, `vercel.json` configures a cron schedule to invoke this endpoint.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Tests
+
+```bash
+pnpm test
+pnpm lint
+```
