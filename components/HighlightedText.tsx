@@ -2,7 +2,7 @@ import { HighlightSpan } from "@/lib/reviews/mentions"
 
 export function HighlightedText(props: { text: string; spans: HighlightSpan[] }) {
   const spans = normalize(props.spans)
-  if (!spans.length) return <p className="whitespace-pre-wrap text-sm">{props.text}</p>
+  if (!spans.length) return <p className="whitespace-pre-wrap text-sm leading-relaxed">{props.text}</p>
 
   const out: Array<{ key: string; text: string; highlight: boolean }> = []
   let cursor = 0
@@ -22,10 +22,7 @@ export function HighlightedText(props: { text: string; spans: HighlightSpan[] })
     <p className="whitespace-pre-wrap text-sm leading-relaxed">
       {out.map((p) =>
         p.highlight ? (
-          <mark
-            key={p.key}
-            className="bg-amber-200/60 text-foreground rounded px-0.5 py-0.5"
-          >
+          <mark key={p.key} className="bg-primary/20 text-foreground rounded-sm px-0.5">
             {p.text}
           </mark>
         ) : (
@@ -48,4 +45,3 @@ function normalize(spans: HighlightSpan[]) {
   }
   return out
 }
-

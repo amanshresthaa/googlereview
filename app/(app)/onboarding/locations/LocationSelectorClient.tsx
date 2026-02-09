@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import { RefreshCw, Check, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 type LocationRow = {
@@ -17,7 +18,7 @@ type WorkerResult = { id: string; ok: boolean; error?: string }
 function formatSyncError(input: unknown) {
   const raw = typeof input === "string" ? input : input instanceof Error ? input.message : String(input)
   if (raw.includes("mybusinessaccountmanagement.googleapis.com") || raw.includes("SERVICE_DISABLED")) {
-    const activationUrlMatch = raw.match(/\"activationUrl\"\\s*:\\s*\"([^\"]+)\"/)
+    const activationUrlMatch = raw.match(/\"activationUrl\"\s*:\s*\"([^\"]+)\"/)
     const url = activationUrlMatch?.[1]
     const base =
       "Google API is disabled for the OAuth project. Enable the My Business Account Management API and retry."
@@ -80,37 +81,29 @@ export function LocationSelectorClient(props: { locations: LocationRow[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={syncLocations} disabled={busy !== null}>
-          {busy === "sync" ? "Syncing..." : "Sync locations"}
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={syncLocations} disabled={busy !== null}>
+          {busy === "sync" ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+          Sync locations
         </Button>
-        <Button
-          variant="secondary"
-          onClick={saveSelection}
-          disabled={busy !== null || selected.size === 0}
-        >
-          {busy === "save" ? "Saving..." : `Save selection (${selected.size})`}
+        <Button size="sm" onClick={saveSelection} disabled={busy !== null || selected.size === 0}>
+          {busy === "save" ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+          Save ({selected.size})
         </Button>
       </div>
 
-      {error ? (
-        <div className="border-destructive/30 bg-destructive/10 text-destructive rounded-md border p-3 text-sm">
-          {error}
-        </div>
-      ) : null}
+      {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
-      <div className="divide-border rounded-md border">
+      <div className="rounded-lg border border-border divide-y divide-border">
         {props.locations.length === 0 ? (
-          <div className="text-muted-foreground p-4 text-sm">
-            No locations yet. Click Sync locations.
-          </div>
+          <p className="p-4 text-sm text-muted-foreground">No locations found. Click Sync locations.</p>
         ) : (
           props.locations.map((l) => {
             const checked = selected.has(l.id)
             return (
               <label
                 key={l.id}
-                className="hover:bg-muted/40 flex cursor-pointer items-start gap-3 p-4"
+                className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
               >
                 <input
                   type="checkbox"
@@ -123,13 +116,13 @@ export function LocationSelectorClient(props: { locations: LocationRow[] }) {
                       return next
                     })
                   }}
-                  className="mt-1"
+                  className="accent-primary size-3.5"
                 />
                 <div className="min-w-0">
-                  <div className="text-sm font-medium">{l.displayName}</div>
-                  <div className="text-muted-foreground mt-0.5 text-xs">
+                  <p className="text-sm font-medium">{l.displayName}</p>
+                  <p className="text-xs text-muted-foreground">
                     {[l.storeCode, l.addressSummary].filter(Boolean).join(" · ") || "—"}
-                  </div>
+                  </p>
                 </div>
               </label>
             )

@@ -26,10 +26,10 @@ export default async function SettingsPage() {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6 p-6 animate-fade-in overflow-y-auto h-full">
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground text-sm">Configure tone, automation, and team access.</p>
+        <p className="text-muted-foreground text-sm">Configure AI behavior and manage your team.</p>
       </div>
 
       <SettingsClient

@@ -13,7 +13,7 @@ export async function POST(_: Request, ctx: { params: Promise<{ id: string }> })
 
   const { id: reviewId } = await ctx.params
   const exists = await prisma.review.findFirst({
-    where: { id: reviewId, orgId: session.orgId },
+    where: { id: reviewId, orgId: session.orgId, location: { enabled: true } },
     select: { id: true },
   })
   if (!exists) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 })

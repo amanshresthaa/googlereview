@@ -2,10 +2,20 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import { AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select"
 
 type Settings = {
   tonePreset: string
@@ -113,190 +123,237 @@ export function SettingsClient(props: {
     }
   }
 
+  const roleItems = [
+    { value: "STAFF", label: "Staff" },
+    { value: "MANAGER", label: "Manager" },
+    { value: "OWNER", label: "Owner" },
+  ]
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {error ? (
-        <div className="border-destructive/30 bg-destructive/10 text-destructive rounded-md border p-3 text-sm">
+        <div className="border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-2 rounded-md border p-3 text-sm">
+          <AlertCircle className="size-4 shrink-0" />
           {error}
         </div>
       ) : null}
 
-      <section className="space-y-3">
-        <div className="text-sm font-semibold">Tone</div>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <div className="space-y-1">
-            <div className="text-muted-foreground text-xs">Preset</div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-[13px] font-medium">Tone</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="tone-preset" className="text-xs">Preset</Label>
             <Input
+              id="tone-preset"
               value={s.tonePreset}
               onChange={(e) => setS((p) => ({ ...p, tonePreset: e.target.value }))}
               placeholder="friendly"
             />
           </div>
-          <div className="space-y-1 sm:col-span-2">
-            <div className="text-muted-foreground text-xs">Custom instructions</div>
+          <div className="space-y-2">
+            <Label htmlFor="tone-instructions" className="text-xs">Custom instructions</Label>
             <Textarea
+              id="tone-instructions"
               value={s.toneCustomInstructions ?? ""}
               onChange={(e) => setS((p) => ({ ...p, toneCustomInstructions: e.target.value || null }))}
               rows={4}
               placeholder="Optional extra instructions for the AI..."
             />
           </div>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
-      <section className="space-y-3">
-        <div className="text-sm font-semibold">Automation</div>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={s.autoDraftEnabled}
-            onChange={(e) => setS((p) => ({ ...p, autoDraftEnabled: e.target.checked }))}
-          />
-          Auto-create a draft when a new review arrives
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={s.bulkApproveEnabledForFiveStar}
-            onChange={(e) => setS((p) => ({ ...p, bulkApproveEnabledForFiveStar: e.target.checked }))}
-          />
-          Enable bulk approve for 5★ replies
-        </label>
-      </section>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-[13px] font-medium">Automation</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <label className="flex items-center gap-2 cursor-pointer text-sm">
+            <input
+              type="checkbox"
+              checked={s.autoDraftEnabled}
+              onChange={(e) => setS((p) => ({ ...p, autoDraftEnabled: e.target.checked }))}
+              className="accent-primary h-4 w-4"
+            />
+            Auto-create a draft when a new review arrives
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer text-sm">
+            <input
+              type="checkbox"
+              checked={s.bulkApproveEnabledForFiveStar}
+              onChange={(e) => setS((p) => ({ ...p, bulkApproveEnabledForFiveStar: e.target.checked }))}
+              className="accent-primary h-4 w-4"
+            />
+            Enable bulk approve for 5★ replies
+          </label>
+        </CardContent>
+      </Card>
 
-      <section className="space-y-3">
-        <div className="text-sm font-semibold">AI Provider</div>
-        <div className="flex flex-wrap gap-2">
-          {(["OPENAI", "GEMINI"] as const).map((p) => (
-            <button
-              key={p}
-              type="button"
-              className={[
-                "border-border rounded-full border px-3 py-1 text-sm",
-                s.aiProvider === p
-                  ? "bg-foreground text-background border-foreground"
-                  : "hover:bg-muted/50",
-              ].join(" ")}
-              onClick={() => setS((prev) => ({ ...prev, aiProvider: p }))}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-        <div className="text-muted-foreground text-xs">
-          Ensure the corresponding API key is configured in server environment variables.
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="text-sm font-semibold">Mentions</div>
-        <div className="text-muted-foreground text-xs">
-          These keywords power the Inbox “Mentions” filters and evidence highlighting.
-        </div>
-        <Textarea
-          value={s.mentionKeywords.join("\n")}
-          onChange={(e) =>
-            setS((prev) => ({
-              ...prev,
-              mentionKeywords: e.target.value
-                .split("\n")
-                .map((x) => x.trim().toLowerCase())
-                .filter(Boolean),
-            }))
-          }
-          rows={6}
-          placeholder={"cold\nwait\nrude"}
-        />
-      </section>
-
-      <div className="flex items-center gap-2">
-        <Button onClick={updateSettings} disabled={busy !== null}>
-          {busy === "save" ? "Saving..." : "Save settings"}
-        </Button>
-      </div>
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-sm font-semibold">Team</div>
-          {props.isOwner ? <Badge variant="secondary">Owner</Badge> : <Badge variant="secondary">Member</Badge>}
-        </div>
-
-        <div className="divide-border rounded-md border">
-          {props.members.map((m) => (
-            <div key={m.userId} className="flex items-center justify-between gap-3 p-3">
-              <div className="min-w-0">
-                <div className="text-sm font-medium">{m.email}</div>
-                <div className="text-muted-foreground text-xs">
-                  {m.name || "—"} · {m.role}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {props.isOwner ? (
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Invite member</div>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <Input
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="person@company.com"
-                className="sm:col-span-2"
-              />
-              <select
-                value={inviteRole}
-                onChange={(e) => {
-                  const v = e.target.value
-                  if (v === "STAFF" || v === "MANAGER" || v === "OWNER") {
-                    setInviteRole(v)
-                  }
-                }}
-                className="border-border bg-background text-foreground rounded-md border px-3 py-2 text-sm"
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-[13px] font-medium">AI Provider</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="border-border inline-flex rounded-md border">
+            {(["OPENAI", "GEMINI"] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                className={[
+                  "px-4 py-1.5 text-sm font-medium transition-colors first:rounded-l-md last:rounded-r-md",
+                  s.aiProvider === p
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                ].join(" ")}
+                onClick={() => setS((prev) => ({ ...prev, aiProvider: p }))}
               >
-                <option value="STAFF">STAFF</option>
-                <option value="MANAGER">MANAGER</option>
-                <option value="OWNER">OWNER</option>
-              </select>
-            </div>
-            <Button onClick={createInvite} disabled={busy !== null || !inviteEmail.trim()}>
-              {busy === "invite" ? "Creating..." : "Create invite link"}
-            </Button>
-            {inviteUrl ? (
-              <div className="border-border bg-muted/30 rounded-md border p-3 text-sm">
-                Invite link: <span className="font-mono">{inviteUrl}</span>
-              </div>
-            ) : null}
+                {p}
+              </button>
+            ))}
           </div>
-        ) : null}
+          <p className="text-muted-foreground text-xs">
+            Ensure the corresponding API key is configured in server environment variables.
+          </p>
+        </CardContent>
+      </Card>
 
-        {props.invites.length ? (
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Active invites</div>
-            <div className="divide-border rounded-md border">
-              {props.invites.map((i) => (
-                <div key={i.id} className="flex items-center justify-between gap-3 p-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium">{i.email}</div>
-                    <div className="text-muted-foreground text-xs">
-                      {i.role} · expires {new Date(i.expiresAtIso).toLocaleString()}
-                    </div>
-                  </div>
-                  {props.isOwner ? (
-                    <Button
-                      variant="ghost"
-                      onClick={() => revokeInvite(i.id)}
-                      disabled={busy !== null}
-                    >
-                      Revoke
-                    </Button>
-                  ) : null}
-                </div>
-              ))}
-            </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-[13px] font-medium">Keywords</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-muted-foreground text-xs">
+            These keywords power the Inbox &ldquo;Mentions&rdquo; filters and evidence highlighting.
+          </p>
+          <Textarea
+            value={s.mentionKeywords.join("\n")}
+            onChange={(e) =>
+              setS((prev) => ({
+                ...prev,
+                mentionKeywords: e.target.value
+                  .split("\n")
+                  .map((x) => x.trim().toLowerCase())
+                  .filter(Boolean),
+              }))
+            }
+            rows={6}
+            placeholder={"cold\nwait\nrude"}
+          />
+        </CardContent>
+      </Card>
+
+      <Button
+        onClick={updateSettings}
+        disabled={busy !== null}
+        className="w-full sm:w-auto"
+      >
+        {busy === "save" ? "Saving..." : "Save settings"}
+      </Button>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-[13px] font-medium">Team</CardTitle>
+            <Badge variant="secondary" className="text-[11px]">
+              {props.isOwner ? "Owner" : "Member"}
+            </Badge>
           </div>
-        ) : null}
-      </section>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="divide-border rounded-md border">
+            {props.members.map((m) => (
+              <div key={m.userId} className="flex items-center gap-3 p-3">
+                <div className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold uppercase">
+                  {m.email.charAt(0)}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">{m.email}</div>
+                  <div className="text-muted-foreground text-xs">
+                    {m.name || "—"} · {m.role}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {props.isOwner ? (
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Invite member</Label>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <Input
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="person@company.com"
+                  className="sm:col-span-2"
+                />
+                <Select
+                  value={inviteRole}
+                  onValueChange={(val) => {
+                    if (val === "STAFF" || val === "MANAGER" || val === "OWNER") {
+                      setInviteRole(val)
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roleItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={createInvite} disabled={busy !== null || !inviteEmail.trim()}>
+                {busy === "invite" ? "Creating..." : "Create invite link"}
+              </Button>
+              {inviteUrl ? (
+                <div className="border-border bg-muted/30 space-y-1 rounded-md border p-3">
+                  <p className="text-muted-foreground text-xs font-medium">Invite link</p>
+                  <div className="bg-background break-all rounded border p-2 font-mono text-sm">
+                    {inviteUrl}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {props.invites.length ? (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Active invites</Label>
+              <div className="space-y-2">
+                {props.invites.map((i) => (
+                  <div
+                    key={i.id}
+                    className="border-border flex items-center justify-between gap-3 rounded-md border p-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">{i.email}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {i.role} · expires {new Date(i.expiresAtIso).toLocaleString()}
+                      </div>
+                    </div>
+                    {props.isOwner ? (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => revokeInvite(i.id)}
+                        disabled={busy !== null}
+                      >
+                        Revoke
+                      </Button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
     </div>
   )
 }

@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation"
+import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
 import { getSession } from "@/lib/session"
 import { prisma } from "@/lib/db"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { LocationSelectorClient } from "@/app/(app)/onboarding/locations/LocationSelectorClient"
 
 export default async function LocationSelectorPage() {
@@ -26,26 +29,35 @@ export default async function LocationSelectorPage() {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6 p-6 animate-fade-in overflow-y-auto h-full">
+      <Link
+        href="/inbox"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="size-3.5" />
+        Back to inbox
+      </Link>
+
       <Card>
         <CardHeader>
-          <CardTitle>Select locations</CardTitle>
+          <CardTitle className="text-sm">Locations</CardTitle>
           <CardDescription>
-            Choose the Google Business Profile locations you want to manage.
+            Select which Google Business Profile locations to manage.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="text-muted-foreground text-sm">
-            Connected account:{" "}
-            <span className="text-foreground font-medium">
-              {conn?.googleEmail ?? "Not connected"}
-            </span>{" "}
-            ({conn?.status ?? "—"})
+          <div className="text-sm text-muted-foreground">
+            Connected: <span className="text-foreground font-medium">{conn?.googleEmail ?? "None"}</span>
+            {conn?.status ? (
+              <Badge variant={conn.status === "REAUTH_REQUIRED" ? "destructive" : "secondary"} className="ml-2">
+                {conn.status}
+              </Badge>
+            ) : null}
           </div>
           {conn?.status === "REAUTH_REQUIRED" ? (
-            <div className="border-destructive/30 bg-destructive/10 text-destructive rounded-md border p-3 text-sm">
-              Google connection needs reconnect. Sign out and sign in again to grant offline access.
-            </div>
+            <p className="text-destructive text-sm">
+              Google connection needs reconnect. Sign out and sign in again.
+            </p>
           ) : null}
         </CardContent>
       </Card>
@@ -54,4 +66,3 @@ export default async function LocationSelectorPage() {
     </div>
   )
 }
-

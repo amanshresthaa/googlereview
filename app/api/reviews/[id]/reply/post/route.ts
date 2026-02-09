@@ -13,7 +13,7 @@ export async function POST(_: Request, ctx: { params: Promise<{ id: string }> })
 
   const { id: reviewId } = await ctx.params
   const review = await prisma.review.findFirst({
-    where: { id: reviewId, orgId: session.orgId },
+    where: { id: reviewId, orgId: session.orgId, location: { enabled: true } },
     select: { googleReplyComment: true, currentDraftReplyId: true },
   })
 
@@ -30,4 +30,3 @@ export async function POST(_: Request, ctx: { params: Promise<{ id: string }> })
   const run = await runWorkerOnce({ limit: 5, workerId: crypto.randomUUID() })
   return NextResponse.json({ ok: true, jobId: job.id, worker: run })
 }
-

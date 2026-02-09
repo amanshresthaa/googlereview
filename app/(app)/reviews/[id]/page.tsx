@@ -1,11 +1,12 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import { ArrowLeft } from "lucide-react"
 import { prisma } from "@/lib/db"
 import { getSession } from "@/lib/session"
 import { extractMentionsAndHighlights } from "@/lib/reviews/mentions"
 import { HighlightedText } from "@/components/HighlightedText"
 import { ReviewDetailClient } from "@/app/(app)/reviews/[id]/ReviewDetailClient"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
 export default async function ReviewDetailPage(ctx: { params: Promise<{ id: string }> }) {
@@ -14,7 +15,7 @@ export default async function ReviewDetailPage(ctx: { params: Promise<{ id: stri
 
   const { id } = await ctx.params
   const review = await prisma.review.findFirst({
-    where: { id, orgId: session.orgId },
+    where: { id, orgId: session.orgId, location: { enabled: true } },
     include: {
       location: true,
       currentDraftReply: true,
@@ -33,49 +34,52 @@ export default async function ReviewDetailPage(ctx: { params: Promise<{ id: stri
       : null
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-muted-foreground text-xs">
-            <Link href="/inbox" className="underline">
-              Inbox
-            </Link>{" "}
-            / {review.location.displayName}
-          </div>
-          <h1 className="mt-1 text-lg font-semibold tracking-tight">
-            {"★".repeat(review.starRating)}
-            {"☆".repeat(Math.max(0, 5 - review.starRating))}{" "}
-            <span className="text-muted-foreground font-normal">
+    <div className="mx-auto max-w-3xl space-y-6 p-6 animate-fade-in">
+      <Link
+        href="/inbox"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="size-3.5" />
+        Back to inbox
+      </Link>
+
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">{"★".repeat(review.starRating)}</span>
+            <span className="text-muted-foreground text-sm">
               {review.reviewerDisplayName ?? "Guest"}
             </span>
-          </h1>
+          </div>
+          <p className="text-muted-foreground text-xs mt-0.5">
+            {review.location.displayName} · {review.createTime.toLocaleDateString()}
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {!review.googleReplyComment ? <Badge>Unanswered</Badge> : <Badge variant="secondary">Answered</Badge>}
-          {review.mentions.length ? (
-            <Badge variant="secondary">Mentions: {review.mentions.join(", ")}</Badge>
-          ) : null}
+        <div className="flex items-center gap-2">
+          {!review.googleReplyComment ? (
+            <Badge variant="outline">Unanswered</Badge>
+          ) : (
+            <Badge variant="secondary">Answered</Badge>
+          )}
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Evidence</CardTitle>
-          <CardDescription>AI is allowed to use only this review text.</CardDescription>
+          <CardTitle className="text-sm">Review</CardTitle>
         </CardHeader>
         <CardContent>
           {review.comment ? (
             <HighlightedText text={review.comment} spans={highlights} />
           ) : (
-            <p className="text-muted-foreground text-sm">(No written comment)</p>
+            <p className="text-muted-foreground text-sm">(Rating only — no written comment)</p>
           )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Draft</CardTitle>
-          <CardDescription>Generate, verify, approve, and publish a reply to Google.</CardDescription>
+          <CardTitle className="text-sm">Reply</CardTitle>
         </CardHeader>
         <CardContent>
           <ReviewDetailClient
@@ -88,19 +92,22 @@ export default async function ReviewDetailPage(ctx: { params: Promise<{ id: stri
         </CardContent>
       </Card>
 
-      {review.drafts.length ? (
+      {review.drafts.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>History</CardTitle>
-            <CardDescription>Last {review.drafts.length} draft versions.</CardDescription>
+            <CardTitle className="text-sm">Draft history</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {review.drafts.map((d) => (
-              <div key={d.id} className="border-border/60 rounded-md border p-3">
-                <div className="text-muted-foreground text-xs">
-                  v{d.version} · {d.origin} · {d.status} · {d.createdAt.toISOString()}
+              <div key={d.id} className="rounded-md border border-border p-3">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>v{d.version}</span>
+                  <span>·</span>
+                  <span>{d.origin}</span>
+                  <span>·</span>
+                  <Badge variant="secondary" className="text-[10px]">{d.status}</Badge>
                 </div>
-                <div className="mt-1 whitespace-pre-wrap text-sm">{d.text}</div>
+                <p className="mt-1.5 whitespace-pre-wrap text-sm">{d.text}</p>
               </div>
             ))}
           </CardContent>
@@ -109,4 +116,3 @@ export default async function ReviewDetailPage(ctx: { params: Promise<{ id: stri
     </div>
   )
 }
-

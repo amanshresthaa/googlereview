@@ -5,6 +5,17 @@ import { getSession } from "@/lib/session"
 import { SignInClient } from "@/app/signin/SignInClient"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="w-full max-w-sm space-y-4">
+        <p className="text-center text-sm font-semibold tracking-tight">LapenInns</p>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export default async function InvitePage(ctx: { params: Promise<{ token: string }> }) {
   const { token } = await ctx.params
   const tokenHash = sha256Hex(token)
@@ -15,78 +26,78 @@ export default async function InvitePage(ctx: { params: Promise<{ token: string 
 
   if (!invite) {
     return (
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-lg items-center p-4">
-        <Card className="w-full">
+      <Shell>
+        <Card>
           <CardHeader>
-            <CardTitle>Invite not found</CardTitle>
+            <CardTitle className="text-sm">Invite not found</CardTitle>
             <CardDescription>The invite link is invalid or has been revoked.</CardDescription>
           </CardHeader>
         </Card>
-      </div>
+      </Shell>
     )
   }
 
   const now = new Date()
   if (invite.usedAt) {
     return (
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-lg items-center p-4">
-        <Card className="w-full">
+      <Shell>
+        <Card>
           <CardHeader>
-            <CardTitle>Invite already used</CardTitle>
+            <CardTitle className="text-sm">Invite already used</CardTitle>
             <CardDescription>This invite link has already been used.</CardDescription>
           </CardHeader>
         </Card>
-      </div>
+      </Shell>
     )
   }
 
   if (invite.expiresAt <= now) {
     return (
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-lg items-center p-4">
-        <Card className="w-full">
+      <Shell>
+        <Card>
           <CardHeader>
-            <CardTitle>Invite expired</CardTitle>
+            <CardTitle className="text-sm">Invite expired</CardTitle>
             <CardDescription>Ask your team owner to generate a new invite link.</CardDescription>
           </CardHeader>
         </Card>
-      </div>
+      </Shell>
     )
   }
 
   const session = await getSession()
   if (!session?.user?.id) {
     return (
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-lg items-center p-4">
-        <Card className="w-full">
+      <Shell>
+        <Card>
           <CardHeader>
-            <CardTitle>Join team</CardTitle>
+            <CardTitle className="text-sm">Join team</CardTitle>
             <CardDescription>
-              Sign in as <span className="font-medium">{invite.email}</span> to accept the invite.
+              Sign in as <span className="font-medium">{invite.email}</span> to accept.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <SignInClient callbackUrl={`/invite/${token}`} />
           </CardContent>
         </Card>
-      </div>
+      </Shell>
     )
   }
 
   const sessionEmail = session.user.email?.toLowerCase() ?? ""
   if (sessionEmail !== invite.email.toLowerCase()) {
     return (
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-lg items-center p-4">
-        <Card className="w-full">
+      <Shell>
+        <Card>
           <CardHeader>
-            <CardTitle>Email mismatch</CardTitle>
+            <CardTitle className="text-sm">Wrong account</CardTitle>
             <CardDescription>
-              You are signed in as <span className="font-medium">{sessionEmail || "(unknown)"}</span>, but this
-              invite is for <span className="font-medium">{invite.email}</span>. Sign out and sign in with the
-              invited email.
+              Signed in as <span className="font-medium">{sessionEmail || "(unknown)"}</span>.
+              This invite is for <span className="font-medium">{invite.email}</span>.
+              Sign out and try again.
             </CardDescription>
           </CardHeader>
         </Card>
-      </div>
+      </Shell>
     )
   }
 
@@ -108,4 +119,3 @@ export default async function InvitePage(ctx: { params: Promise<{ token: string 
 
   redirect("/")
 }
-

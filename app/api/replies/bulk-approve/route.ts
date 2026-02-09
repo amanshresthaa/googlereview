@@ -31,6 +31,7 @@ export async function POST(req: Request) {
     where: {
       orgId: session.orgId,
       id: { in: parsed.data.reviewIds },
+      location: { enabled: true },
       starRating: 5,
       googleReplyComment: null,
     },

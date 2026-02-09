@@ -10,7 +10,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
 
   const { id } = await ctx.params
   const review = await prisma.review.findFirst({
-    where: { id, orgId: session.orgId },
+    where: { id, orgId: session.orgId, location: { enabled: true } },
     include: {
       location: true,
       currentDraftReply: true,
@@ -40,4 +40,3 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
     drafts: review.drafts,
   })
 }
-

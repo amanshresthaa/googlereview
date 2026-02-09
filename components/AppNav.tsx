@@ -1,19 +1,28 @@
 import Link from "next/link"
+import { Inbox, Settings } from "lucide-react"
 import { SignOutButton } from "@/components/SignOutButton"
 
 export function AppNav() {
   return (
-    <header className="border-border/60 bg-background/70 sticky top-0 z-30 border-b backdrop-blur">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        <div className="flex items-center gap-4">
+    <header className="sticky top-0 z-30 border-b border-border bg-background">
+      <div className="mx-auto flex h-12 w-full max-w-screen-2xl items-center justify-between px-4">
+        <div className="flex items-center gap-6">
           <Link href="/inbox" className="text-sm font-semibold tracking-tight">
-            GBP Reply Inbox
+            LapenInns
           </Link>
-          <nav className="text-muted-foreground flex items-center gap-3 text-sm">
-            <Link href="/inbox" className="hover:text-foreground">
+          <nav className="flex items-center gap-1">
+            <Link
+              href="/inbox"
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Inbox className="size-3.5" />
               Inbox
             </Link>
-            <Link href="/settings" className="hover:text-foreground">
+            <Link
+              href="/settings"
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Settings className="size-3.5" />
               Settings
             </Link>
           </nav>
@@ -23,4 +32,3 @@ export function AppNav() {
     </header>
   )
 }
-

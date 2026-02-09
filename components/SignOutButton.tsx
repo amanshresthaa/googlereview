@@ -7,10 +7,11 @@ export function SignOutButton() {
   return (
     <Button
       variant="ghost"
+      size="sm"
       onClick={() => signOut({ callbackUrl: "/signin" })}
+      className="text-muted-foreground"
     >
       Sign out
     </Button>
   )
 }
-

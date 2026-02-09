@@ -15,21 +15,28 @@ export default async function SignInPage({
   const callbackUrl = sp.from?.startsWith("/") ? sp.from : "/"
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-lg items-center p-4">
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Connect Google</CardTitle>
-          <CardDescription>
-            Sign in with Google to sync reviews and publish replies to Google Business Profile.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <SignInClient callbackUrl={callbackUrl} />
-          <p className="text-muted-foreground mt-3 text-xs">
-            We request access to manage your Google Business Profile locations and reviews.
-          </p>
-        </CardContent>
-      </Card>
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="w-full max-w-sm space-y-6">
+        <div className="text-center">
+          <h1 className="text-lg font-semibold tracking-tight">LapenInns</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Review inbox</p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Connect Google</CardTitle>
+            <CardDescription>
+              Sign in to sync reviews and publish replies.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <SignInClient callbackUrl={callbackUrl} />
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              We request access to manage your Google Business Profile locations and reviews.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

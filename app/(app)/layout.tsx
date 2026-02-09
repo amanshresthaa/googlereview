@@ -3,10 +3,9 @@ import { AppNav } from "@/components/AppNav"
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen">
+    <div className="flex h-screen flex-col overflow-hidden">
       <AppNav />
-      <main className="mx-auto w-full max-w-6xl px-4 py-6">{children}</main>
+      <main className="flex-1 overflow-hidden">{children}</main>
     </div>
   )
 }
-
