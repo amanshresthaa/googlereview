@@ -1,19 +1,23 @@
-import { ReactNode } from "react"
-import { AppSidebar } from "@/components/AppSidebar"
+import type { ReactNode } from "react"
+import { redirect } from "next/navigation"
 import { getSession } from "@/lib/session"
-import { Toaster } from "@/components/ui/sonner"
+import { AppShell } from "@/components/AppShell"
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await getSession()
-  const user = session?.user || { name: 'Guest', email: '', image: null }
+  if (!session?.user?.id || !session.orgId) redirect("/signin")
 
   return (
-    <div className="flex min-h-screen bg-stone-50 font-sans">
-      <AppSidebar user={user} />
-      <main className="flex-1 lg:ml-64 min-h-screen transition-all">
-        {children}
-      </main>
-      <Toaster />
-    </div>
+    <AppShell
+      user={{
+        name: session.user.name ?? null,
+        email: session.user.email ?? null,
+        image: session.user.image ?? null,
+        role: session.role ?? "",
+      }}
+    >
+      {children}
+    </AppShell>
   )
 }
+

@@ -1,21 +1,23 @@
 "use client"
 
+import Image from "next/image"
 import { signIn } from "next-auth/react"
+import { Button } from "@/components/ui/button"
 
 export function SignInClient({ callbackUrl }: { callbackUrl: string }) {
   return (
-    <button
+    <Button
       type="button"
-      aria-label="Sign in with Google"
+      className="w-full justify-center gap-3 rounded-2xl h-14 text-base font-semibold shadow-google-md"
       onClick={() => signIn("google", { callbackUrl })}
-      className="flex items-center gap-3 bg-white border border-stone-200 px-8 py-3 rounded-xl font-medium text-stone-700 shadow-sm hover:bg-emerald-50 hover:border-emerald-200 transition-all"
     >
-      <img
+      <Image
         src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png"
-        className="w-5 h-5"
         alt="Google"
+        width={18}
+        height={18}
       />
       Continue with Google
-    </button>
+    </Button>
   )
 }

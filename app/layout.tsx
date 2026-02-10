@@ -1,29 +1,31 @@
-import type { Metadata } from "next";
-import { Instrument_Sans, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from "next"
+import { Noto_Sans } from "next/font/google"
+import "@/app/globals.css"
+import { cn } from "@/lib/utils"
+import { Providers } from "@/components/Providers"
 
-const instrumentSans = Instrument_Sans({ variable: "--font-sans", subsets: ["latin"] });
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const notoSans = Noto_Sans({
   subsets: ["latin"],
-});
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-sans",
+})
 
 export const metadata: Metadata = {
-  title: "LapenInns",
-  description: "Review inbox for LapenInns hotels.",
-};
+  title: "GBP Reviews",
+  description: "Google Business Profile Review Manager",
+}
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`dark ${instrumentSans.variable} ${geistMono.variable}`}>
-      <body className="bg-background text-foreground antialiased min-h-screen">
-        {children}
+    <html
+      lang="en"
+      suppressHydrationWarning
+      dir="ltr"
+      className={cn(notoSans.variable, "font-sans")}
+    >
+      <body className="min-h-screen bg-background text-foreground">
+        <Providers>{children}</Providers>
       </body>
     </html>
-  );
+  )
 }
