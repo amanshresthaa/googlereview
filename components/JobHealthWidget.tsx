@@ -1,75 +1,101 @@
 "use client"
 
 import * as React from "react"
-import { Activity, AlertTriangle, ChevronDown } from "lucide-react"
 import { useJobSummaryPolling } from "@/lib/hooks"
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { AlertTriangle, CheckCircle2, Loader2 } from "@/components/icons"
+import { cn } from "@/lib/utils"
 
-function timeAgo(iso: string | null) {
-  if (!iso) return "unknown"
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (s < 60) return `${s}s ago`
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`
-  return `${Math.floor(s / 3600)}h ago`
-}
+export function JobHealthWidget({ compact = false }: { compact?: boolean }) {
+  const { summary, backlog, failed24h, error } = useJobSummaryPolling(20_000)
 
-export function JobHealthWidget({ pollMs }: { pollMs?: number }) {
-  const { summary, backlog, failed24h, error } = useJobSummaryPolling(pollMs)
-  const [open, setOpen] = React.useState(false)
+  const label = error
+    ? "Unavailable"
+    : failed24h > 0
+      ? `${failed24h} failed`
+      : backlog > 0
+        ? `${backlog} queued`
+        : "All clear"
 
-  if (error) {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
-        <Activity className="size-3" />Health unavailable
-      </span>
-    )
-  }
-
-  if (!summary) {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
-        <span className="size-2 animate-pulse rounded-full bg-muted-foreground/50" />Loading…
-      </span>
-    )
-  }
-
-  const hasFailures = failed24h > 0
-  const hasBacklog = backlog > 0
-  const dotColor = hasFailures ? "bg-destructive" : hasBacklog ? "bg-amber-500" : "bg-green-500"
-  const label = hasFailures ? `${failed24h} failed` : hasBacklog ? `${backlog} queued` : "All clear"
-  const failures = summary.recentFailures ?? []
+  const hasIssue = error || failed24h > 0
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs transition-colors hover:bg-muted/70"
-      >
-        <span className={`size-2 rounded-full ${dotColor}`} />
-        {hasFailures && <AlertTriangle className="size-3 text-destructive" />}
-        <span>{label}</span>
-        {failures.length > 0 && (
-          <ChevronDown className={`size-3 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
-        )}
-      </button>
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "w-full flex items-center gap-2 text-left py-1.5 px-1.5 rounded-lg transition-colors hover:bg-muted/60 outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            compact && "px-0"
+          )}
+        >
+          {hasIssue ? (
+            <div className="size-6 rounded-md bg-destructive/10 grid place-items-center shrink-0">
+              <AlertTriangle className="size-3 text-destructive" />
+            </div>
+          ) : backlog > 0 ? (
+            <div className="size-6 rounded-md bg-primary/10 grid place-items-center shrink-0">
+              <Loader2 className="size-3 text-primary animate-spin" />
+            </div>
+          ) : (
+            <div className="size-6 rounded-md bg-emerald-500/10 grid place-items-center shrink-0">
+              <CheckCircle2 className="size-3 text-emerald-500" />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] font-semibold leading-none">Jobs</div>
+            <div className="text-[9px] text-muted-foreground truncate mt-0.5">{label}</div>
+          </div>
+        </button>
+      </DialogTrigger>
 
-      {open && failures.length > 0 && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-72 rounded-lg border border-border bg-popover p-2 shadow-md">
-          <p className="mb-1 text-[11px] font-medium text-muted-foreground">Recent failures</p>
-          <ul className="space-y-1">
-            {failures.slice(0, 5).map((f) => (
-              <li key={f.id} className="rounded-md bg-destructive/5 px-2 py-1.5 text-[11px]">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-destructive">{f.type}</span>
-                  <span className="text-muted-foreground">{timeAgo(f.completedAtIso)}</span>
-                </div>
-                {f.lastError && (
-                  <p className="mt-0.5 truncate text-muted-foreground">{f.lastError.slice(0, 80)}</p>
-                )}
-              </li>
-            ))}
-          </ul>
+      <DialogContent className="max-w-lg rounded-xl">
+        <DialogHeader>
+          <DialogTitle className="text-base">System Health</DialogTitle>
+          <DialogDescription className="text-xs">
+            Worker queue status and recent failures
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Card className="rounded-xl p-4 shadow-card">
+            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Backlog</div>
+            <div className="mt-1.5 text-2xl font-bold tabular-nums">{backlog}</div>
+          </Card>
+          <Card className="rounded-xl p-4 shadow-card">
+            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Failed (24h)</div>
+            <div className={cn("mt-1.5 text-2xl font-bold tabular-nums", failed24h > 0 && "text-destructive")}>{failed24h}</div>
+          </Card>
         </div>
-      )}
-    </div>
+
+        {summary?.recentFailures?.length ? (
+          <div className="space-y-2">
+            <div className="text-xs font-semibold">Recent Failures</div>
+            <div className="max-h-[250px] overflow-auto scrollbar-thin space-y-1.5">
+              {summary.recentFailures.slice(0, 8).map((f) => (
+                <Card key={f.id} className="rounded-lg p-3 shadow-card">
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant="secondary" className="rounded-md text-[10px] h-5 px-1.5">{f.type}</Badge>
+                    <span className="text-[9px] text-muted-foreground font-mono truncate max-w-[120px]">{f.id}</span>
+                  </div>
+                  {f.lastError && (
+                    <p className="mt-1.5 text-[11px] text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
+                      {f.lastError}
+                    </p>
+                  )}
+                </Card>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border-2 border-dashed border-muted p-6 text-center">
+            <CheckCircle2 className="size-5 text-emerald-500 mx-auto mb-1.5" />
+            <p className="text-xs text-muted-foreground">No failures recorded</p>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }

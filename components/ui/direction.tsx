@@ -1,6 +1,15 @@
 "use client"
 
-export {
-  DirectionProvider,
-  useDirection,
-} from "@base-ui/react/direction-provider"
+import * as React from "react"
+import * as DirectionPrimitive from "@radix-ui/react-direction"
+
+export function DirectionProvider({
+  dir,
+  children,
+}: {
+  dir: "ltr" | "rtl"
+  children: React.ReactNode
+}) {
+  return <DirectionPrimitive.DirectionProvider dir={dir}>{children}</DirectionPrimitive.DirectionProvider>
+}
+
