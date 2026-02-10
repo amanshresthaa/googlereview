@@ -12,7 +12,9 @@ export async function getAccessTokenForOrg(orgId: string): Promise<TokenResult> 
   const e = env()
   const conn = await prisma.googleConnection.findUnique({ where: { orgId } })
   if (!conn) throw new Error("Google connection not found.")
-  if (conn.status !== "ACTIVE") throw new NonRetryableError("Google connection requires reconnect.")
+  if (conn.status !== "ACTIVE") {
+    throw new NonRetryableError("FORBIDDEN", "Google connection requires reconnect.")
+  }
 
   const now = Date.now()
   const cachedExp = conn.accessTokenExpiresAt?.getTime() ?? 0
@@ -30,9 +32,7 @@ export async function getAccessTokenForOrg(orgId: string): Promise<TokenResult> 
       where: { orgId },
       data: { status: "REAUTH_REQUIRED" },
     })
-    throw new NonRetryableError(
-      "Missing refresh token. Reconnect Google to enable background sync."
-    )
+    throw new NonRetryableError("FORBIDDEN", "Missing refresh token. Reconnect Google to enable background sync.")
   }
 
   const refreshed = await refreshAccessToken(refreshToken)

@@ -1,11 +1,11 @@
-import crypto from "node:crypto"
-import { NextResponse } from "next/server"
 import { z } from "zod"
-import { requireApiSession } from "@/lib/session"
 import { prisma } from "@/lib/db"
 import { enqueueJob } from "@/lib/jobs/queue"
-import { runWorkerOnce } from "@/lib/jobs/worker"
 import { extractMentionsAndHighlights } from "@/lib/reviews/mentions"
+import { handleAuthedPost } from "@/lib/api/handler"
+import { ApiError } from "@/lib/api/errors"
+import { zodFields } from "@/lib/api/validation"
+import { requireRole } from "@/lib/api/authz"
 
 export const runtime = "nodejs"
 
@@ -14,72 +14,132 @@ const bodySchema = z.object({
 })
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const session = await requireApiSession()
-  if (!session) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 })
-
   const { id: reviewId } = await ctx.params
-  const json = await req.json().catch(() => null)
-  const parsed = bodySchema.safeParse(json)
-  if (!parsed.success) {
-    return NextResponse.json({ error: "BAD_REQUEST", details: parsed.error.flatten() }, { status: 400 })
-  }
+  const budgetOverrideRaw = req.headers.get("x-budget-override")
+  const budgetOverrideReason = req.headers.get("x-budget-override-reason")
 
-  const review = await prisma.review.findFirst({
-    where: { id: reviewId, orgId: session.orgId, location: { enabled: true } },
-    include: { currentDraftReply: true, location: true },
-  })
-  if (!review) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 })
-
-  const maxVersion = await prisma.draftReply.aggregate({
-    where: { reviewId: review.id },
-    _max: { version: true },
-  })
-  const nextVersion = (maxVersion._max.version ?? 0) + 1
-  const settings = await prisma.orgSettings.findUnique({ where: { orgId: session.orgId } })
-  const mentionKeywords = settings?.mentionKeywords ?? []
-  const { highlights, mentions } = extractMentionsAndHighlights(review.comment, mentionKeywords)
-  await prisma.review.update({
-    where: { id: review.id },
-    data: { mentions },
-  })
-
-  const evidence = {
-    starRating: review.starRating,
-    comment: review.comment ?? null,
-    reviewerDisplayName: review.reviewerDisplayName ?? null,
-    reviewerIsAnonymous: review.reviewerIsAnonymous,
-    locationDisplayName: review.location.displayName,
-    createTime: review.createTime.toISOString(),
-    highlights,
-    mentionKeywords,
-    tone: {
-      preset: settings?.tonePreset ?? "friendly",
-      customInstructions: settings?.toneCustomInstructions ?? null,
+  return handleAuthedPost(
+    req,
+    {
+      rateLimitScope: "DRAFT_EDIT",
+      idempotency: { required: true, semanticHeaders: ["x-budget-override", "x-budget-override-reason"] },
     },
-  }
+    async ({ session, requestId, body }) => {
+      requireRole(session, ["OWNER", "MANAGER"], "Only OWNER or MANAGER can edit drafts.")
 
-  const created = await prisma.draftReply.create({
-    data: {
-      orgId: session.orgId,
-      reviewId: review.id,
-      version: nextVersion,
-      text: parsed.data.text,
-      origin: "USER_EDITED",
-      status: "NEEDS_APPROVAL",
-      evidenceSnapshotJson: evidence as never,
-    },
-  })
-  await prisma.review.update({
-    where: { id: review.id },
-    data: { currentDraftReplyId: created.id },
-  })
+      const parsed = bodySchema.safeParse(body)
+      if (!parsed.success) {
+        const { details, fields } = zodFields(parsed.error)
+        throw new ApiError({ status: 400, code: "BAD_REQUEST", message: "Invalid request body.", details, fields })
+      }
 
-  const verifyJob = await enqueueJob({
-    orgId: session.orgId,
-    type: "VERIFY_DRAFT",
-    payload: { draftReplyId: created.id },
-  })
-  const run = await runWorkerOnce({ limit: 3, workerId: crypto.randomUUID() })
+      const budgetOverride = budgetOverrideRaw === "true"
+      if (budgetOverride) {
+        requireRole(session, ["OWNER"], "Only OWNER can override AI budget.")
+        if (!budgetOverrideReason) {
+          throw new ApiError({
+            status: 400,
+            code: "BAD_REQUEST",
+            message: "X-Budget-Override-Reason is required when overriding AI budget.",
+            fields: { "x-budget-override-reason": ["Required when x-budget-override=true"] },
+          })
+        }
+      }
 
-  return NextResponse.json({ ok: true, draftReplyId: created.id, verifyJobId: verifyJob.id, worker: run })
+      const review = await prisma.review.findFirst({
+        where: { id: reviewId, orgId: session.orgId, location: { enabled: true } },
+        include: { currentDraftReply: true, location: true },
+      })
+      if (!review) throw new ApiError({ status: 404, code: "NOT_FOUND", message: "Review not found." })
+
+      const maxVersion = await prisma.draftReply.aggregate({
+        where: { reviewId: review.id },
+        _max: { version: true },
+      })
+      const nextVersion = (maxVersion._max.version ?? 0) + 1
+      const settings = await prisma.orgSettings.findUnique({ where: { orgId: session.orgId } })
+      const mentionKeywords = settings?.mentionKeywords ?? []
+      const { highlights, mentions } = extractMentionsAndHighlights(review.comment, mentionKeywords)
+
+      const evidence = {
+        starRating: review.starRating,
+        comment: review.comment ?? null,
+        reviewerDisplayName: review.reviewerDisplayName ?? null,
+        reviewerIsAnonymous: review.reviewerIsAnonymous,
+        locationDisplayName: review.location.displayName,
+        createTime: review.createTime.toISOString(),
+        highlights,
+        mentionKeywords,
+        tone: {
+          preset: settings?.tonePreset ?? "friendly",
+          customInstructions: settings?.toneCustomInstructions ?? null,
+        },
+      }
+
+      const created = await prisma.$transaction(async (tx) => {
+        await tx.review.update({ where: { id: review.id }, data: { mentions } })
+        const draft = await tx.draftReply.create({
+          data: {
+            orgId: session.orgId,
+            reviewId: review.id,
+            version: nextVersion,
+            text: parsed.data.text,
+            origin: "USER_EDITED",
+            status: "NEEDS_APPROVAL",
+            evidenceSnapshotJson: evidence as never,
+          },
+        })
+        await tx.review.update({ where: { id: review.id }, data: { currentDraftReplyId: draft.id } })
+        await tx.auditLog.create({
+          data: {
+            orgId: session.orgId,
+            actorUserId: session.user.id,
+            action: "DRAFT_EDITED",
+            entityType: "Review",
+            entityId: review.id,
+            metadataJson: {
+              draftReplyId: draft.id,
+              version: draft.version,
+              budgetOverride: budgetOverride ? { enabled: true, reason: budgetOverrideReason } : { enabled: false },
+            } as never,
+          },
+        })
+        return draft
+      })
+
+      const verifyJob = await enqueueJob({
+        orgId: session.orgId,
+        type: "VERIFY_DRAFT",
+        payload: {
+          draftReplyId: created.id,
+          budgetOverride: budgetOverride ? { enabled: true, reason: budgetOverrideReason } : { enabled: false },
+        },
+        dedupKey: `draft:${created.id}`,
+        triggeredByRequestId: requestId,
+        triggeredByUserId: session.user.id,
+      })
+
+      await prisma.auditLog.create({
+        data: {
+          orgId: session.orgId,
+          actorUserId: session.user.id,
+          action: "DRAFT_VERIFY_REQUESTED",
+          entityType: "DraftReply",
+          entityId: created.id,
+          metadataJson: {
+            jobId: verifyJob.id,
+            budgetOverride: budgetOverride ? { enabled: true, reason: budgetOverrideReason } : { enabled: false },
+          } as never,
+        },
+      })
+
+      return {
+        body: {
+          draftReplyId: created.id,
+          verifyJobId: verifyJob.id,
+          worker: { claimed: 0, results: [] },
+        },
+      }
+    }
+  )
 }

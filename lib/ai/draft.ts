@@ -36,6 +36,7 @@ const verifierSchema = z.object({
 export async function generateDraftText(input: {
   provider: "OPENAI" | "GEMINI"
   evidence: EvidenceSnapshot
+  signal?: AbortSignal
 }) {
   const e = env()
   const prompt = buildDraftPrompt(input.evidence)
@@ -53,6 +54,7 @@ export async function generateDraftText(input: {
         },
         { role: "user", content: prompt },
       ],
+      signal: input.signal,
     })
     return res.content.trim()
   }
@@ -66,6 +68,7 @@ export async function verifyDraftWithLlm(input: {
   provider: "OPENAI" | "GEMINI"
   evidence: EvidenceSnapshot
   draftText: string
+  signal?: AbortSignal
 }) {
   const e = env()
   const prompt = buildVerifierPrompt(input.evidence, input.draftText)
@@ -84,6 +87,7 @@ export async function verifyDraftWithLlm(input: {
         },
         { role: "user", content: prompt },
       ],
+      signal: input.signal,
     })
     raw = res.content.trim()
   } else {

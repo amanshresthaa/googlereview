@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server"
 import { z } from "zod"
-import { requireApiSession } from "@/lib/session"
 import { prisma } from "@/lib/db"
 import { enqueueJob } from "@/lib/jobs/queue"
-import { runWorkerOnce } from "@/lib/jobs/worker"
-import crypto from "node:crypto"
+import { handleAuthedPost } from "@/lib/api/handler"
+import { ApiError } from "@/lib/api/errors"
+import { zodFields } from "@/lib/api/validation"
+import { requireRole } from "@/lib/api/authz"
 
 export const runtime = "nodejs"
 
@@ -13,48 +13,58 @@ const bodySchema = z.object({
 })
 
 export async function POST(req: Request) {
-  const session = await requireApiSession()
-  if (!session) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 })
+  return handleAuthedPost(
+    req,
+    { rateLimitScope: "LOCATIONS_SELECT", idempotency: { required: true } },
+    async ({ session, requestId, body }) => {
+      requireRole(session, ["OWNER"], "Only OWNER can select locations.")
 
-  const json = await req.json().catch(() => null)
-  const parsed = bodySchema.safeParse(json)
-  if (!parsed.success) {
-    return NextResponse.json({ error: "BAD_REQUEST", details: parsed.error.flatten() }, { status: 400 })
-  }
+      const parsed = bodySchema.safeParse(body)
+      if (!parsed.success) {
+        const { details, fields } = zodFields(parsed.error)
+        throw new ApiError({ status: 400, code: "BAD_REQUEST", message: "Invalid request body.", details, fields })
+      }
 
-  const enabledIds = parsed.data.enabledLocationIds
+      const enabledIds = parsed.data.enabledLocationIds
 
-  await prisma.$transaction(async (tx) => {
-    await tx.location.updateMany({
-      where: { orgId: session.orgId, enabled: true, id: { notIn: enabledIds } },
-      data: { enabled: false },
-    })
+      await prisma.$transaction(async (tx) => {
+        await tx.location.updateMany({
+          where: { orgId: session.orgId, enabled: true, id: { notIn: enabledIds } },
+          data: { enabled: false },
+        })
 
-    await tx.location.updateMany({
-      where: { orgId: session.orgId, id: { in: enabledIds } },
-      data: { enabled: true },
-    })
-  })
+        await tx.location.updateMany({
+          where: { orgId: session.orgId, id: { in: enabledIds } },
+          data: { enabled: true },
+        })
 
-  // Enqueue review sync per enabled location (idempotent-ish).
-  for (const locationId of enabledIds) {
-    const existing = await prisma.job.findFirst({
-      where: {
-        orgId: session.orgId,
-        type: "SYNC_REVIEWS",
-        status: { in: ["PENDING", "RETRYING", "RUNNING"] },
-        payload: { path: ["locationId"], equals: locationId },
-      },
-      select: { id: true },
-    })
-    if (existing) continue
-    await enqueueJob({
-      orgId: session.orgId,
-      type: "SYNC_REVIEWS",
-      payload: { locationId },
-    })
-  }
+        await tx.auditLog.create({
+          data: {
+            orgId: session.orgId,
+            actorUserId: session.user.id,
+            action: "LOCATIONS_SELECTED",
+            entityType: "Organization",
+            entityId: session.orgId,
+            metadataJson: {
+              enabledCount: enabledIds.length,
+              enabledLocationIds: enabledIds.slice(0, 20),
+            } as never,
+          },
+        })
+      })
 
-  const run = await runWorkerOnce({ limit: 5, workerId: crypto.randomUUID() })
-  return NextResponse.json({ ok: true, worker: run })
+      for (const locationId of enabledIds) {
+        await enqueueJob({
+          orgId: session.orgId,
+          type: "SYNC_REVIEWS",
+          payload: { locationId },
+          dedupKey: `loc:${locationId}`,
+          triggeredByRequestId: requestId,
+          triggeredByUserId: session.user.id,
+        })
+      }
+
+      return { body: { worker: { claimed: 0, results: [] } } }
+    }
+  )
 }

@@ -1,28 +1,38 @@
-import { NextResponse } from "next/server"
-import { requireApiSession } from "@/lib/session"
-import { prisma } from "@/lib/db"
 import { enqueueJob } from "@/lib/jobs/queue"
-import { runWorkerOnce } from "@/lib/jobs/worker"
-import crypto from "node:crypto"
+import { handleAuthedPost } from "@/lib/api/handler"
+import { requireRole } from "@/lib/api/authz"
+import { prisma } from "@/lib/db"
 
 export const runtime = "nodejs"
 
-export async function POST() {
-  const session = await requireApiSession()
-  if (!session) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 })
+export async function POST(req: Request) {
+  return handleAuthedPost(
+    req,
+    { rateLimitScope: "GOOGLE_SYNC_LOCATIONS", idempotency: { required: true } },
+    async ({ session, requestId }) => {
+      requireRole(session, ["OWNER"], "Only OWNER can sync locations.")
 
-  const existing = await prisma.job.findFirst({
-    where: {
-      orgId: session.orgId,
-      type: "SYNC_LOCATIONS",
-      status: { in: ["PENDING", "RETRYING", "RUNNING"] },
-    },
-    select: { id: true },
-  })
+      const job = await enqueueJob({
+        orgId: session.orgId,
+        type: "SYNC_LOCATIONS",
+        payload: {},
+        dedupKey: `org:${session.orgId}`,
+        triggeredByRequestId: requestId,
+        triggeredByUserId: session.user.id,
+      })
 
-  const job =
-    existing ??
-    (await enqueueJob({ orgId: session.orgId, type: "SYNC_LOCATIONS", payload: {} }))
-  const run = await runWorkerOnce({ limit: 3, workerId: crypto.randomUUID() })
-  return NextResponse.json({ ok: true, jobId: job.id, worker: run })
+      await prisma.auditLog.create({
+        data: {
+          orgId: session.orgId,
+          actorUserId: session.user.id,
+          action: "SYNC_LOCATIONS_TRIGGERED",
+          entityType: "Organization",
+          entityId: session.orgId,
+          metadataJson: { jobId: job.id } as never,
+        },
+      })
+
+      return { body: { jobId: job.id, worker: { claimed: 0, results: [] } } }
+    }
+  )
 }

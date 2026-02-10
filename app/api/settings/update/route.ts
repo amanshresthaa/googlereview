@@ -1,7 +1,9 @@
-import { NextResponse } from "next/server"
 import { z } from "zod"
-import { requireApiSession } from "@/lib/session"
 import { prisma } from "@/lib/db"
+import { handleAuthedPost } from "@/lib/api/handler"
+import { ApiError } from "@/lib/api/errors"
+import { zodFields } from "@/lib/api/validation"
+import { requireRole } from "@/lib/api/authz"
 
 export const runtime = "nodejs"
 
@@ -18,44 +20,62 @@ const bodySchema = z
   .strict()
 
 export async function POST(req: Request) {
-  const session = await requireApiSession()
-  if (!session) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 })
+  return handleAuthedPost(
+    req,
+    { rateLimitScope: "SETTINGS_UPDATE", idempotency: { required: true } },
+    async ({ session, body }) => {
+      requireRole(session, ["OWNER"], "Only OWNER can update settings.")
 
-  const json = await req.json().catch(() => null)
-  const parsed = bodySchema.safeParse(json)
-  if (!parsed.success) {
-    return NextResponse.json({ error: "BAD_REQUEST", details: parsed.error.flatten() }, { status: 400 })
-  }
+      const parsed = bodySchema.safeParse(body)
+      if (!parsed.success) {
+        const { details, fields } = zodFields(parsed.error)
+        throw new ApiError({ status: 400, code: "BAD_REQUEST", message: "Invalid request body.", details, fields })
+      }
 
-  const data = parsed.data
-  await prisma.orgSettings.upsert({
-    where: { orgId: session.orgId },
-    update: {
-      tonePreset: data.tonePreset ?? undefined,
-      toneCustomInstructions:
-        data.toneCustomInstructions === undefined ? undefined : data.toneCustomInstructions,
-      autoDraftEnabled: data.autoDraftEnabled ?? undefined,
-      autoDraftForRatings: data.autoDraftForRatings ?? undefined,
-      bulkApproveEnabledForFiveStar: data.bulkApproveEnabledForFiveStar ?? undefined,
-      aiProvider: data.aiProvider ?? undefined,
-      mentionKeywords: data.mentionKeywords
-        ? data.mentionKeywords.map((k) => k.trim().toLowerCase()).filter(Boolean)
-        : undefined,
-    },
-    create: {
-      orgId: session.orgId,
-      tonePreset: data.tonePreset ?? "friendly",
-      toneCustomInstructions: data.toneCustomInstructions ?? null,
-      autoDraftEnabled: data.autoDraftEnabled ?? true,
-      autoDraftForRatings: data.autoDraftForRatings ?? [1, 2, 3, 4, 5],
-      bulkApproveEnabledForFiveStar: data.bulkApproveEnabledForFiveStar ?? true,
-      aiProvider: data.aiProvider ?? "OPENAI",
-      mentionKeywords: data.mentionKeywords
-        ? data.mentionKeywords.map((k) => k.trim().toLowerCase()).filter(Boolean)
-        : ["cold", "wait", "rude", "dirty", "booking", "wrong order"],
-    },
-  })
+      const data = parsed.data
+      const mentionKeywords =
+        data.mentionKeywords?.map((k) => k.trim().toLowerCase()).filter(Boolean) ?? undefined
 
-  return NextResponse.json({ ok: true })
+      await prisma.$transaction(async (tx) => {
+        await tx.orgSettings.upsert({
+          where: { orgId: session.orgId },
+          update: {
+            tonePreset: data.tonePreset ?? undefined,
+            toneCustomInstructions:
+              data.toneCustomInstructions === undefined ? undefined : data.toneCustomInstructions,
+            autoDraftEnabled: data.autoDraftEnabled ?? undefined,
+            autoDraftForRatings: data.autoDraftForRatings ?? undefined,
+            bulkApproveEnabledForFiveStar: data.bulkApproveEnabledForFiveStar ?? undefined,
+            aiProvider: data.aiProvider ?? undefined,
+            mentionKeywords,
+          },
+          create: {
+            orgId: session.orgId,
+            tonePreset: data.tonePreset ?? "friendly",
+            toneCustomInstructions: data.toneCustomInstructions ?? null,
+            autoDraftEnabled: data.autoDraftEnabled ?? true,
+            autoDraftForRatings: data.autoDraftForRatings ?? [1, 2, 3, 4, 5],
+            bulkApproveEnabledForFiveStar: data.bulkApproveEnabledForFiveStar ?? true,
+            aiProvider: data.aiProvider ?? "OPENAI",
+            mentionKeywords: mentionKeywords ?? ["cold", "wait", "rude", "dirty", "booking", "wrong order"],
+          },
+        })
+
+        await tx.auditLog.create({
+          data: {
+            orgId: session.orgId,
+            actorUserId: session.user.id,
+            action: "SETTINGS_UPDATED",
+            entityType: "OrgSettings",
+            entityId: session.orgId,
+            metadataJson: {
+              keys: Object.keys(data).sort(),
+            } as never,
+          },
+        })
+      })
+
+      return { body: {} }
+    }
+  )
 }
-
