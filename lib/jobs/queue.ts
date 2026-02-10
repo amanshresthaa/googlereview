@@ -1,22 +1,58 @@
 import { prisma } from "@/lib/db"
 import { computeBackoffMs } from "@/lib/jobs/backoff"
+import { Prisma } from "@prisma/client"
 import type { Job, JobStatus, JobType } from "@prisma/client"
+import { NonRetryableError, RetryableJobError } from "@/lib/jobs/errors"
+import { stableJsonStringify } from "@/lib/api/json"
+
+function maxAttemptsForType(type: JobType) {
+  if (type === "POST_REPLY") return 3
+  if (type === "VERIFY_DRAFT") return 5
+  if (type === "GENERATE_DRAFT") return 5
+  if (type === "SYNC_LOCATIONS" || type === "SYNC_REVIEWS") return 8
+  return 10
+}
 
 export async function enqueueJob(input: {
   orgId: string
   type: JobType
   payload: unknown
   runAt?: Date
+  dedupKey?: string
+  triggeredByRequestId?: string
+  triggeredByUserId?: string
 }) {
-  return prisma.job.create({
-    data: {
-      orgId: input.orgId,
-      type: input.type,
-      payload: input.payload as never,
-      runAt: input.runAt ?? new Date(),
-      status: "PENDING",
-    },
-  })
+  try {
+    return await prisma.job.create({
+      data: {
+        orgId: input.orgId,
+        type: input.type,
+        payload: input.payload as never,
+        dedupKey: input.dedupKey,
+        triggeredByRequestId: input.triggeredByRequestId,
+        triggeredByUserId: input.triggeredByUserId,
+        runAt: input.runAt ?? new Date(),
+        status: "PENDING",
+        maxAttempts: maxAttemptsForType(input.type),
+      },
+    })
+  } catch (err) {
+    // In-flight de-duplication (DB-enforced via partial unique index).
+    // If a job already exists, return the existing job rather than failing.
+    const e = err as { code?: string }
+    if (input.dedupKey && e?.code === "P2002") {
+      const existing = await prisma.job.findFirst({
+        where: {
+          orgId: input.orgId,
+          type: input.type,
+          dedupKey: input.dedupKey,
+          status: { in: ["PENDING", "RUNNING", "RETRYING"] },
+        },
+      })
+      if (existing) return existing
+    }
+    throw err
+  }
 }
 
 export async function claimJobs(input: {
@@ -70,11 +106,14 @@ export async function completeJob(id: string) {
       lockedAt: null,
       lockedBy: null,
       lastError: null,
+      lastErrorCode: null,
+      lastErrorMetaJson: Prisma.DbNull,
     },
   })
 }
 
 export async function markJobFailed(id: string, error: unknown) {
+  const normalized = normalizeJobError(error)
   return prisma.job.update({
     where: { id },
     data: {
@@ -82,7 +121,9 @@ export async function markJobFailed(id: string, error: unknown) {
       completedAt: new Date(),
       lockedAt: null,
       lockedBy: null,
-      lastError: stringifyError(error),
+      lastError: normalized.lastError,
+      lastErrorCode: normalized.code,
+      lastErrorMetaJson: normalized.meta ? (normalized.meta as Prisma.InputJsonValue) : Prisma.DbNull,
     },
   })
 }
@@ -90,6 +131,7 @@ export async function markJobFailed(id: string, error: unknown) {
 export async function retryJob(id: string, attempts: number, maxAttempts: number, error: unknown) {
   const nextMs = computeBackoffMs(attempts)
   const nextRunAt = new Date(Date.now() + nextMs)
+  const normalized = normalizeJobError(error)
 
   const nextStatus: JobStatus = attempts + 1 >= maxAttempts ? "FAILED" : "RETRYING"
   return prisma.job.update({
@@ -101,16 +143,35 @@ export async function retryJob(id: string, attempts: number, maxAttempts: number
       completedAt: nextStatus === "FAILED" ? new Date() : null,
       lockedAt: null,
       lockedBy: null,
-      lastError: stringifyError(error),
+      lastError: normalized.lastError,
+      lastErrorCode: normalized.code,
+      lastErrorMetaJson: normalized.meta ? (normalized.meta as Prisma.InputJsonValue) : Prisma.DbNull,
     },
   })
 }
 
 export function stringifyError(err: unknown) {
-  if (err instanceof Error) {
-    const msg = `${err.name}: ${err.message}`
-    return msg.length > 2000 ? msg.slice(0, 2000) : msg
+  // Back-compat: prefer a stable non-PII string.
+  return normalizeJobError(err).lastError ?? "INTERNAL"
+}
+
+function normalizeJobError(err: unknown): { code: string; lastError: string | null; meta: Record<string, unknown> | null } {
+  if (err instanceof NonRetryableError || err instanceof RetryableJobError) {
+    return { code: err.code, lastError: safeErrorString(err.code, err.meta), meta: safeErrorMeta(err.meta) }
   }
-  const msg = String(err)
-  return msg.length > 2000 ? msg.slice(0, 2000) : msg
+  // Never persist raw upstream messages (may contain PII).
+  return { code: "INTERNAL", lastError: "INTERNAL", meta: null }
+}
+
+function safeErrorString(code: string, meta?: Record<string, unknown>) {
+  if (!meta) return code
+  const text = stableJsonStringify({ code, meta })
+  return text.length > 2000 ? text.slice(0, 2000) : text
+}
+
+function safeErrorMeta(meta?: Record<string, unknown>) {
+  if (!meta) return null
+  const text = stableJsonStringify(meta)
+  if (text.length > 4000) return { truncated: true }
+  return meta
 }

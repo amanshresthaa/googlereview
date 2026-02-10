@@ -18,25 +18,14 @@ export async function scheduleReviewSyncJobs(input: {
 
   let scheduled = 0
   for (const loc of locations) {
-    const existing = await prisma.job.findFirst({
-      where: {
-        orgId: loc.orgId,
-        type: "SYNC_REVIEWS",
-        status: { in: ["PENDING", "RETRYING", "RUNNING"] },
-        payload: { path: ["locationId"], equals: loc.id },
-      },
-      select: { id: true },
-    })
-    if (existing) continue
-
     await enqueueJob({
       orgId: loc.orgId,
       type: "SYNC_REVIEWS",
       payload: { locationId: loc.id },
+      dedupKey: `loc:${loc.id}`,
     })
     scheduled += 1
   }
 
   return { scheduled, examined: locations.length }
 }
-
