@@ -36,16 +36,26 @@ const verifierSchema = z.object({
 export async function generateDraftText(input: {
   provider: "OPENAI" | "GEMINI"
   evidence: EvidenceSnapshot
+  previousDraftText?: string
+  regenerationAttempt?: number
   signal?: AbortSignal
 }) {
   const e = env()
-  const prompt = buildDraftPrompt(input.evidence)
+  const prompt = buildDraftPrompt(input.evidence, {
+    previousDraftText: input.previousDraftText,
+    regenerationAttempt: input.regenerationAttempt,
+  })
+  const regenerationAttempt = Math.max(1, input.regenerationAttempt ?? 1)
+  const isRegeneration = Boolean(input.previousDraftText?.trim())
+  const generationTemperature = isRegeneration
+    ? Math.min(0.9, 0.55 + (regenerationAttempt - 1) * 0.15)
+    : 0.3
 
   if (input.provider === "OPENAI") {
     const model = e.OPENAI_MODEL_DRAFT ?? "gpt-4o-mini"
     const res = await openAiChatJson({
       model,
-      temperature: 0.3,
+      temperature: generationTemperature,
       messages: [
         {
           role: "system",
@@ -60,7 +70,7 @@ export async function generateDraftText(input: {
   }
 
   const model = e.GEMINI_MODEL ?? "gemini-2.0-flash"
-  const res = await geminiGenerateText({ model, prompt })
+  const res = await geminiGenerateText({ model, prompt, temperature: generationTemperature })
   return res.text.trim()
 }
 
@@ -107,11 +117,41 @@ export async function verifyDraftWithLlm(input: {
   }
 }
 
-function buildDraftPrompt(evidence: EvidenceSnapshot) {
+export function areDraftTextsEquivalent(previousDraftText: string, nextDraftText: string) {
+  return normalizeDraftForComparison(previousDraftText) === normalizeDraftForComparison(nextDraftText)
+}
+
+function normalizeDraftForComparison(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+function buildDraftPrompt(
+  evidence: EvidenceSnapshot,
+  options?: { previousDraftText?: string; regenerationAttempt?: number },
+) {
+  const previousDraftText = options?.previousDraftText?.trim() ?? ""
+  const isRegeneration = previousDraftText.length > 0
   return [
     "Evidence (JSON):",
     JSON.stringify(evidence),
     "",
+    ...(isRegeneration
+      ? [
+          "Previous draft to avoid repeating (TEXT):",
+          previousDraftText,
+          "",
+          "Regeneration requirements:",
+          `- This is regeneration attempt #${Math.max(1, options?.regenerationAttempt ?? 1)}.`,
+          "- Write a materially different response from the previous draft.",
+          "- Use a different opening phrase and sentence structure.",
+          "- Do not reuse full sentences from the previous draft.",
+          "",
+        ]
+      : []),
     "Task:",
     "Write a reply that:",
     "1) Thanks the guest.",

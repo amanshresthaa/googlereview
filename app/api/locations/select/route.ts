@@ -1,10 +1,12 @@
 import { z } from "zod"
+import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import { enqueueJob } from "@/lib/jobs/queue"
 import { handleAuthedPost } from "@/lib/api/handler"
 import { ApiError } from "@/lib/api/errors"
 import { zodFields } from "@/lib/api/validation"
 import { requireRole } from "@/lib/api/authz"
+import { sidebarCacheTag } from "@/lib/sidebar-data"
 
 export const runtime = "nodejs"
 
@@ -63,6 +65,8 @@ export async function POST(req: Request) {
           triggeredByUserId: session.user.id,
         })
       }
+
+      revalidateTag(sidebarCacheTag(session.orgId), "max")
 
       return { body: { worker: { claimed: 0, results: [] } } }
     }

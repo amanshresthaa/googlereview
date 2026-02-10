@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
+import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
 import {
   Sparkles,
   RefreshCw,
@@ -47,9 +48,17 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
   const verifierIssues = verifierJson?.issues ?? []
 
   const apiCall = async (url: string, method: string, body?: unknown) => {
+    const normalizedMethod = method.toUpperCase()
+    const requiresIdempotency =
+      normalizedMethod === "POST" ||
+      normalizedMethod === "PUT" ||
+      normalizedMethod === "PATCH" ||
+      normalizedMethod === "DELETE"
+    const baseHeaders = body ? { "content-type": "application/json" } : undefined
+    const headers = requiresIdempotency ? withIdempotencyHeader(baseHeaders) : baseHeaders
     const res = await fetch(url, {
-      method,
-      headers: body ? { "content-type": "application/json" } : undefined,
+      method: normalizedMethod,
+      headers,
       body: body ? JSON.stringify(body) : undefined,
     })
     if (res.status === 401) { window.location.href = "/signin"; return null }

@@ -15,7 +15,7 @@ import {
 } from "@/lib/google/gbp"
 import { extractMentionsAndHighlights } from "@/lib/reviews/mentions"
 import { enqueueJob } from "@/lib/jobs/queue"
-import { evidenceSnapshotSchema, generateDraftText, verifyDraftWithLlm } from "@/lib/ai/draft"
+import { areDraftTextsEquivalent, evidenceSnapshotSchema, generateDraftText, verifyDraftWithLlm } from "@/lib/ai/draft"
 import { runDeterministicVerifier } from "@/lib/verifier/deterministic"
 import { MAX_GOOGLE_REPLY_CHARS } from "@/lib/policy"
 import { NonRetryableError, RetryableJobError } from "@/lib/jobs/errors"
@@ -54,6 +54,7 @@ const syncReviewsPayloadSchema = z.object({ locationId: z.string().min(1) }).pas
 const generateDraftPayloadSchema = z
   .object({
     reviewId: z.string().min(1),
+    requestedBy: z.enum(["AUTO", "MANUAL"]).optional(),
     budgetOverride: z
       .object({
         enabled: z.boolean(),
@@ -224,7 +225,7 @@ async function handleSyncReviews(job: Job) {
         await enqueueJob({
           orgId: job.orgId,
           type: "GENERATE_DRAFT",
-          payload: { reviewId: upserted.id },
+          payload: { reviewId: upserted.id, requestedBy: "AUTO" },
           dedupKey: `review:${upserted.id}`,
         })
       }
@@ -245,11 +246,15 @@ async function handleGenerateDraft(job: Job, signal?: AbortSignal) {
 
   const review = await prisma.review.findFirst({
     where: { id: payload.reviewId, orgId: job.orgId },
-    include: { location: true },
+    include: { location: true, currentDraftReply: { select: { id: true, text: true } } },
   })
   if (!review) return
 
-  await enforceCooldownOrThrow({ orgId: job.orgId, scope: "GENERATE_DRAFT", key: review.id })
+  const requestedBy = payload.requestedBy ?? "AUTO"
+  const shouldEnforceCooldown = requestedBy !== "MANUAL"
+  if (shouldEnforceCooldown) {
+    await enforceCooldownOrThrow({ orgId: job.orgId, scope: "GENERATE_DRAFT", key: review.id })
+  }
   await consumeDailyBudgetOrThrow({
     orgId: job.orgId,
     scope: "AI",
@@ -287,12 +292,22 @@ async function handleGenerateDraft(job: Job, signal?: AbortSignal) {
   }
 
   let draftText = ""
+  const previousDraftText = review.currentDraftReply?.text?.trim() ?? null
+  const maxGenerationAttempts = previousDraftText ? 3 : 1
   try {
-    draftText = await generateDraftText({
-      provider,
-      evidence,
-      signal,
-    })
+    for (let attempt = 1; attempt <= maxGenerationAttempts; attempt += 1) {
+      draftText = await generateDraftText({
+        provider,
+        evidence,
+        previousDraftText: previousDraftText ?? undefined,
+        regenerationAttempt: attempt,
+        signal,
+      })
+
+      if (!previousDraftText || !areDraftTextsEquivalent(previousDraftText, draftText)) {
+        break
+      }
+    }
     await breakerRecordSuccess({ orgId: job.orgId, upstreamKey })
   } catch (err) {
     await breakerRecordFailure({ orgId: job.orgId, upstreamKey })
@@ -311,7 +326,7 @@ async function handleGenerateDraft(job: Job, signal?: AbortSignal) {
       reviewId: review.id,
       version: nextVersion,
       text: draftText,
-      origin: "AUTO",
+      origin: previousDraftText ? "REGENERATED" : "AUTO",
       status: "NEEDS_APPROVAL",
       evidenceSnapshotJson: evidence as never,
     },
@@ -329,7 +344,9 @@ async function handleGenerateDraft(job: Job, signal?: AbortSignal) {
     dedupKey: `draft:${created.id}`,
   })
 
-  await setCooldownAfterSuccess({ orgId: job.orgId, scope: "GENERATE_DRAFT", key: review.id })
+  if (shouldEnforceCooldown) {
+    await setCooldownAfterSuccess({ orgId: job.orgId, scope: "GENERATE_DRAFT", key: review.id })
+  }
 }
 
 async function handleVerifyDraft(job: Job, signal?: AbortSignal) {

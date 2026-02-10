@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { RefreshCw, Search, MapPin, Loader2, LayoutDashboard, CheckCircle2 } from "@/components/icons"
+import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
 import { cn } from "@/lib/utils"
 
 type LocationRow = {
@@ -78,7 +79,7 @@ export function LocationSelectorClient({
     try {
       const res = await fetch("/api/google/sync-locations", {
         method: "POST",
-        headers: { "Idempotency-Key": globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}` },
+        headers: withIdempotencyHeader(),
       })
       if (res.status === 401) {
         router.replace("/signin")
@@ -100,10 +101,7 @@ export function LocationSelectorClient({
     try {
       const res = await fetch("/api/locations/select", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "Idempotency-Key": globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
-        },
+        headers: withIdempotencyHeader({ "content-type": "application/json" }),
         body: JSON.stringify({ enabledLocationIds: Array.from(selected) }),
       })
       if (res.status === 401) {
@@ -114,7 +112,7 @@ export function LocationSelectorClient({
       if (!res.ok) throw new Error(data?.error ?? res.statusText)
       toast.success("Saved", { description: data?.worker?.claimed ? `Worker claimed ${data.worker.claimed}` : undefined })
       router.refresh()
-      if (mode === "onboarding") router.push("/performance")
+      if (mode === "onboarding") router.push("/inbox")
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e))
     } finally {

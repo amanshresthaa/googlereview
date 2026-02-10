@@ -22,6 +22,18 @@ export async function enqueueJob(input: {
   triggeredByRequestId?: string
   triggeredByUserId?: string
 }) {
+  if (input.dedupKey) {
+    const existing = await prisma.job.findFirst({
+      where: {
+        orgId: input.orgId,
+        type: input.type,
+        dedupKey: input.dedupKey,
+        status: { in: ["PENDING", "RUNNING", "RETRYING"] },
+      },
+    })
+    if (existing) return existing
+  }
+
   try {
     return await prisma.job.create({
       data: {
@@ -38,7 +50,7 @@ export async function enqueueJob(input: {
     })
   } catch (err) {
     // In-flight de-duplication (DB-enforced via partial unique index).
-    // If a job already exists, return the existing job rather than failing.
+    // If a job raced into existence after pre-check, return it.
     const e = err as { code?: string }
     if (input.dedupKey && e?.code === "P2002") {
       const existing = await prisma.job.findFirst({

@@ -1,28 +1,31 @@
 import { redirect } from "next/navigation"
 import { getSession } from "@/lib/session"
-import { prisma } from "@/lib/db"
 import { UsersClient } from "@/app/(app)/users/users-client"
+import { getUsersSidebarData } from "@/lib/sidebar-data"
 
 export default async function UsersPage() {
   const session = await getSession()
   if (!session?.user?.id || !session.orgId) redirect("/signin")
 
-  const memberships = await prisma.membership.findMany({
-    where: { orgId: session.orgId },
-    include: { user: true },
-    orderBy: { createdAt: "asc" },
-  })
+  const { memberships, invites } = await getUsersSidebarData(session.orgId)
 
   return (
     <UsersClient
-      rows={memberships.map((m) => ({
+      members={memberships.map((m) => ({
         userId: m.userId,
         email: m.user.email,
-        name: m.user.name ?? null,
+        name: m.user.name,
         role: m.role,
         createdAtIso: m.createdAt.toISOString(),
       }))}
+      invites={invites.map((i) => ({
+        inviteId: i.id,
+        email: i.email,
+        role: i.role,
+        expiresAtIso: i.expiresAt.toISOString(),
+        createdAtIso: i.createdAt.toISOString(),
+      }))}
+      canManage={session.role === "OWNER"}
     />
   )
 }
-

@@ -3,42 +3,21 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useTheme } from "next-themes"
 import { signOut } from "next-auth/react"
-import { motion, AnimatePresence } from "framer-motion"
-import { SearchProvider, useGlobalSearch } from "@/components/search-context"
-import { JobHealthWidget } from "@/components/JobHealthWidget"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import { SearchProvider } from "@/components/search-context"
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Bell,
-  LogOut,
-  MessageSquare,
-  MapPin,
-  Settings,
-  TrendingUp,
-  Users,
-  Moon,
-  Sun,
-  Laptop,
-  Search,
+  ChevronDown,
+  Globe,
   LayoutDashboard,
-  X,
+  MessageSquare,
+  Settings,
+  Sparkles,
+  Users,
+  BarChart,
 } from "@/components/icons"
 
 type UserShape = {
@@ -51,379 +30,65 @@ type UserShape = {
 type NavItem = {
   href: string
   label: string
+  mobileLabel: string
   Icon: React.ElementType
-  badge?: number
 }
 
-/* ─── Unanswered review count polling ─── */
+function isNavItemActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
 function useUnansweredCountPolling() {
-  const [count, setCount] = React.useState<number | null>(null)
+  const [count, setCount] = React.useState<number>(0)
+  const pathname = usePathname()
+  const pollEnabled = pathname.startsWith("/inbox")
 
   React.useEffect(() => {
+    if (!pollEnabled) return
+
     let mounted = true
     let timer: ReturnType<typeof setInterval> | null = null
 
     const run = async () => {
       try {
-        const res = await fetch("/api/reviews?filter=unanswered&limit=1")
-        if (!mounted) return
-        if (res.status === 401) { setCount(null); return }
-        if (!res.ok) return
+        const res = await fetch("/api/reviews/unanswered-count")
+        if (!mounted || !res.ok) return
         const data = await res.json()
-        const next = Number(data?.counts?.unanswered)
+        const next = Number(data?.count)
         if (Number.isFinite(next)) setCount(next)
-      } catch { /* ignore */ }
+      } catch {
+        // ignore polling failures
+      }
     }
 
     void run()
     timer = setInterval(run, 20_000)
-    return () => { mounted = false; if (timer) clearInterval(timer) }
-  }, [])
+    return () => {
+      mounted = false
+      if (timer) clearInterval(timer)
+    }
+  }, [pollEnabled])
 
   return count
 }
 
-/* ─── Helpers ─── */
+function viewLabelForPath(pathname: string) {
+  if (pathname.startsWith("/inbox") || pathname.startsWith("/reviews/")) return "Inbox"
+  if (pathname.startsWith("/performance")) return "Insights"
+  if (pathname.startsWith("/locations")) return "Locations"
+  if (pathname.startsWith("/users")) return "Team"
+  if (pathname.startsWith("/settings")) return "Settings"
+  return "Inbox"
+}
+
 function initials(name: string | null | undefined) {
   if (!name) return "U"
   const parts = name.trim().split(/\s+/)
-  const a = parts[0]?.[0] ?? "?"
-  const b = parts.length > 1 ? parts[parts.length - 1]?.[0] : ""
-  return (a + b).toUpperCase()
+  const a = parts[0]?.[0] ?? "U"
+  const b = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : ""
+  return `${a}${b}`.toUpperCase()
 }
 
-/* ─── Theme Menu ─── */
-function ThemeMenuItems() {
-  const { theme, setTheme } = useTheme()
-  const current = theme ?? "system"
-
-  const items = [
-    { value: "light", label: "Light", icon: Sun },
-    { value: "dark", label: "Dark", icon: Moon },
-    { value: "system", label: "System", icon: Laptop },
-  ] as const
-
-  return (
-    <>
-      <DropdownMenuLabel className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Theme</DropdownMenuLabel>
-      {items.map(({ value, label, icon: Icon }) => (
-        <DropdownMenuItem key={value} onClick={() => setTheme(value)} className="gap-2.5 px-3">
-          <Icon className="size-4" />
-          <span className="flex-1">{label}</span>
-          {current === value && (
-            <span className="size-1.5 rounded-full bg-primary" />
-          )}
-        </DropdownMenuItem>
-      ))}
-    </>
-  )
-}
-
-/* ─── Mobile Top Bar ─── */
-function MobileTopBar({ user }: { user: UserShape }) {
-  const [searchOpen, setSearchOpen] = React.useState(false)
-  const { query, setQuery } = useGlobalSearch()
-
-  return (
-    <header className="lg:hidden sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border">
-      <div className="flex items-center h-16 px-4 gap-2">
-        {/* Logo */}
-        <Link href="/inbox" className="flex items-center gap-3 shrink-0">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-elevated">
-            <MapPin className="size-5" />
-          </div>
-          <div className="text-base font-bold text-foreground tracking-tight">Reviews</div>
-        </Link>
-
-        <div className="flex-1" />
-
-        {/* Search toggle */}
-        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-muted-foreground" onClick={() => setSearchOpen(v => !v)}>
-          {searchOpen ? <X className="size-5" /> : <Search className="size-5" />}
-        </Button>
-
-        {/* Notifications */}
-        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl relative hidden md:flex text-muted-foreground">
-          <Bell className="size-5" />
-          <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-background" />
-        </Button>
-
-        {/* User menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button type="button" className="outline-none rounded-xl focus-visible:ring-2 focus-visible:ring-ring/30">
-              <div className="h-10 w-10 rounded-xl bg-muted text-muted-foreground flex items-center justify-center text-sm font-bold ring-1 ring-border/60">
-                {initials(user.name)}
-              </div>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 rounded-xl">
-            <DropdownMenuLabel>
-              <div className="space-y-0.5">
-                <div className="text-sm font-bold truncate text-foreground">{user.name ?? "User"}</div>
-                <div className="text-xs text-muted-foreground truncate">{user.email}</div>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <ThemeMenuItems />
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/signin" })} className="gap-2.5 text-destructive focus:text-destructive">
-              <LogOut className="size-4" /> Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Mobile search bar */}
-      <AnimatePresence>
-        {searchOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden border-t border-border"
-          >
-            <div className="flex items-center gap-3 px-4 py-3">
-              <div className="flex-1 flex items-center gap-3 rounded-2xl bg-muted px-4 py-2.5 focus-within:bg-card focus-within:ring-2 focus-within:ring-ring/30 focus-within:shadow-sm transition-all border border-transparent focus-within:border-ring/40">
-                <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <Input
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  placeholder="Search places, reviews..."
-                  className="h-6 border-0 bg-transparent px-0 focus-visible:ring-0 text-sm placeholder:text-muted-foreground"
-                  autoFocus
-                />
-                {query && (
-                  <Button variant="ghost" size="icon" onClick={() => setQuery("")} className="h-5 w-5 rounded-full flex-shrink-0 hover:bg-accent">
-                    <X className="h-3 w-3 text-muted-foreground" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </header>
-  )
-}
-
-/* ─── Desktop Navigation Rail ─── */
-function DesktopNavRail({
-  items,
-  unanswered,
-  user,
-}: {
-  items: NavItem[]
-  unanswered: number | null
-  user: UserShape
-}) {
-  const pathname = usePathname()
-  const { query, setQuery } = useGlobalSearch()
-
-  return (
-    <>
-      {/* Rail */}
-      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-[80px] border-r border-border bg-background/80 backdrop-blur-sm z-40">
-        <div className="flex flex-col items-center w-full py-8 gap-6">
-          {/* Logo */}
-          <Link
-            href="/inbox"
-            className="h-12 w-12 bg-primary text-primary-foreground rounded-2xl flex items-center justify-center shadow-elevated mb-4"
-            aria-label="Home"
-          >
-            <MapPin className="size-6" />
-          </Link>
-
-          {/* Nav items */}
-          <nav className="flex flex-col gap-4 w-full px-3">
-            {items.map((it) => {
-              const active = pathname === it.href || (it.href !== "/performance" && pathname.startsWith(it.href))
-              const badge = it.href === "/inbox" && typeof unanswered === "number" ? unanswered : it.badge
-
-              return (
-                <Tooltip key={it.href} delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <Link
-                      href={it.href}
-                      aria-label={it.label}
-                      className={cn(
-                        "h-12 w-12 rounded-2xl flex items-center justify-center transition-all mx-auto relative group outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
-                        active
-                          ? "bg-card text-primary shadow-card ring-1 ring-border"
-                          : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
-                      )}
-                    >
-                      <it.Icon className="size-5" />
-
-                      {/* Badge */}
-                      {typeof badge === "number" && badge > 0 && (
-                        <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold grid place-items-center ring-2 ring-background">
-                          {badge > 99 ? "99+" : badge}
-                        </span>
-                      )}
-
-                      {/* Active indicator */}
-                      {active && (
-                        <motion.div
-                          layoutId="nav-indicator"
-                          className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-primary rounded-r-full -ml-4"
-                          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                        />
-                      )}
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="font-medium text-xs bg-foreground text-background border-border">
-                    {it.label}
-                  </TooltipContent>
-                </Tooltip>
-              )
-            })}
-          </nav>
-
-          {/* Bottom section */}
-          <div className="mt-auto flex flex-col gap-4 items-center">
-            {/* Job Health */}
-            <div className="w-14 rounded-xl bg-muted/60 p-1.5">
-              <JobHealthWidget compact />
-            </div>
-
-            {/* Notifications */}
-            <Tooltip delayDuration={0}>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-xl relative text-muted-foreground hover:text-foreground hover:bg-card/60"
-                  aria-label="Notifications"
-                >
-                  <Bell className="size-4" />
-                  <span className="absolute top-2 right-2 size-1.5 rounded-full bg-rose-500 ring-2 ring-background" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="text-xs font-medium bg-foreground text-background border-border">
-                Notifications
-              </TooltipContent>
-            </Tooltip>
-
-            {/* User menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="outline-none focus-visible:ring-2 focus-visible:ring-ring/30 rounded-full"
-                  aria-label="User menu"
-                >
-                  <div className="h-10 w-10 rounded-full bg-muted ring-2 ring-background flex items-center justify-center text-sm font-bold text-muted-foreground shadow-sm cursor-pointer hover:ring-border transition-all">
-                    {initials(user.name)}
-                  </div>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="right" align="end" className="w-56 rounded-xl">
-                <DropdownMenuLabel>
-                  <div className="space-y-0.5">
-                    <div className="text-sm font-bold truncate text-foreground">{user.name ?? "User"}</div>
-                    <div className="text-xs text-muted-foreground truncate">{user.email}</div>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <ThemeMenuItems />
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/settings" className="gap-2.5">
-                    <Settings className="size-4" /> Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="gap-2.5 text-destructive focus:text-destructive"
-                  onSelect={(e) => {
-                    e.preventDefault()
-                    signOut({ callbackUrl: "/signin" })
-                  }}
-                >
-                  <LogOut className="size-4" /> Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </aside>
-
-      {/* Desktop floating search bar */}
-      <div className="hidden lg:flex fixed top-4 left-[96px] right-8 z-30 justify-center pointer-events-none">
-        <div className="w-full max-w-lg pointer-events-auto">
-          <div className="flex items-center gap-3 rounded-2xl bg-card/95 backdrop-blur-xl px-4 py-2.5 shadow-elevated ring-1 ring-border/60 focus-within:ring-ring/30 focus-within:shadow-floating transition-all">
-            <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search reviews, locations…"
-              aria-label="Search"
-              className="h-6 border-0 bg-transparent px-0 focus-visible:ring-0 text-sm placeholder:text-muted-foreground"
-            />
-            {query && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setQuery("")}
-                className="h-5 w-5 rounded-full flex-shrink-0 hover:bg-accent"
-              >
-                <X className="h-3 w-3 text-muted-foreground" />
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    </>
-  )
-}
-
-/* ─── Bottom Navigation (Mobile) ─── */
-function BottomNavigation({ items, unanswered }: { items: NavItem[]; unanswered: number | null }) {
-  const pathname = usePathname()
-
-  return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/90 backdrop-blur-lg border-t border-border safe-area-bottom">
-      <div className="grid grid-cols-5 h-[65px]">
-        {items.map((item) => {
-          const active = pathname === item.href || (item.href !== "/performance" && pathname.startsWith(item.href))
-          const badge = item.href === "/inbox" && typeof unanswered === "number" ? unanswered : null
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex flex-col items-center justify-center gap-1 transition-all min-h-[44px] relative",
-                active ? "text-primary" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <div className={cn("p-1 rounded-xl transition-all", active && "bg-primary/10")}>
-                <item.Icon className={cn("h-6 w-6 transition-all")} />
-                {typeof badge === "number" && badge > 0 && (
-                  <span className="absolute top-1 right-[calc(50%-8px)] min-w-3.5 h-3.5 px-0.5 rounded-full bg-rose-500 text-white text-[8px] font-bold grid place-items-center ring-1.5 ring-background translate-x-3">
-                    {badge > 9 ? "9+" : badge}
-                  </span>
-                )}
-              </div>
-              <span className={cn("text-[10px] font-bold transition-all", active ? "scale-105" : "scale-100")}>{item.label}</span>
-              {active && (
-                <motion.span
-                  layoutId="mobile-nav-indicator"
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full bg-primary"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
-              )}
-            </Link>
-          )
-        })}
-      </div>
-    </nav>
-  )
-}
-
-/* ─── Main Shell ─── */
 export function AppShell({
   user,
   children,
@@ -431,31 +96,144 @@ export function AppShell({
   user: UserShape
   children: React.ReactNode
 }) {
+  const pathname = usePathname()
   const unanswered = useUnansweredCountPolling()
+  const viewLabel = viewLabelForPath(pathname)
 
   const items: NavItem[] = [
-    { href: "/performance", label: "Insights", Icon: TrendingUp },
-    { href: "/inbox", label: "Reviews", Icon: MessageSquare },
-    { href: "/locations", label: "Places", Icon: LayoutDashboard },
-    { href: "/users", label: "Team", Icon: Users },
-    { href: "/settings", label: "Settings", Icon: Settings },
+    { href: "/inbox", label: "Inbox", mobileLabel: "Inbox", Icon: MessageSquare },
+    { href: "/performance", label: "Insights", mobileLabel: "Insights", Icon: BarChart },
+    { href: "/locations", label: "Locations", mobileLabel: "Places", Icon: LayoutDashboard },
+    { href: "/users", label: "Team", mobileLabel: "Team", Icon: Users },
+    { href: "/settings", label: "Settings", mobileLabel: "Settings", Icon: Settings },
   ]
 
   return (
     <SearchProvider>
-      <TooltipProvider>
-        <div className="h-screen w-full bg-background text-foreground overflow-hidden flex font-sans antialiased">
-          <DesktopNavRail items={items} unanswered={unanswered} user={user} />
-
-          <div className="flex-1 flex flex-col min-w-0 lg:pl-[80px]">
-            <MobileTopBar user={user} />
-            <main className="flex-1 relative pb-16 lg:pb-0 overflow-auto">
-              {children}
-            </main>
-            <BottomNavigation items={items} unanswered={unanswered} />
+      <div className="flex h-screen w-full bg-[#f9fafb] text-zinc-900 overflow-hidden">
+        <aside className="hidden lg:flex w-64 border-r border-zinc-200 bg-white flex-col shrink-0">
+          <div className="p-6 border-b border-zinc-200">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="bg-blue-600 p-1.5 rounded-lg">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-xl font-bold tracking-tight text-zinc-900">ReplyAI</span>
+            </div>
+            <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Business Inbox</p>
           </div>
-        </div>
-      </TooltipProvider>
+
+          <nav className="flex-1 p-4 space-y-1">
+            {items.map((item) => {
+              const active = isNavItemActive(pathname, item.href)
+              const count = item.href === "/inbox" ? unanswered : 0
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all relative group",
+                    active ? "bg-blue-50 text-blue-700 shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
+                  )}
+                >
+                  <item.Icon className={cn("h-5 w-5", active ? "text-blue-600" : "text-zinc-400 group-hover:text-zinc-600")} />
+                  <span className="text-sm font-semibold flex-1 text-left">{item.label}</span>
+                  {count > 0 ? (
+                    <span className="bg-blue-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-md min-w-[20px] text-center">
+                      {count > 99 ? "99+" : count}
+                    </span>
+                  ) : null}
+                  {active ? <div className="absolute left-0 top-2 bottom-2 w-1 bg-blue-600 rounded-full" /> : null}
+                </Link>
+              )
+            })}
+          </nav>
+
+          <div className="p-4 border-t border-zinc-100">
+            <button
+              type="button"
+              onClick={() => signOut({ callbackUrl: "/signin" })}
+              className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-50 transition-colors"
+            >
+              <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs">
+                {user.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.image} alt={user.name ?? "User"} className="h-full w-full rounded-full object-cover" />
+                ) : (
+                  initials(user.name)
+                )}
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm font-medium text-zinc-900 truncate">{user.name ?? "User"}</p>
+                <p className="text-xs text-zinc-500 truncate">{user.email ?? "No email"}</p>
+              </div>
+              <ChevronDown className="h-4 w-4 text-zinc-400" />
+            </button>
+          </div>
+        </aside>
+
+        <main className="flex-1 flex flex-col relative overflow-hidden">
+          <header className="h-16 bg-white border-b border-zinc-200 flex items-center justify-between px-6 shrink-0 z-10">
+            <div className="flex items-center gap-4">
+              <h2 className="text-lg font-semibold text-zinc-900 capitalize">{viewLabel}</h2>
+              <div className="h-4 w-px bg-zinc-200" />
+              <div className="flex items-center gap-2 text-sm text-zinc-500">
+                <Globe className="h-4 w-4" />
+                <span>Google Business Profile</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {pathname.startsWith("/inbox") && unanswered > 0 ? (
+                <Button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new Event("replyai:open-blitz"))}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>Quick Reply</span>
+                </Button>
+              ) : null}
+              <button type="button" className="p-2 text-zinc-400 hover:text-zinc-600 relative">
+                <Bell className="h-5 w-5" />
+                <div className="absolute top-2 right-2 h-2 w-2 bg-red-500 border-2 border-white rounded-full" />
+              </button>
+            </div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto">{children}</div>
+
+          <div className="lg:hidden h-16 bg-white border-t border-zinc-200 flex items-center justify-around px-2 shrink-0">
+            {items.map((item) => {
+              const active = isNavItemActive(pathname, item.href)
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1 flex-1 h-full",
+                    active ? "text-blue-600" : "text-zinc-400"
+                  )}
+                >
+                  <item.Icon className="h-5 w-5" />
+                  <span className="text-[10px] font-bold uppercase tracking-tight">{item.mobileLabel}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </main>
+      </div>
     </SearchProvider>
+  )
+}
+
+export function ShellBadge({
+  children,
+  className,
+}: {
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <Badge className={cn("bg-zinc-900 text-white", className)}>{children}</Badge>
   )
 }

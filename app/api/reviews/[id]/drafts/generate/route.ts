@@ -45,9 +45,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         type: "GENERATE_DRAFT",
         payload: {
           reviewId,
+          requestedBy: "MANUAL",
           budgetOverride: budgetOverride ? { enabled: true, reason: budgetOverrideReason } : { enabled: false },
         },
-        dedupKey: `review:${reviewId}`,
+        dedupKey: `review:${reviewId}:request:${requestId}`,
         triggeredByRequestId: requestId,
         triggeredByUserId: session.user.id,
       })

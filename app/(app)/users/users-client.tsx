@@ -1,15 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { motion } from "framer-motion"
-import { useGlobalSearch } from "@/components/search-context"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { toast } from "sonner"
+import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
 import { cn } from "@/lib/utils"
-import { Users, Search } from "@/components/icons"
+import { Plus, Trash2, Users } from "@/components/icons"
 
-type Row = {
+type MemberRow = {
   userId: string
   email: string
   name: string | null
@@ -17,106 +14,219 @@ type Row = {
   createdAtIso: string
 }
 
-function getInitials(name: string | null, email: string): string {
-  if (name) {
-    const parts = name.trim().split(/\s+/)
-    return (parts[0]?.[0] ?? "?" + (parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : "")).toUpperCase()
+type InviteRow = {
+  inviteId: string
+  email: string
+  role: string
+  expiresAtIso: string
+  createdAtIso: string
+}
+
+function getInitials(name: string | null, email: string) {
+  const source = name?.trim() || email
+  const parts = source.split(/\s+/)
+  const a = parts[0]?.[0] ?? "U"
+  const b = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : ""
+  return `${a}${b}`.toUpperCase()
+}
+
+export function UsersClient({
+  members: initialMembers,
+  invites: initialInvites,
+  canManage,
+}: {
+  members: MemberRow[]
+  invites: InviteRow[]
+  canManage: boolean
+}) {
+  const [members] = React.useState(initialMembers)
+  const [invites, setInvites] = React.useState(initialInvites)
+  const [showInvite, setShowInvite] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
+  const [email, setEmail] = React.useState("")
+  const [role, setRole] = React.useState<"OWNER" | "MANAGER" | "STAFF">("STAFF")
+
+  const inviteMember = async () => {
+    const normalized = email.trim().toLowerCase()
+    if (!normalized) {
+      toast.error("Email is required.")
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch("/api/team/invite", {
+        method: "POST",
+        headers: withIdempotencyHeader({ "content-type": "application/json" }),
+        body: JSON.stringify({ email: normalized, role }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error ?? res.statusText)
+      setInvites((prev) => [
+        {
+          inviteId: data.inviteId,
+          email: normalized,
+          role,
+          expiresAtIso: data.expiresAt,
+          createdAtIso: new Date().toISOString(),
+        },
+        ...prev,
+      ])
+      setEmail("")
+      setRole("STAFF")
+      setShowInvite(false)
+      toast.success("Invite created")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Invite failed")
+    } finally {
+      setSaving(false)
+    }
   }
-  return email.charAt(0).toUpperCase()
-}
 
-const ROLE_COLORS: Record<string, string> = {
-  OWNER: "bg-primary/10 text-primary",
-  MANAGER: "bg-amber-100 text-amber-700",
-  STAFF: "bg-muted text-muted-foreground",
-}
-
-export function UsersClient({ rows }: { rows: Row[] }) {
-  const { query } = useGlobalSearch()
-
-  const visible = React.useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return rows
-    return rows.filter((r) => {
-      return (
-        r.email.toLowerCase().includes(q) ||
-        (r.name ?? "").toLowerCase().includes(q) ||
-        r.role.toLowerCase().includes(q)
-      )
-    })
-  }, [rows, query])
+  const revokeInvite = async (inviteId: string) => {
+    setSaving(true)
+    try {
+      const res = await fetch("/api/team/invite/revoke", {
+        method: "POST",
+        headers: withIdempotencyHeader({ "content-type": "application/json" }),
+        body: JSON.stringify({ inviteId }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error ?? res.statusText)
+      setInvites((prev) => prev.filter((x) => x.inviteId !== inviteId))
+      toast.success("Invite revoked")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Revoke failed")
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
-    <div className="p-6 lg:p-8 space-y-8 max-w-3xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center border border-border">
-          <Users className="size-5 text-muted-foreground" />
-        </div>
+    <div className="max-w-5xl mx-auto p-10 space-y-8">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Team</h1>
-          <p className="text-sm text-muted-foreground font-medium">
-            {rows.length} member{rows.length !== 1 ? "s" : ""} in your organization
-          </p>
+          <h3 className="text-2xl font-bold">Team Members</h3>
+          <p className="text-zinc-500">Manage who has access to your review inboxes.</p>
         </div>
+        {canManage ? (
+          <button
+            onClick={() => setShowInvite((v) => !v)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Invite Colleague
+          </button>
+        ) : null}
       </div>
 
-      {/* Member List */}
-      <div className="space-y-3">
-        {visible.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24">
-            <div className="h-24 w-24 bg-card shadow-sm rounded-3xl flex items-center justify-center mb-6 border border-border">
-              <Search className="h-10 w-10 opacity-20" />
-            </div>
-            <p className="text-sm font-medium text-foreground">No users found</p>
-            <p className="text-xs text-muted-foreground mt-1.5">Try adjusting your search.</p>
-          </div>
-        ) : (
-          visible.map((r, idx) => (
-            <motion.div
-              key={r.userId}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: Math.min(idx * 0.04, 0.2), duration: 0.25 }}
+      {showInvite ? (
+        <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <input
+              type="email"
+              className="px-3 py-2 border border-zinc-200 rounded-lg text-sm"
+              placeholder="colleague@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <select
+              className="px-3 py-2 border border-zinc-200 rounded-lg text-sm font-medium"
+              value={role}
+              onChange={(e) => setRole(e.target.value as "OWNER" | "MANAGER" | "STAFF")}
             >
-              <Card className="rounded-2xl border-border bg-card shadow-card hover:shadow-elevated transition-all">
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-4">
-                    {/* Avatar */}
-                    <Avatar className="h-11 w-11 border border-border shadow-sm">
-                      <AvatarFallback className="bg-muted text-muted-foreground font-semibold text-xs">
-                        {getInitials(r.name, r.email)}
-                      </AvatarFallback>
-                    </Avatar>
+              <option value="STAFF">Staff</option>
+              <option value="MANAGER">Manager</option>
+              <option value="OWNER">Owner</option>
+            </select>
+            <button
+              onClick={inviteMember}
+              disabled={saving}
+              className="bg-zinc-900 text-white rounded-lg text-sm font-semibold px-4 py-2 hover:bg-zinc-800 disabled:opacity-70"
+            >
+              {saving ? "Sending..." : "Send Invite"}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
-                    {/* Info */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-sm font-bold truncate text-foreground">{r.name ?? r.email}</span>
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            "rounded-md text-[9px] h-5 px-2 font-bold uppercase tracking-wider hover:bg-auto",
-                            ROLE_COLORS[r.role] ?? "bg-muted text-muted-foreground"
-                          )}
-                        >
-                          {r.role}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-muted-foreground truncate font-medium">{r.email}</span>
-                        <span className="text-muted-foreground/60">•</span>
-                        <span className="text-[10px] text-muted-foreground tabular-nums shrink-0 font-medium">
-                          Joined {new Date(r.createdAtIso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
-                        </span>
-                      </div>
+      <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm">
+        <table className="w-full text-left">
+          <thead className="bg-zinc-50 border-b border-zinc-200">
+            <tr>
+              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">User</th>
+              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">Role</th>
+              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">Status</th>
+              <th className="px-6 py-4" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100">
+            {members.map((member) => (
+              <tr key={member.userId} className="hover:bg-zinc-50 transition-colors">
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-sm">
+                      {getInitials(member.name, member.email)}
+                    </div>
+                    <div>
+                      <p className="font-bold text-zinc-900">{member.name ?? member.email}</p>
+                      <p className="text-xs text-zinc-500">{member.email}</p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))
-        )}
+                </td>
+                <td className="px-6 py-4">
+                  <span className="text-sm font-medium text-zinc-700">{member.role}</span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-green-100 text-green-700">
+                    Active
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-right text-xs text-zinc-400">
+                  {new Date(member.createdAtIso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                </td>
+              </tr>
+            ))}
+
+            {invites.map((invite) => (
+              <tr key={invite.inviteId} className="hover:bg-zinc-50 transition-colors">
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-600">
+                      <Users className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-zinc-900">{invite.email}</p>
+                      <p className="text-xs text-zinc-500">Invite pending</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="text-sm font-medium text-zinc-700">{invite.role}</span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-bold uppercase", "bg-zinc-100 text-zinc-600")}>
+                    Pending
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  {canManage ? (
+                    <button
+                      onClick={() => revokeInvite(invite.inviteId)}
+                      disabled={saving}
+                      className="text-zinc-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <span className="text-xs text-zinc-400">
+                      Expires {new Date(invite.expiresAtIso).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )

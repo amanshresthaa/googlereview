@@ -5,6 +5,7 @@ import { RetryableJobError } from "@/lib/jobs/errors"
 export async function geminiGenerateText(input: {
   model: string
   prompt: string
+  temperature?: number
 }) {
   const e = env()
   if (!e.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured.")
@@ -15,6 +16,7 @@ export async function geminiGenerateText(input: {
     resp = await ai.models.generateContent({
       model: input.model,
       contents: [{ role: "user", parts: [{ text: input.prompt }] }],
+      config: input.temperature == null ? undefined : { temperature: input.temperature },
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)

@@ -1,26 +1,20 @@
 import { redirect } from "next/navigation"
 import { getSession } from "@/lib/session"
-import { prisma } from "@/lib/db"
 import { SettingsClient } from "@/app/(app)/settings/settings-client"
+import { getSettingsSidebarData } from "@/lib/sidebar-data"
 import { DEFAULT_AUTODRAFT_RATINGS, DEFAULT_MENTION_KEYWORDS } from "@/lib/policy"
 
 export default async function SettingsPage() {
   const session = await getSession()
   if (!session?.user?.id || !session.orgId) redirect("/signin")
 
-  const [org, settings, google] = await Promise.all([
-    prisma.organization.findUnique({ where: { id: session.orgId }, select: { name: true } }),
-    prisma.orgSettings.findUnique({ where: { orgId: session.orgId } }),
-    prisma.googleConnection.findUnique({
-      where: { orgId: session.orgId },
-      select: { status: true, googleEmail: true, scopes: true },
-    }),
-  ])
+  const { org, settings, google } = await getSettingsSidebarData(session.orgId)
 
   return (
     <SettingsClient
       orgName={org?.name ?? "Organization"}
       googleConnection={google}
+      showBulkApprove
       settings={{
         tonePreset: settings?.tonePreset ?? "friendly",
         toneCustomInstructions: settings?.toneCustomInstructions ?? null,
@@ -33,4 +27,3 @@ export default async function SettingsPage() {
     />
   )
 }
-

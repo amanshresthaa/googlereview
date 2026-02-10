@@ -1,10 +1,12 @@
 import { z } from "zod"
+import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import { randomToken, sha256Hex } from "@/lib/crypto"
 import { handleAuthedPost } from "@/lib/api/handler"
 import { ApiError } from "@/lib/api/errors"
 import { zodFields } from "@/lib/api/validation"
 import { requireRole } from "@/lib/api/authz"
+import { sidebarCacheTag } from "@/lib/sidebar-data"
 
 export const runtime = "nodejs"
 
@@ -53,6 +55,8 @@ export async function POST(req: Request) {
         })
         return created
       })
+
+      revalidateTag(sidebarCacheTag(session.orgId), "max")
 
       return {
         body: {

@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
 import { cn } from "@/lib/utils"
 import { X, Star, Settings, Sparkles, Zap, Globe, Loader2, CheckCircle2 } from "@/components/icons"
 
@@ -30,6 +31,7 @@ type Props = {
   orgName: string
   googleConnection: { status: string; googleEmail: string; scopes: string[] } | null
   settings: SettingsShape
+  showBulkApprove?: boolean
 }
 
 const TONE_PRESETS = ["friendly", "professional", "empathetic", "concise", "upbeat"] as const
@@ -40,7 +42,7 @@ function isValidKeyword(raw: string) {
   return v
 }
 
-export function SettingsClient({ orgName, googleConnection, settings }: Props) {
+export function SettingsClient({ orgName, googleConnection, settings, showBulkApprove = true }: Props) {
   const router = useRouter()
 
   const [saving, setSaving] = React.useState(false)
@@ -55,10 +57,7 @@ export function SettingsClient({ orgName, googleConnection, settings }: Props) {
     try {
       const res = await fetch("/api/settings/update", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "Idempotency-Key": globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
-        },
+        headers: withIdempotencyHeader({ "content-type": "application/json" }),
         body: JSON.stringify(patch),
       })
       if (res.status === 401) {
@@ -234,26 +233,30 @@ export function SettingsClient({ orgName, googleConnection, settings }: Props) {
                 </div>
               </div>
 
-              <Separator className="bg-border" />
+              {showBulkApprove ? (
+                <>
+                  <Separator className="bg-border" />
 
-              {/* Bulk approve */}
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-100 mt-0.5">
-                    <Zap className="size-4 text-emerald-600" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-sm font-bold text-foreground">Bulk approve 5-star</div>
-                    <div className="text-xs text-muted-foreground leading-relaxed max-w-[280px] font-medium">
-                      Enable one-click bulk posting for ready 5-star drafts.
+                  {/* Bulk approve */}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-100 mt-0.5">
+                        <Zap className="size-4 text-emerald-600" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-sm font-bold text-foreground">Bulk approve 5-star</div>
+                        <div className="text-xs text-muted-foreground leading-relaxed max-w-[280px] font-medium">
+                          Enable one-click bulk posting for ready 5-star drafts.
+                        </div>
+                      </div>
                     </div>
+                    <Switch
+                      checked={draft.bulkApproveEnabledForFiveStar}
+                      onCheckedChange={(v) => setDraft((p) => ({ ...p, bulkApproveEnabledForFiveStar: v }))}
+                    />
                   </div>
-                </div>
-                <Switch
-                  checked={draft.bulkApproveEnabledForFiveStar}
-                  onCheckedChange={(v) => setDraft((p) => ({ ...p, bulkApproveEnabledForFiveStar: v }))}
-                />
-              </div>
+                </>
+              ) : null}
 
               <div className="flex justify-end pt-2">
                 <Button
@@ -265,7 +268,9 @@ export function SettingsClient({ orgName, googleConnection, settings }: Props) {
                     submit({
                       autoDraftEnabled: draft.autoDraftEnabled,
                       autoDraftForRatings: draft.autoDraftForRatings,
-                      bulkApproveEnabledForFiveStar: draft.bulkApproveEnabledForFiveStar,
+                      ...(showBulkApprove
+                        ? { bulkApproveEnabledForFiveStar: draft.bulkApproveEnabledForFiveStar }
+                        : {}),
                     })
                   }
                 >
