@@ -262,6 +262,16 @@ model Job {
   status    JobStatus @default(PENDING)
   payload   Json
 
+  // Reliability hardening:
+  // - dedupKey enables DB-enforced in-flight de-duplication (partial unique index via SQL migration).
+  // - lastErrorCode is a stable, non-PII code used by UI and OpenAPI docs.
+  // - triggeredBy* is used for request tracing/auditing and idempotency correlation.
+  dedupKey            String?
+  lastErrorCode       String?
+  lastErrorMetaJson   Json?
+  triggeredByRequestId String?
+  triggeredByUserId    String?
+
   runAt     DateTime @default(now())
   attempts  Int      @default(0)
   maxAttempts Int    @default(10)
@@ -278,4 +288,92 @@ model Job {
   @@index([status, runAt])
   @@index([orgId, status, runAt])
   @@index([lockedAt])
+  @@index([orgId, type, dedupKey])
+}
+
+model ApiIdempotencyKey {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  method    String
+  path      String
+  key       String
+  requestHash String
+
+  // This requestId must be replayed verbatim for idempotent replays.
+  requestId String
+
+  responseStatus  Int?
+  responseBodyText String? @db.Text
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@unique([orgId, userId, method, path, key])
+  @@index([expiresAt])
+  @@index([orgId, userId, createdAt(sort: Desc)])
+}
+
+model ApiRateLimitWindow {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  scope     String
+  windowStartUtcMinute DateTime
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([orgId, userId, scope, windowStartUtcMinute])
+  @@index([windowStartUtcMinute])
+  @@index([orgId, scope, windowStartUtcMinute])
+}
+
+model ApiBudgetDaily {
+  id        String   @id @default(cuid())
+  orgId     String
+  scope     String
+  dayIso    String
+  used      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, scope, dayIso])
+  @@index([orgId, scope, dayIso])
+}
+
+model ApiCooldown {
+  id        String   @id @default(cuid())
+  orgId     String
+  scope     String
+  key       String
+  availableAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, scope, key])
+  @@index([availableAt])
+}
+
+model ApiCircuitBreaker {
+  id        String   @id @default(cuid())
+  orgId     String
+  upstreamKey String
+
+  // "CLOSED" | "OPEN" | "HALF_OPEN"
+  state     String
+  openUntil DateTime?
+
+  // Rolling fixed window (2m) starting at windowStartUtc.
+  windowStartUtc DateTime?
+  windowFailures Int @default(0)
+
+  // Half-open success counter.
+  halfOpenSuccesses Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, upstreamKey])
+  @@index([orgId, state])
+  @@index([openUntil])
 }
