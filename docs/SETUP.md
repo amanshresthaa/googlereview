@@ -56,8 +56,41 @@ Copy `.env.example` to `.env` and set required values:
 - `GOOGLE_CLIENT_SECRET`
 - `TOKEN_ENCRYPTION_KEY`
 - `CRON_SECRET`
-- One AI provider key:
-  - `OPENAI_API_KEY` or `GEMINI_API_KEY`
+- DSPy service integration:
+  - `DSPY_SERVICE_BASE_URL`
+  - `DSPY_SERVICE_TOKEN`
+  - `DSPY_HTTP_TIMEOUT_MS` (optional)
+
+## 2.1) DSPy service deployment (separate Vercel project)
+
+The AI runtime is a separate Python service under `services/dspy`.
+
+Required service env vars:
+- `OPENAI_API_KEY`
+- `DSPY_SERVICE_TOKEN`
+
+Recommended optional service env vars:
+- `DSPY_OPENAI_MODEL_DRAFT` (default `openai/gpt-4o-mini`)
+- `DSPY_OPENAI_MODEL_VERIFY` (default `openai/gpt-4.1-mini`)
+- `DSPY_NUM_RETRIES`
+- `DSPY_ENABLE_MEMORY_CACHE`
+- `DSPY_MEMORY_CACHE_MAX_ENTRIES`
+- `DSPY_ENABLE_DISK_CACHE` (default `false`)
+
+After deploying the DSPy service, copy its URL into app env var `DSPY_SERVICE_BASE_URL`.
+
+## 2.2) DSPy local runtime (optional)
+
+For local end-to-end testing without deploying DSPy first:
+
+1. Prepare DSPy service env:
+   - `cp services/dspy/.env.example services/dspy/.env`
+   - Fill `OPENAI_API_KEY` and `DSPY_SERVICE_TOKEN`.
+2. Start local DSPy service:
+   - `set -a; source services/dspy/.env; set +a; pnpm dspy:dev`
+3. Point app env to local DSPy:
+   - `DSPY_SERVICE_BASE_URL=http://127.0.0.1:8787`
+   - `DSPY_SERVICE_TOKEN=<same token>`
 
 ## 3) Run migrations (Supabase Postgres)
 
@@ -110,7 +143,8 @@ You must set the required env vars for both `production` and `preview`:
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - `TOKEN_ENCRYPTION_KEY`
 - `CRON_SECRET`
-- `OPENAI_API_KEY` and/or `GEMINI_API_KEY`
+- `DSPY_SERVICE_BASE_URL`
+- `DSPY_SERVICE_TOKEN`
 
 Example (from `.env`, without echoing secrets to your terminal):
 

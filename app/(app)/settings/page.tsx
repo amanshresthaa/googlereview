@@ -21,7 +21,6 @@ export default async function SettingsPage() {
         autoDraftEnabled: settings?.autoDraftEnabled ?? true,
         autoDraftForRatings: settings?.autoDraftForRatings ?? [...DEFAULT_AUTODRAFT_RATINGS],
         bulkApproveEnabledForFiveStar: settings?.bulkApproveEnabledForFiveStar ?? true,
-        aiProvider: settings?.aiProvider ?? "OPENAI",
         mentionKeywords: settings?.mentionKeywords ?? [...DEFAULT_MENTION_KEYWORDS],
       }}
     />

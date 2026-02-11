@@ -70,19 +70,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       })
 
       // Fast-path verify: bounded and verify-only, and only for the job created by this request.
-      // We currently only run fast-path when the org uses OPENAI since we can enforce AbortSignal timeouts.
-      const settings = await prisma.orgSettings.findUnique({ where: { orgId: session.orgId }, select: { aiProvider: true } })
-      const provider = settings?.aiProvider ?? "OPENAI"
-
-      const worker =
-        provider === "OPENAI"
-          ? await runVerifyFastPath({
-              jobId: job.id,
-              orgId: session.orgId,
-              workerId: `fastpath:${requestId}`,
-              budgetMs: 2000,
-            })
-          : { claimed: 0, results: [] as Array<{ id: string; ok: boolean; error?: string }> }
+      const worker = await runVerifyFastPath({
+        jobId: job.id,
+        orgId: session.orgId,
+        workerId: `fastpath:${requestId}`,
+        budgetMs: 2000,
+      })
 
       return { body: { jobId: job.id, worker } }
     }

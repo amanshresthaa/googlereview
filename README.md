@@ -7,7 +7,27 @@ This app syncs Google Business Profile reviews into a database, generates AI dra
 - `/onboarding/locations`: sync and select locations to manage
 - `/inbox`: review inbox + filters + bulk approve (5 star only)
 - `/reviews/[id]`: evidence (text-only) + AI draft + verifier + approve/publish
-- `/settings`: tone, automation, AI provider selection, team invites
+- `/settings`: tone, automation, team invites
+
+## DSPy service
+
+Draft generation and LLM verification run through a separate DSPy service (OpenAI only). The
+Next.js worker remains the canonical async job pipeline.
+
+Service source lives in `services/dspy`.
+
+Local DSPy runtime:
+
+```bash
+cp services/dspy/.env.example services/dspy/.env
+set -a; source services/dspy/.env; set +a
+pnpm dspy:dev
+```
+
+Then set app env in `.env`:
+
+- `DSPY_SERVICE_BASE_URL=http://127.0.0.1:8787`
+- `DSPY_SERVICE_TOKEN=<same token as services/dspy/.env>`
 
 ## Setup
 

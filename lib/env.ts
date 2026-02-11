@@ -25,16 +25,16 @@ const serverSchema = z.object({
 
   TOKEN_ENCRYPTION_KEY: z.string().min(1),
   CRON_SECRET: z.string().min(1),
+})
 
-  OPENAI_API_KEY: optionalNonEmptyString,
-  OPENAI_MODEL_DRAFT: optionalNonEmptyString,
-  OPENAI_MODEL_VERIFY: optionalNonEmptyString,
-
-  GEMINI_API_KEY: optionalNonEmptyString,
-  GEMINI_MODEL: optionalNonEmptyString,
+const dspySchema = z.object({
+  DSPY_SERVICE_BASE_URL: z.string().url(),
+  DSPY_SERVICE_TOKEN: z.string().min(1),
+  DSPY_HTTP_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
 })
 
 let _serverEnv: z.infer<typeof serverSchema> | null = null
+let _dspyEnv: z.infer<typeof dspySchema> | null = null
 
 export function env() {
   if (_serverEnv) return _serverEnv
@@ -48,4 +48,17 @@ export function env() {
 
   _serverEnv = parsed.data
   return _serverEnv
+}
+
+export function dspyEnv() {
+  if (_dspyEnv) return _dspyEnv
+
+  const parsed = dspySchema.safeParse(process.env)
+  if (!parsed.success) {
+    const flattened = parsed.error.flatten().fieldErrors
+    throw new Error(`Invalid DSPy environment variables: ${JSON.stringify(flattened)}`)
+  }
+
+  _dspyEnv = parsed.data
+  return _dspyEnv
 }

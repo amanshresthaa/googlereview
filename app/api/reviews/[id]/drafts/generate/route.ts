@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db"
 import { handleAuthedPost } from "@/lib/api/handler"
 import { ApiError } from "@/lib/api/errors"
 import { requireRole } from "@/lib/api/authz"
+import { runGenerateFastPath } from "@/lib/jobs/worker"
 
 export const runtime = "nodejs"
 
@@ -67,7 +68,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         },
       })
 
-      return { body: { jobId: job.id, worker: { claimed: 0, results: [] } } }
+      // Fast-path generate: bounded and generate-only, and only for this request's job.
+      const worker = await runGenerateFastPath({
+        jobId: job.id,
+        orgId: session.orgId,
+        workerId: `fastpath:${requestId}`,
+        budgetMs: 2500,
+      })
+
+      return { body: { jobId: job.id, worker } }
     }
   )
 }

@@ -15,10 +15,11 @@ import {
 } from "@/lib/google/gbp"
 import { extractMentionsAndHighlights } from "@/lib/reviews/mentions"
 import { enqueueJob } from "@/lib/jobs/queue"
-import { areDraftTextsEquivalent, evidenceSnapshotSchema, generateDraftText, verifyDraftWithLlm } from "@/lib/ai/draft"
+import { areDraftTextsEquivalent, evidenceSnapshotSchema } from "@/lib/ai/draft"
+import { generateDraftWithDspy, verifyDraftWithDspy } from "@/lib/ai/dspy-client"
 import { runDeterministicVerifier } from "@/lib/verifier/deterministic"
 import { MAX_GOOGLE_REPLY_CHARS } from "@/lib/policy"
-import { NonRetryableError, RetryableJobError } from "@/lib/jobs/errors"
+import { NonRetryableError } from "@/lib/jobs/errors"
 import {
   breakerPrecheckOrThrow,
   breakerRecordFailure,
@@ -262,8 +263,7 @@ async function handleGenerateDraft(job: Job, signal?: AbortSignal) {
   })
 
   const settings = await prisma.orgSettings.findUnique({ where: { orgId: job.orgId } })
-  const provider = settings?.aiProvider ?? "OPENAI"
-  const upstreamKey = `${provider}:generate`
+  const upstreamKey = "DSPY:generate"
   await breakerPrecheckOrThrow({ orgId: job.orgId, upstreamKey })
   const mentionKeywords = settings?.mentionKeywords ?? []
   const { mentions, highlights } = extractMentionsAndHighlights(review.comment, mentionKeywords)
@@ -291,22 +291,32 @@ async function handleGenerateDraft(job: Job, signal?: AbortSignal) {
     },
   }
 
-  let draftText = ""
   const previousDraftText = review.currentDraftReply?.text?.trim() ?? null
-  const maxGenerationAttempts = previousDraftText ? 3 : 1
+  let draftText = ""
   try {
-    for (let attempt = 1; attempt <= maxGenerationAttempts; attempt += 1) {
-      draftText = await generateDraftText({
-        provider,
+    const maxAttempts = previousDraftText ? 3 : 1
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      const generated = await generateDraftWithDspy({
+        orgId: job.orgId,
+        reviewId: review.id,
         evidence,
         previousDraftText: previousDraftText ?? undefined,
-        regenerationAttempt: attempt,
-        signal,
+        regenerationAttempt: previousDraftText ? attempt : undefined,
       })
+      const candidateText = generated.draftText.trim()
+      if (!candidateText) {
+        throw new Error("DSPy service returned empty draft text.")
+      }
 
-      if (!previousDraftText || !areDraftTextsEquivalent(previousDraftText, draftText)) {
+      if (!previousDraftText || !areDraftTextsEquivalent(previousDraftText, candidateText)) {
+        draftText = candidateText
         break
       }
+    }
+
+    if (!draftText) {
+      throw new Error("Unable to generate a materially different draft. Please try regenerate again.")
     }
     await breakerRecordSuccess({ orgId: job.orgId, upstreamKey })
   } catch (err) {
@@ -371,9 +381,7 @@ async function handleVerifyDraft(job: Job, signal?: AbortSignal) {
   })
 
   const evidence = evidenceSnapshotSchema.parse(draft.evidenceSnapshotJson)
-  const settings = await prisma.orgSettings.findUnique({ where: { orgId: job.orgId } })
-  const provider = settings?.aiProvider ?? "OPENAI"
-  const upstreamKey = `${provider}:verify`
+  const upstreamKey = "DSPY:verify"
   await breakerPrecheckOrThrow({ orgId: job.orgId, upstreamKey })
 
   const deterministic = runDeterministicVerifier({
@@ -381,22 +389,22 @@ async function handleVerifyDraft(job: Job, signal?: AbortSignal) {
     draftText: draft.text,
   })
 
-  // Fail safe: if the LLM verifier returns invalid JSON, we block publishing rather than retrying forever.
-  // User can re-run verifier from the UI to attempt again.
+  // Fail safe: if verifier cannot complete, block publishing instead of allowing unchecked output.
   let llm: { pass: boolean; violations: Array<{ code: string; message: string; snippet?: string }>; suggestedRewrite?: string } =
     {
       pass: false,
       violations: [{ code: "VERIFIER_ERROR", message: "Verifier could not be completed. Please retry." }],
     }
   try {
-    llm = await verifyDraftWithLlm({ provider, evidence, draftText: draft.text, signal })
+    llm = await verifyDraftWithDspy({
+      orgId: job.orgId,
+      reviewId: draft.review.id,
+      evidence,
+      draftText: draft.text,
+    })
     await breakerRecordSuccess({ orgId: job.orgId, upstreamKey })
-  } catch (err) {
+  } catch {
     await breakerRecordFailure({ orgId: job.orgId, upstreamKey })
-    if (err instanceof RetryableJobError) {
-      throw err
-    }
-    // Non-upstream verifier failures are treated as a blocking verifier result (fail safe).
     llm = {
       pass: false,
       violations: [{ code: "VERIFIER_ERROR", message: "Verifier returned an invalid response. Please retry." }],

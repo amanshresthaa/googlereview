@@ -34,6 +34,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!services/dspy/.env.example
 
 # vercel
 .vercel
@@ -44,3 +45,8 @@ supabase/.temp
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# DSPy offline artifacts
+services/dspy/artifacts/*
+!services/dspy/artifacts/.gitkeep
+services/dspy/.venv/

@@ -12,7 +12,6 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
 import { cn } from "@/lib/utils"
@@ -24,7 +23,6 @@ type SettingsShape = {
   autoDraftEnabled: boolean
   autoDraftForRatings: number[]
   bulkApproveEnabledForFiveStar: boolean
-  aiProvider: "OPENAI" | "GEMINI"
   mentionKeywords: string[]
 }
 
@@ -292,31 +290,11 @@ export function SettingsClient({ orgName, googleConnection, settings, showBulkAp
         <TabsContent value="tone" className="space-y-5">
           <Card className="rounded-2xl border-border bg-card shadow-card">
             <CardContent className="p-6 space-y-6">
-              {/* AI Provider */}
               <div className="space-y-3">
-                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">AI Provider</Label>
-                <Select
-                  value={draft.aiProvider}
-                  onValueChange={(v) => setDraft((p) => ({ ...p, aiProvider: v as "OPENAI" | "GEMINI" }))}
-                >
-                  <SelectTrigger className="rounded-xl border-border h-10 bg-card">
-                    <SelectValue placeholder="Select provider" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="OPENAI">
-                      <div className="flex items-center gap-2.5">
-                        <div className="h-6 w-6 rounded-lg bg-foreground text-background flex items-center justify-center text-[9px] font-bold">AI</div>
-                        OpenAI
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="GEMINI">
-                      <div className="flex items-center gap-2.5">
-                        <div className="h-6 w-6 rounded-lg bg-primary text-primary-foreground flex items-center justify-center text-[9px] font-bold">G</div>
-                        Gemini
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Model Runtime</Label>
+                <div className="rounded-xl border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                  OpenAI via DSPy service
+                </div>
               </div>
 
               <Separator className="bg-border" />
@@ -427,7 +405,6 @@ export function SettingsClient({ orgName, googleConnection, settings, showBulkAp
                   disabled={saving}
                   onClick={() =>
                     submit({
-                      aiProvider: draft.aiProvider,
                       tonePreset: draft.tonePreset,
                       toneCustomInstructions: draft.toneCustomInstructions,
                       mentionKeywords: draft.mentionKeywords,

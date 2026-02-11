@@ -23,10 +23,10 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "openapi:generate": "tsx scripts/generate-openapi.ts",
-    "openapi:check": "pnpm -s openapi:generate && git diff --exit-code openapi.json"
+    "openapi:check": "pnpm -s openapi:generate && git diff --exit-code openapi.json",
+    "dspy:dev": "bash services/dspy/scripts/run_local.sh"
   },
   "dependencies": {
-    "@google/genai": "^1.40.0",
     "@phosphor-icons/react": "^2.1.10",
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",

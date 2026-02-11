@@ -31,11 +31,6 @@ enum DraftStatus {
   POST_FAILED
 }
 
-enum AiProvider {
-  OPENAI
-  GEMINI
-}
-
 enum JobType {
   SYNC_LOCATIONS
   SYNC_REVIEWS
@@ -225,8 +220,6 @@ model OrgSettings {
   autoDraftEnabled          Boolean @default(true)
   autoDraftForRatings       Int[]
   bulkApproveEnabledForFiveStar Boolean @default(true)
-
-  aiProvider AiProvider @default(OPENAI)
 
   mentionKeywords String[]
 

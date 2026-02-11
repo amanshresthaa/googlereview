@@ -81,6 +81,24 @@ async function waitForReadyDraft(reviewId: string, timeoutMs: number = 4500) {
   return false
 }
 
+async function waitForDraftChange(reviewId: string, previousDraftId: string | null, timeoutMs: number = 5000) {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    const res = await fetch(`/api/reviews/${reviewId}`)
+    if (res.ok) {
+      const data = await res.json().catch(() => null)
+      const currentDraftId = data?.currentDraft?.id ?? null
+      if (previousDraftId == null) {
+        if (currentDraftId != null) return true
+      } else if (currentDraftId !== previousDraftId) {
+        return true
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500))
+  }
+  return false
+}
+
 export function InboxClient({
   initialFilter,
   initialMention,
@@ -154,8 +172,15 @@ export function InboxClient({
   }
 
   const generateDraft = async (reviewId: string) => {
-    await apiCall(`/api/reviews/${reviewId}/drafts/generate`, "POST")
-    toast.success("Draft generation requested")
+    const previousDraftId = rows.find((row) => row.id === reviewId)?.currentDraft?.id ?? null
+    const result = await apiCall(`/api/reviews/${reviewId}/drafts/generate`, "POST")
+    const claimed = Number(result?.worker?.claimed ?? 0)
+    if (claimed > 0) {
+      toast.success("Draft regenerated")
+    } else {
+      const changed = await waitForDraftChange(reviewId, previousDraftId)
+      toast.success(changed ? "Draft regenerated" : "Draft generation queued")
+    }
     refresh()
   }
 

@@ -119,9 +119,7 @@ export function usePaginatedReviews(opts: {
 
   React.useEffect(() => {
     cursorRef.current = null
-    setRows([])
     setHasMore(false)
-    setCounts(null)
 
     const canUseInitialPage =
       !!initialPage &&
@@ -157,7 +155,6 @@ export function usePaginatedReviews(opts: {
 
   const refresh = React.useCallback(() => {
     cursorRef.current = null
-    setRows([])
     setHasMore(false)
     fetchPage(null, false)
   }, [fetchPage])

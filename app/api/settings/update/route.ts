@@ -16,7 +16,6 @@ const bodySchema = z
     autoDraftEnabled: z.boolean().optional(),
     autoDraftForRatings: z.array(z.number().int().min(1).max(5)).max(5).optional(),
     bulkApproveEnabledForFiveStar: z.boolean().optional(),
-    aiProvider: z.enum(["OPENAI", "GEMINI"]).optional(),
     mentionKeywords: z.array(z.string().min(1).max(40)).max(50).optional(),
   })
   .strict()
@@ -48,7 +47,6 @@ export async function POST(req: Request) {
             autoDraftEnabled: data.autoDraftEnabled ?? undefined,
             autoDraftForRatings: data.autoDraftForRatings ?? undefined,
             bulkApproveEnabledForFiveStar: data.bulkApproveEnabledForFiveStar ?? undefined,
-            aiProvider: data.aiProvider ?? undefined,
             mentionKeywords,
           },
           create: {
@@ -58,7 +56,6 @@ export async function POST(req: Request) {
             autoDraftEnabled: data.autoDraftEnabled ?? true,
             autoDraftForRatings: data.autoDraftForRatings ?? [1, 2, 3, 4, 5],
             bulkApproveEnabledForFiveStar: data.bulkApproveEnabledForFiveStar ?? true,
-            aiProvider: data.aiProvider ?? "OPENAI",
             mentionKeywords: mentionKeywords ?? ["cold", "wait", "rude", "dirty", "booking", "wrong order"],
           },
         })
