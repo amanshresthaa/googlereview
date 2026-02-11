@@ -1,26 +1,373 @@
+/* Tailwind v4 (PostCSS): single entry import + explicit config link. */
 @import "tailwindcss";
+@config "../tailwind.config.ts";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Tailwind v4 animation utilities used by shadcn components. */
+@import "tw-animate-css";
 
+/* shadcn Tailwind v4 helpers (custom variants/utilities). */
+@import "shadcn/tailwind.css";
+
+/*
+  Design system preset (manual cutover; do not run `shadcn create`):
+  - base: radix
+  - style: nova (zinc)
+  - theme: blue
+  - radius: large
+  - rtl: false
+  - font: noto-sans (via `next/font/google`, `--font-sans`)
+*/
+
+/*
+  Tailwind v4: expose design tokens as theme variables so utilities like
+  `bg-background`, `text-foreground`, `border-border`, `ring-ring`, etc work.
+*/
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  /* Extended palette for reviews & accents */
+  --color-emerald-50: oklch(0.97 0.038 160);
+  --color-emerald-100: oklch(0.93 0.06 160);
+  --color-emerald-400: oklch(0.72 0.17 162);
+  --color-emerald-500: oklch(0.65 0.17 162);
+  --color-emerald-600: oklch(0.58 0.16 162);
+  --color-emerald-700: oklch(0.50 0.14 162);
+  --color-emerald-900: oklch(0.35 0.10 162);
+  --color-amber-50: oklch(0.98 0.04 90);
+  --color-amber-100: oklch(0.94 0.07 85);
+  --color-amber-400: oklch(0.82 0.19 84);
+  --color-amber-500: oklch(0.75 0.18 80);
+  --color-amber-600: oklch(0.68 0.18 80);
+  --color-amber-700: oklch(0.60 0.16 80);
+  --color-rose-50: oklch(0.97 0.03 15);
+  --color-rose-100: oklch(0.93 0.06 12);
+  --color-rose-500: oklch(0.62 0.2 15);
+  --color-rose-700: oklch(0.50 0.18 15);
+  --color-blue-50: oklch(0.97 0.02 250);
+  --color-blue-100: oklch(0.93 0.05 250);
+  --color-blue-200: oklch(0.88 0.08 250);
+  --color-blue-400: oklch(0.72 0.17 255);
+  --color-blue-500: oklch(0.62 0.22 260);
+  --color-blue-600: oklch(0.55 0.24 262);
+  --color-blue-700: oklch(0.48 0.22 262);
+  --color-blue-900: oklch(0.35 0.15 262);
+  --color-indigo-50: oklch(0.97 0.02 270);
+  --color-indigo-100: oklch(0.93 0.04 270);
+  --color-indigo-600: oklch(0.52 0.22 270);
+  --color-purple-50: oklch(0.97 0.02 300);
+  --color-purple-100: oklch(0.93 0.04 300);
+  --color-purple-600: oklch(0.52 0.22 300);
+  --color-zinc-50: oklch(0.985 0 0);
+  --color-zinc-100: oklch(0.96 0.003 264);
+  --color-zinc-200: oklch(0.92 0.004 264);
+  --color-zinc-300: oklch(0.87 0.006 264);
+  --color-zinc-400: oklch(0.71 0.01 264);
+  --color-zinc-500: oklch(0.55 0.014 264);
+  --color-zinc-600: oklch(0.44 0.015 264);
+  --color-zinc-700: oklch(0.37 0.013 264);
+  --color-zinc-800: oklch(0.27 0.006 264);
+  --color-zinc-900: oklch(0.21 0.006 264);
+  --color-zinc-950: oklch(0.15 0.004 264);
+
+  /* Spacing tokens */
+  --spacing-safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Modern Minimal (Zinc) */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    --radius: 0.5rem;
+
+    /* Layout & depth */
+    --shadow-glass: 0 0 0 1px rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.04);
+    --shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-elevated: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-floating: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+    /* App layout */
+    --sidebar: var(--card);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-muted: var(--muted);
+    --sidebar-border: var(--border);
+
+    /* Legacy compat */
+    --shadow-google-sm: var(--shadow-card);
+    --shadow-google-md: var(--shadow-elevated);
+    --shadow-google-lg: var(--shadow-floating);
+    --shadow-google-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+
+  .dark {
+    /* Modern Minimal (Dark Zinc) */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+
+    --shadow-glass: 0 0 0 1px rgba(255,255,255,0.05), 0 2px 8px rgba(0,0,0,0.2);
+    --shadow-card: 0 1px 2px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-elevated: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    --shadow-floating: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+
+    --sidebar: var(--card);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-muted: var(--muted);
+    --sidebar-border: var(--border);
+  }
+
+  html {
+    font-size: 14px;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  /* Reduced motion: hard-disable animation/transitions app-wide. */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+
+  /* Shadow system */
+  .shadow-glass {
+    box-shadow: var(--shadow-glass);
+  }
+
+  .shadow-glow-primary {
+    box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.5);
+  }
+
+  .shadow-glow-emerald {
+    box-shadow: 0 0 20px -5px var(--color-emerald-500);
+  }
+  
+  .shadow-dock {
+    box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.1), 0 4px 16px -2px rgba(0, 0, 0, 0.05);
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .shadow-floating {
+    box-shadow: var(--shadow-floating);
+  }
+
+  /* Legacy compat */
+  .shadow-google-sm {
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-google-md {
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .shadow-google-lg {
+    box-shadow: var(--shadow-floating);
+  }
+
+  .shadow-google-xl {
+    box-shadow: var(--shadow-google-xl);
+  }
+
+  /* Animations */
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out both;
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.4s ease-out both;
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.3s ease-out both;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out both;
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s linear infinite;
+    background-size: 200% 100%;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  /* Scrollbars */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.87 0 0) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: oklch(0.87 0 0);
+    border-radius: 999px;
+  }
+
+  /* Glass surfaces */
+  .glass {
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+  }
+
+  .glass-sm {
+    backdrop-filter: blur(8px) saturate(150%);
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
+  }
+
+  /* Safe area */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+.dark .scrollbar-thin {
+  scrollbar-color: oklch(0.4 0 0) transparent;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: oklch(0.4 0 0);
 }

@@ -1,0 +1,10 @@
+# Never upload local env files to Vercel deployments.
+.env
+.env.*
+!.env.example
+
+# Local tooling
+.vercel
+node_modules
+.next
+coverage
