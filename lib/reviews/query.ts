@@ -5,6 +5,7 @@ import {
   decodeReviewsCursor,
   encodeReviewsCursor,
   type ReviewsFilter,
+  type ReviewsStatus,
 } from "@/lib/reviews/listing"
 import type { ReviewListPage, ReviewListRow } from "@/lib/reviews/types"
 
@@ -19,6 +20,10 @@ type ListReviewsPageInput = {
   orgId: string
   filter: ReviewsFilter
   mention?: string
+  status?: ReviewsStatus
+  locationId?: string
+  rating?: number
+  search?: string
   limit: number
   cursor?: string
 }
@@ -77,6 +82,10 @@ export async function listReviewsPage(input: ListReviewsPageInput): Promise<Revi
     orgId: input.orgId,
     filter: input.filter,
     mention,
+    status: input.status,
+    locationId: input.locationId,
+    rating: input.rating,
+    search: input.search,
   })
 
   const orderBy: Prisma.ReviewOrderByWithRelationInput[] = [{ createTime: "desc" }, { id: "desc" }]
@@ -146,4 +155,3 @@ export async function listReviewsPage(input: ListReviewsPageInput): Promise<Revi
 
   return response
 }
-

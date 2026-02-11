@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db"
 import type { Job } from "@prisma/client"
 import { z } from "zod"
+import crypto from "node:crypto"
 import { getAccessTokenForOrg } from "@/lib/google/oauth"
 import {
   formatAddressSummary,
@@ -15,9 +16,8 @@ import {
 } from "@/lib/google/gbp"
 import { extractMentionsAndHighlights } from "@/lib/reviews/mentions"
 import { enqueueJob } from "@/lib/jobs/queue"
-import { areDraftTextsEquivalent, evidenceSnapshotSchema } from "@/lib/ai/draft"
-import { generateDraftWithDspy, verifyDraftWithDspy } from "@/lib/ai/dspy-client"
-import { runDeterministicVerifier } from "@/lib/verifier/deterministic"
+import { evidenceSnapshotSchema } from "@/lib/ai/draft"
+import { DspyServiceError, type DspyProcessMode, processReviewWithDspy } from "@/lib/ai/dspy-client"
 import { MAX_GOOGLE_REPLY_CHARS } from "@/lib/policy"
 import { NonRetryableError } from "@/lib/jobs/errors"
 import {
@@ -40,10 +40,8 @@ export async function handleJob(job: Job, opts?: { signal?: AbortSignal }) {
       return handleSyncLocations(job)
     case "SYNC_REVIEWS":
       return handleSyncReviews(job)
-    case "GENERATE_DRAFT":
-      return handleGenerateDraft(job, signal)
-    case "VERIFY_DRAFT":
-      return handleVerifyDraft(job, signal)
+    case "PROCESS_REVIEW":
+      return handleProcessReview(job, signal)
     case "POST_REPLY":
       return handlePostReply(job)
     default:
@@ -52,21 +50,11 @@ export async function handleJob(job: Job, opts?: { signal?: AbortSignal }) {
 }
 
 const syncReviewsPayloadSchema = z.object({ locationId: z.string().min(1) }).passthrough()
-const generateDraftPayloadSchema = z
+const processReviewPayloadSchema = z
   .object({
     reviewId: z.string().min(1),
-    requestedBy: z.enum(["AUTO", "MANUAL"]).optional(),
-    budgetOverride: z
-      .object({
-        enabled: z.boolean(),
-        reason: z.string().nullable().optional(),
-      })
-      .optional(),
-  })
-  .passthrough()
-const verifyDraftPayloadSchema = z
-  .object({
-    draftReplyId: z.string().min(1),
+    mode: z.enum(["AUTO", "MANUAL_REGENERATE", "VERIFY_EXISTING_DRAFT"]),
+    draftReplyId: z.string().min(1).optional(),
     budgetOverride: z
       .object({
         enabled: z.boolean(),
@@ -79,6 +67,7 @@ const postReplyPayloadSchema = z.object({
   draftReplyId: z.string().min(1),
   actorUserId: z.string().min(1).optional(),
 }).passthrough()
+const MAX_AUTO_DRAFTS_PER_SYNC = 5
 
 async function handleSyncLocations(job: Job) {
   const { accessToken } = await getAccessTokenForOrg(job.orgId)
@@ -156,6 +145,7 @@ async function handleSyncReviews(job: Job) {
   const locationName = `accounts/${location.googleAccountId}/locations/${location.googleLocationId}`
   let pageToken: string | undefined
   let pageCount = 0
+  const autoDraftCandidates: Array<{ reviewId: string; createTimeMs: number }> = []
 
   while (pageCount < 20) {
     const listKey = "GOOGLE:listReviews"
@@ -223,11 +213,9 @@ async function handleSyncReviews(job: Job) {
       const isNew = !existingSet.has(r.name)
       const isUnanswered = !r.reviewReply?.comment
       if (isNew && isUnanswered && autoDraftEnabled && autoDraftRatings.has(star)) {
-        await enqueueJob({
-          orgId: job.orgId,
-          type: "GENERATE_DRAFT",
-          payload: { reviewId: upserted.id, requestedBy: "AUTO" },
-          dedupKey: `review:${upserted.id}`,
+        autoDraftCandidates.push({
+          reviewId: upserted.id,
+          createTimeMs: upserted.createTime.getTime(),
         })
       }
     }
@@ -236,14 +224,28 @@ async function handleSyncReviews(job: Job) {
     pageToken = nextPageToken
   }
 
+  for (const candidate of autoDraftCandidates
+    .sort((a, b) => b.createTimeMs - a.createTimeMs)
+    .slice(0, MAX_AUTO_DRAFTS_PER_SYNC)) {
+    await enqueueJob({
+      orgId: job.orgId,
+      type: "PROCESS_REVIEW",
+      payload: { reviewId: candidate.reviewId, mode: "AUTO" },
+      dedupKey: `review:${candidate.reviewId}`,
+    })
+  }
+
   await prisma.location.update({
     where: { id: location.id },
     data: { lastReviewsSyncAt: new Date() },
   })
 }
 
-async function handleGenerateDraft(job: Job, signal?: AbortSignal) {
-  const payload = generateDraftPayloadSchema.parse(job.payload)
+const UNKNOWN_MODEL = "unknown"
+const UNKNOWN_PROGRAM_VERSION = "unknown"
+
+async function handleProcessReview(job: Job, signal?: AbortSignal) {
+  const payload = processReviewPayloadSchema.parse(job.payload)
 
   const review = await prisma.review.findFirst({
     where: { id: payload.reviewId, orgId: job.orgId },
@@ -251,11 +253,39 @@ async function handleGenerateDraft(job: Job, signal?: AbortSignal) {
   })
   if (!review) return
 
-  const requestedBy = payload.requestedBy ?? "AUTO"
-  const shouldEnforceCooldown = requestedBy !== "MANUAL"
-  if (shouldEnforceCooldown) {
+  const isAuto = payload.mode === "AUTO"
+  const isVerifyExisting = payload.mode === "VERIFY_EXISTING_DRAFT"
+  let targetDraftId: string | null = null
+  let candidateDraftText: string | undefined
+
+  if (isAuto) {
     await enforceCooldownOrThrow({ orgId: job.orgId, scope: "GENERATE_DRAFT", key: review.id })
   }
+
+  if (isVerifyExisting) {
+    if (!payload.draftReplyId) {
+      throw new NonRetryableError("BAD_REQUEST", "draftReplyId is required for verify mode.")
+    }
+
+    const draft = await prisma.draftReply.findFirst({
+      where: {
+        id: payload.draftReplyId,
+        orgId: job.orgId,
+        reviewId: review.id,
+      },
+      select: { id: true, text: true },
+    })
+    if (!draft) return
+
+    if (review.currentDraftReplyId && review.currentDraftReplyId !== draft.id) {
+      return
+    }
+
+    await enforceCooldownOrThrow({ orgId: job.orgId, scope: "VERIFY_DRAFT", key: draft.id })
+    targetDraftId = draft.id
+    candidateDraftText = draft.text
+  }
+
   await consumeDailyBudgetOrThrow({
     orgId: job.orgId,
     scope: "AI",
@@ -263,12 +293,9 @@ async function handleGenerateDraft(job: Job, signal?: AbortSignal) {
   })
 
   const settings = await prisma.orgSettings.findUnique({ where: { orgId: job.orgId } })
-  const upstreamKey = "DSPY:generate"
-  await breakerPrecheckOrThrow({ orgId: job.orgId, upstreamKey })
   const mentionKeywords = settings?.mentionKeywords ?? []
   const { mentions, highlights } = extractMentionsAndHighlights(review.comment, mentionKeywords)
 
-  // Keep Review.mentions as the canonical source for inbox filters.
   if (mentions.join("|") !== review.mentions.join("|")) {
     await prisma.review.update({
       where: { id: review.id },
@@ -285,43 +312,117 @@ async function handleGenerateDraft(job: Job, signal?: AbortSignal) {
     createTime: review.createTime.toISOString(),
     highlights,
     mentionKeywords,
+    seoProfile: {
+      primaryKeywords: review.location.seoPrimaryKeywords,
+      secondaryKeywords: review.location.seoSecondaryKeywords,
+      geoTerms: review.location.seoGeoTerms,
+    },
     tone: {
       preset: settings?.tonePreset ?? "friendly",
       customInstructions: settings?.toneCustomInstructions ?? null,
     },
   }
+  const evidenceValidated = evidenceSnapshotSchema.parse(evidence)
 
-  const previousDraftText = review.currentDraftReply?.text?.trim() ?? null
-  let draftText = ""
+  const upstreamKey = "DSPY:process"
+  await breakerPrecheckOrThrow({ orgId: job.orgId, upstreamKey })
+
+  const currentDraftText = review.currentDraftReply?.text ?? undefined
+  const inputHash = sha256Hash(
+    JSON.stringify({
+      reviewId: review.id,
+      mode: payload.mode,
+      currentDraftText: currentDraftText ?? null,
+      candidateDraftText: candidateDraftText ?? null,
+      evidence: evidenceValidated,
+    }),
+  )
+
+  let result: Awaited<ReturnType<typeof processReviewWithDspy>>
   try {
-    const maxAttempts = previousDraftText ? 3 : 1
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      const generated = await generateDraftWithDspy({
+    result = await processReviewWithDspy({
+      orgId: job.orgId,
+      reviewId: review.id,
+      mode: payload.mode as DspyProcessMode,
+      evidence: evidenceValidated,
+      currentDraftText,
+      candidateDraftText,
+      requestId: job.triggeredByRequestId ?? undefined,
+      signal,
+    })
+    await breakerRecordSuccess({ orgId: job.orgId, upstreamKey })
+  } catch (error) {
+    await breakerRecordFailure({ orgId: job.orgId, upstreamKey })
+    await prisma.dspyRun.create({
+      data: {
         orgId: job.orgId,
         reviewId: review.id,
-        evidence,
-        previousDraftText: previousDraftText ?? undefined,
-        regenerationAttempt: previousDraftText ? attempt : undefined,
+        draftReplyId: targetDraftId ?? undefined,
+        mode: payload.mode,
+        status: "FAILED",
+        programVersion: UNKNOWN_PROGRAM_VERSION,
+        draftArtifactVersion: UNKNOWN_PROGRAM_VERSION,
+        verifyArtifactVersion: UNKNOWN_PROGRAM_VERSION,
+        draftModel: UNKNOWN_MODEL,
+        verifyModel: UNKNOWN_MODEL,
+        requestId: job.triggeredByRequestId ?? undefined,
+        attemptCount: 0,
+        inputHash,
+        errorCode: errorCodeFromDspyError(error),
+        errorMessage: errorMessageFromDspyError(error),
+      },
+    })
+    throw error
+  }
+
+  const status = result.decision
+  const verifierPayload = {
+    dspy: {
+      decision: status,
+      verifier: result.verifier,
+      seoQuality: result.seoQuality,
+      generation: result.generation,
+      models: result.models,
+      trace: result.trace,
+      latencyMs: result.latencyMs,
+    },
+  }
+
+  if (isVerifyExisting) {
+    if (!targetDraftId) return
+    await prisma.$transaction(async (tx) => {
+      await tx.draftReply.update({
+        where: { id: targetDraftId },
+        data: {
+          status,
+          verifierResultJson: verifierPayload as never,
+        },
       })
-      const candidateText = generated.draftText.trim()
-      if (!candidateText) {
-        throw new Error("DSPy service returned empty draft text.")
-      }
-
-      if (!previousDraftText || !areDraftTextsEquivalent(previousDraftText, candidateText)) {
-        draftText = candidateText
-        break
-      }
-    }
-
-    if (!draftText) {
-      throw new Error("Unable to generate a materially different draft. Please try regenerate again.")
-    }
-    await breakerRecordSuccess({ orgId: job.orgId, upstreamKey })
-  } catch (err) {
-    await breakerRecordFailure({ orgId: job.orgId, upstreamKey })
-    throw err
+      await tx.dspyRun.create({
+        data: {
+          orgId: job.orgId,
+          reviewId: review.id,
+          draftReplyId: targetDraftId,
+          mode: payload.mode,
+          status: "COMPLETED",
+          decision: status,
+          programVersion: result.program.version,
+          draftArtifactVersion: result.program.draftArtifactVersion,
+          verifyArtifactVersion: result.program.verifyArtifactVersion,
+          draftModel: result.models.draft,
+          verifyModel: result.models.verify,
+          draftTraceId: result.trace.draftTraceId,
+          verifyTraceId: result.trace.verifyTraceId,
+          requestId: job.triggeredByRequestId ?? undefined,
+          attemptCount: result.generation.attemptCount,
+          latencyMs: result.latencyMs,
+          inputHash,
+          outputJson: result as never,
+        },
+      })
+    })
+    await setCooldownAfterSuccess({ orgId: job.orgId, scope: "VERIFY_DRAFT", key: targetDraftId })
+    return
   }
 
   const maxVersion = await prisma.draftReply.aggregate({
@@ -329,98 +430,68 @@ async function handleGenerateDraft(job: Job, signal?: AbortSignal) {
     _max: { version: true },
   })
   const nextVersion = (maxVersion._max.version ?? 0) + 1
+  const origin = payload.mode === "MANUAL_REGENERATE" ? "REGENERATED" : "AUTO"
 
-  const created = await prisma.draftReply.create({
-    data: {
-      orgId: job.orgId,
-      reviewId: review.id,
-      version: nextVersion,
-      text: draftText,
-      origin: previousDraftText ? "REGENERATED" : "AUTO",
-      status: "NEEDS_APPROVAL",
-      evidenceSnapshotJson: evidence as never,
-    },
+  await prisma.$transaction(async (tx) => {
+    const created = await tx.draftReply.create({
+      data: {
+        orgId: job.orgId,
+        reviewId: review.id,
+        version: nextVersion,
+        text: result.draftText.trim(),
+        origin,
+        status,
+        evidenceSnapshotJson: evidenceValidated as never,
+        verifierResultJson: verifierPayload as never,
+      },
+    })
+
+    await tx.review.update({
+      where: { id: review.id },
+      data: { currentDraftReplyId: created.id },
+    })
+
+    await tx.dspyRun.create({
+      data: {
+        orgId: job.orgId,
+        reviewId: review.id,
+        draftReplyId: created.id,
+        mode: payload.mode,
+        status: "COMPLETED",
+        decision: status,
+        programVersion: result.program.version,
+        draftArtifactVersion: result.program.draftArtifactVersion,
+        verifyArtifactVersion: result.program.verifyArtifactVersion,
+        draftModel: result.models.draft,
+        verifyModel: result.models.verify,
+        draftTraceId: result.trace.draftTraceId,
+        verifyTraceId: result.trace.verifyTraceId,
+        requestId: job.triggeredByRequestId ?? undefined,
+        attemptCount: result.generation.attemptCount,
+        latencyMs: result.latencyMs,
+        inputHash,
+        outputJson: result as never,
+      },
+    })
   })
 
-  await prisma.review.update({
-    where: { id: review.id },
-    data: { currentDraftReplyId: created.id },
-  })
-
-  await enqueueJob({
-    orgId: job.orgId,
-    type: "VERIFY_DRAFT",
-    payload: { draftReplyId: created.id },
-    dedupKey: `draft:${created.id}`,
-  })
-
-  if (shouldEnforceCooldown) {
+  if (isAuto) {
     await setCooldownAfterSuccess({ orgId: job.orgId, scope: "GENERATE_DRAFT", key: review.id })
   }
 }
 
-async function handleVerifyDraft(job: Job, signal?: AbortSignal) {
-  const payload = verifyDraftPayloadSchema.parse(job.payload)
+function errorCodeFromDspyError(error: unknown) {
+  if (error instanceof DspyServiceError) return error.code
+  return "INTERNAL_ERROR"
+}
 
-  const draft = await prisma.draftReply.findFirst({
-    where: { id: payload.draftReplyId, orgId: job.orgId },
-    include: { review: { include: { location: true } } },
-  })
-  if (!draft) return
+function errorMessageFromDspyError(error: unknown) {
+  const text = error instanceof Error ? error.message : String(error)
+  return text.length <= 2000 ? text : text.slice(0, 2000)
+}
 
-  // Verify latest only: if this draft is no longer current, complete the job without changes.
-  if (draft.review.currentDraftReplyId && draft.review.currentDraftReplyId !== draft.id) {
-    return
-  }
-
-  await enforceCooldownOrThrow({ orgId: job.orgId, scope: "VERIFY_DRAFT", key: draft.id })
-  await consumeDailyBudgetOrThrow({
-    orgId: job.orgId,
-    scope: "AI",
-    bypass: payload.budgetOverride?.enabled === true,
-  })
-
-  const evidence = evidenceSnapshotSchema.parse(draft.evidenceSnapshotJson)
-  const upstreamKey = "DSPY:verify"
-  await breakerPrecheckOrThrow({ orgId: job.orgId, upstreamKey })
-
-  const deterministic = runDeterministicVerifier({
-    evidenceText: String(evidence?.comment ?? ""),
-    draftText: draft.text,
-  })
-
-  // Fail safe: if verifier cannot complete, block publishing instead of allowing unchecked output.
-  let llm: { pass: boolean; violations: Array<{ code: string; message: string; snippet?: string }>; suggestedRewrite?: string } =
-    {
-      pass: false,
-      violations: [{ code: "VERIFIER_ERROR", message: "Verifier could not be completed. Please retry." }],
-    }
-  try {
-    llm = await verifyDraftWithDspy({
-      orgId: job.orgId,
-      reviewId: draft.review.id,
-      evidence,
-      draftText: draft.text,
-    })
-    await breakerRecordSuccess({ orgId: job.orgId, upstreamKey })
-  } catch {
-    await breakerRecordFailure({ orgId: job.orgId, upstreamKey })
-    llm = {
-      pass: false,
-      violations: [{ code: "VERIFIER_ERROR", message: "Verifier returned an invalid response. Please retry." }],
-    }
-  }
-
-  const pass = deterministic.pass && llm.pass
-  await prisma.draftReply.update({
-    where: { id: draft.id },
-    data: {
-      status: pass ? "READY" : "BLOCKED_BY_VERIFIER",
-      verifierResultJson: { deterministic, llm } as never,
-    },
-  })
-
-  await setCooldownAfterSuccess({ orgId: job.orgId, scope: "VERIFY_DRAFT", key: draft.id })
+function sha256Hash(input: string) {
+  return crypto.createHash("sha256").update(input).digest("hex")
 }
 
 async function handlePostReply(job: Job) {

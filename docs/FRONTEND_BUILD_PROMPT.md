@@ -78,20 +78,20 @@ Composite key `(orgId, userId)`, `role: OWNER | MANAGER | STAFF`
 `id`, `orgId`, `reviewId`, `version: int`, `text`, `origin: AUTO | REGENERATED | USER_EDITED`, `status: NEEDS_APPROVAL | BLOCKED_BY_VERIFIER | READY | POSTED | POST_FAILED`, `evidenceSnapshotJson`, `verifierResultJson?`
 
 ### OrgSettings
-`orgId` (PK), `tonePreset` (default: "friendly"), `toneCustomInstructions?`, `autoDraftEnabled` (default: true), `autoDraftForRatings: int[]`, `bulkApproveEnabledForFiveStar` (default: true), `aiProvider: OPENAI | GEMINI`, `mentionKeywords: string[]`
+`orgId` (PK), `tonePreset` (default: "friendly"), `toneCustomInstructions?`, `autoDraftEnabled` (default: true), `autoDraftForRatings: int[]`, `bulkApproveEnabledForFiveStar` (default: true), `mentionKeywords: string[]`
 
 ### Invite
 `id`, `orgId`, `email`, `role`, `tokenHash` (unique), `expiresAt`, `usedAt?`, `createdByUserId`
 
 ### Job
-`id`, `orgId`, `type: SYNC_LOCATIONS | SYNC_REVIEWS | GENERATE_DRAFT | VERIFY_DRAFT | POST_REPLY`, `status: PENDING | RUNNING | RETRYING | COMPLETED | FAILED`, `payload: Json`, `attempts`, `lastError?`
+`id`, `orgId`, `type: SYNC_LOCATIONS | SYNC_REVIEWS | PROCESS_REVIEW | POST_REPLY`, `status: PENDING | RUNNING | RETRYING | COMPLETED | FAILED`, `payload: Json`, `attempts`, `lastError?`
 
 ---
 
 ## 4. API Contracts (all routes already exist)
 
 ### `GET /api/reviews`
-**Query params:** `filter` (unanswered|urgent|five_star|mentions|all), `mention?`, `limit?` (1-100, default 50), `cursor?`
+**Query params:** `filter` (unanswered|urgent|five_star|mentions|all), `status?` (pending|replied|all), `mention?`, `locationId?`, `rating?` (1-5), `search?`, `limit?` (1-10, default 10), `cursor?`
 **Response:**
 ```json
 {
@@ -165,7 +165,7 @@ Only for 5-star reviews with READY drafts. Returns `{ ok, jobIds, worker }`.
   "summary": {
     "byType": {
       "SYNC_LOCATIONS": { "pending": 0, "running": 0, "retrying": 0, "failed_24h": 0 },
-      "GENERATE_DRAFT": { ... },
+      "PROCESS_REVIEW": { ... },
       ...
     },
     "recentFailures": [
@@ -187,7 +187,6 @@ Body (all optional):
   "autoDraftEnabled": true,
   "autoDraftForRatings": [1, 2, 3, 4, 5],
   "bulkApproveEnabledForFiveStar": true,
-  "aiProvider": "OPENAI" | "GEMINI",
   "mentionKeywords": ["cold", "wait", "rude"]
 }
 ```
@@ -420,7 +419,7 @@ components.json                          # shadcn config
 - **AI Tone tab**:
   - Tone preset selector (friendly, professional, empathetic, etc.)
   - Custom instructions textarea
-  - AI provider selector (OpenAI / Gemini)
+  - Runtime indicator (OpenAI via DSPy service)
 - **Team tab** (OWNER only):
   - Invite form (email + role selector + send button)
   - Active invites list with revoke buttons

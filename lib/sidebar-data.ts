@@ -48,15 +48,26 @@ export async function getLocationsSidebarData(orgId: string) {
 
 export async function getSettingsSidebarData(orgId: string) {
   return forOrg(orgId, "settings", SIDEBAR_CACHE_TTL_SEC, async () => {
-    const [org, settings, google] = await Promise.all([
+    const [org, settings, google, locations] = await Promise.all([
       prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } }),
       prisma.orgSettings.findUnique({ where: { orgId } }),
       prisma.googleConnection.findUnique({
         where: { orgId },
         select: { status: true, googleEmail: true, scopes: true },
       }),
+      prisma.location.findMany({
+        where: { orgId, enabled: true },
+        orderBy: { displayName: "asc" },
+        select: {
+          id: true,
+          displayName: true,
+          seoPrimaryKeywords: true,
+          seoSecondaryKeywords: true,
+          seoGeoTerms: true,
+        },
+      }),
     ])
-    return { org, settings, google }
+    return { org, settings, google, locations }
   })
 }
 

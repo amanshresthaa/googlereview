@@ -7,8 +7,7 @@ import { stableJsonStringify } from "@/lib/api/json"
 
 function maxAttemptsForType(type: JobType) {
   if (type === "POST_REPLY") return 3
-  if (type === "VERIFY_DRAFT") return 5
-  if (type === "GENERATE_DRAFT") return 5
+  if (type === "PROCESS_REVIEW") return 5
   if (type === "SYNC_LOCATIONS" || type === "SYNC_REVIEWS") return 8
   return 10
 }
@@ -87,10 +86,9 @@ export async function claimJobs(input: {
       ORDER BY
         CASE "type"
           WHEN 'POST_REPLY' THEN 0
-          WHEN 'VERIFY_DRAFT' THEN 1
+          WHEN 'PROCESS_REVIEW' THEN 1
           WHEN 'SYNC_REVIEWS' THEN 2
           WHEN 'SYNC_LOCATIONS' THEN 2
-          WHEN 'GENERATE_DRAFT' THEN 3
           ELSE 9
         END ASC,
         "runAt" ASC

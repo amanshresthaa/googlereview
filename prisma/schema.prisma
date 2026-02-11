@@ -34,8 +34,7 @@ enum DraftStatus {
 enum JobType {
   SYNC_LOCATIONS
   SYNC_REVIEWS
-  GENERATE_DRAFT
-  VERIFY_DRAFT
+  PROCESS_REVIEW
   POST_REPLY
 }
 
@@ -43,6 +42,17 @@ enum JobStatus {
   PENDING
   RUNNING
   RETRYING
+  COMPLETED
+  FAILED
+}
+
+enum DspyRunMode {
+  AUTO
+  MANUAL_REGENERATE
+  VERIFY_EXISTING_DRAFT
+}
+
+enum DspyRunStatus {
   COMPLETED
   FAILED
 }
@@ -69,6 +79,7 @@ model Organization {
   locations        Location[]
   reviews          Review[]
   draftReplies     DraftReply[]
+  dspyRuns         DspyRun[]
   auditLogs        AuditLog[]
   jobs             Job[]
   settings         OrgSettings?
@@ -124,6 +135,10 @@ model Location {
   enabled          Boolean  @default(false)
   lastReviewsSyncAt DateTime?
 
+  seoPrimaryKeywords   String[] @default([])
+  seoSecondaryKeywords String[] @default([])
+  seoGeoTerms          String[] @default([])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -164,6 +179,7 @@ model Review {
   org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   location Location     @relation(fields: [locationId], references: [id], onDelete: Cascade)
   drafts   DraftReply[]
+  dspyRuns DspyRun[]
 
   @@index([locationId, createTime(sort: Desc)])
   @@index([locationId, starRating])
@@ -188,9 +204,45 @@ model DraftReply {
   org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   review Review       @relation(fields: [reviewId], references: [id], onDelete: Cascade)
   currentForReview Review? @relation("CurrentDraft")
+  dspyRuns DspyRun[]
 
   @@unique([reviewId, version])
   @@index([orgId, status])
+}
+
+model DspyRun {
+  id          String       @id @default(cuid())
+  orgId       String
+  reviewId    String
+  draftReplyId String?
+  mode        DspyRunMode
+  status      DspyRunStatus
+  decision    DraftStatus?
+  programVersion String @default("unknown")
+  draftArtifactVersion String @default("unknown")
+  verifyArtifactVersion String @default("unknown")
+
+  draftModel  String
+  verifyModel String
+  draftTraceId String?
+  verifyTraceId String?
+  requestId   String?
+  attemptCount Int
+  latencyMs   Int?
+  inputHash   String
+  outputJson  Json?
+  errorCode   String?
+  errorMessage String?
+
+  createdAt DateTime @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  review    Review       @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  draftReply DraftReply? @relation(fields: [draftReplyId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt(sort: Desc)])
+  @@index([reviewId, createdAt(sort: Desc)])
+  @@index([draftReplyId])
 }
 
 model AuditLog {

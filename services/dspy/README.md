@@ -5,8 +5,9 @@ This service hosts draft generation and verification programs for GBP review rep
 ## Endpoints
 
 - `GET /api/healthz`
-- `POST /api/draft/generate`
-- `POST /api/draft/verify`
+- `POST /api/review/process`
+
+`/api/review/process` responses include `program` metadata (`version`, `draftArtifactVersion`, `verifyArtifactVersion`) so downstream systems can persist provenance per run.
 
 All POST endpoints require:
 
@@ -57,3 +58,5 @@ To route the Next.js app to local DSPy, set in the root `.env`:
 - `python scripts/compile_bootstrap_fewshot.py --task verify --dataset <path>.jsonl --output artifacts/verify_program.json`
 - `python scripts/evaluate_program.py --task draft --dataset <path>.jsonl --artifact artifacts/draft_program.json`
 - `python scripts/evaluate_program.py --task verify --dataset <path>.jsonl --artifact artifacts/verify_program.json`
+- End-to-end compile + eval + report:
+  - `python scripts/recompile_and_report.py --draft-train <draft_train.jsonl> --draft-eval <draft_eval.jsonl> --verify-train <verify_train.jsonl> --verify-eval <verify_eval.jsonl> --tag nightly`

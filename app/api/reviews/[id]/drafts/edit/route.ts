@@ -6,6 +6,7 @@ import { handleAuthedPost } from "@/lib/api/handler"
 import { ApiError } from "@/lib/api/errors"
 import { zodFields } from "@/lib/api/validation"
 import { requireRole } from "@/lib/api/authz"
+import { runProcessReviewFastPath } from "@/lib/jobs/worker"
 
 export const runtime = "nodejs"
 
@@ -70,6 +71,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         createTime: review.createTime.toISOString(),
         highlights,
         mentionKeywords,
+        seoProfile: {
+          primaryKeywords: review.location.seoPrimaryKeywords,
+          secondaryKeywords: review.location.seoSecondaryKeywords,
+          geoTerms: review.location.seoGeoTerms,
+        },
         tone: {
           preset: settings?.tonePreset ?? "friendly",
           customInstructions: settings?.toneCustomInstructions ?? null,
@@ -109,12 +115,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
       const verifyJob = await enqueueJob({
         orgId: session.orgId,
-        type: "VERIFY_DRAFT",
+        type: "PROCESS_REVIEW",
         payload: {
+          reviewId: review.id,
+          mode: "VERIFY_EXISTING_DRAFT",
           draftReplyId: created.id,
           budgetOverride: budgetOverride ? { enabled: true, reason: budgetOverrideReason } : { enabled: false },
         },
-        dedupKey: `draft:${created.id}`,
+        dedupKey: `draft:${created.id}:request:${requestId}`,
         triggeredByRequestId: requestId,
         triggeredByUserId: session.user.id,
       })
@@ -133,11 +141,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         },
       })
 
+      const worker = await runProcessReviewFastPath({
+        jobId: verifyJob.id,
+        orgId: session.orgId,
+        workerId: `fastpath:${requestId}`,
+        budgetMs: 2000,
+      })
+
       return {
         body: {
           draftReplyId: created.id,
           verifyJobId: verifyJob.id,
-          worker: { claimed: 0, results: [] },
+          worker,
         },
       }
     }

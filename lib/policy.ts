@@ -11,6 +11,13 @@ export const DEFAULT_MENTION_KEYWORDS = [
 
 export const DEFAULT_AUTODRAFT_RATINGS = [1, 2, 3, 4, 5] as const
 
+export const SEO_PROFILE_LIMITS = {
+  PRIMARY_MAX: 5,
+  SECONDARY_MAX: 15,
+  GEO_MAX: 10,
+  KEYWORD_MAX_LENGTH: 64,
+} as const
+
 export const MAX_GOOGLE_REPLY_CHARS = 4096
 
 export const ACTION_CLAIM_BLOCKLIST = [

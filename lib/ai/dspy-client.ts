@@ -2,7 +2,6 @@ import { dspyEnv } from "@/lib/env"
 import {
   type EvidenceSnapshot,
   llmVerifierResultSchema,
-  normalizeLlmVerifierResult,
 } from "@/lib/ai/draft"
 import { z } from "zod"
 
@@ -11,25 +10,43 @@ const serviceErrorSchema = z.object({
   message: z.string().min(1),
 })
 
-const generateDraftResponseSchema = z.object({
+const processReviewResponseSchema = z.object({
+  decision: z.enum(["READY", "BLOCKED_BY_VERIFIER"]),
   draftText: z.string().min(1),
-  model: z.string().optional(),
-  traceId: z.string().optional(),
+  verifier: llmVerifierResultSchema,
+  seoQuality: z.object({
+    keywordCoverage: z.number().min(0).max(1),
+    requiredKeywordUsed: z.boolean(),
+    requiredKeywordCoverage: z.number().min(0).max(1),
+    optionalKeywordCoverage: z.number().min(0).max(1),
+    geoTermUsed: z.boolean(),
+    geoTermOveruse: z.boolean(),
+    stuffingRisk: z.boolean(),
+    keywordMentions: z.number().int().min(0),
+    missingRequiredKeywords: z.array(z.string()),
+  }),
+  generation: z.object({
+    attempted: z.boolean(),
+    changed: z.boolean(),
+    attemptCount: z.number().int().min(1),
+  }),
+  program: z.object({
+    version: z.string().min(1),
+    draftArtifactVersion: z.string().min(1),
+    verifyArtifactVersion: z.string().min(1),
+  }),
+  models: z.object({
+    draft: z.string().min(1),
+    verify: z.string().min(1),
+  }),
+  trace: z.object({
+    draftTraceId: z.string().min(1).optional(),
+    verifyTraceId: z.string().min(1),
+  }),
+  latencyMs: z.number().int().min(0),
 })
 
-const verifyDraftResponseSchema = z.object({
-  pass: z.boolean(),
-  violations: z.array(
-    z.object({
-      code: z.string().min(1),
-      message: z.string().min(1),
-      snippet: z.string().optional(),
-    }),
-  ),
-  suggestedRewrite: z.union([z.string(), z.null()]).optional(),
-  model: z.string().optional(),
-  traceId: z.string().optional(),
-})
+export type DspyProcessMode = "AUTO" | "MANUAL_REGENERATE" | "VERIFY_EXISTING_DRAFT"
 
 type DspyErrorCode =
   | "INVALID_REQUEST"
@@ -50,65 +67,48 @@ export class DspyServiceError extends Error {
   }
 }
 
-export async function generateDraftWithDspy(input: {
+export async function processReviewWithDspy(input: {
   orgId: string
   reviewId: string
+  mode: DspyProcessMode
   evidence: EvidenceSnapshot
-  previousDraftText?: string
-  regenerationAttempt?: number
+  currentDraftText?: string
+  candidateDraftText?: string
+  requestId?: string
+  signal?: AbortSignal
 }) {
-  const res = await callDspy("api/draft/generate", {
+  const res = await callDspy("api/review/process", {
     orgId: input.orgId,
     reviewId: input.reviewId,
+    mode: input.mode,
     evidence: input.evidence,
-    previousDraftText: input.previousDraftText,
-    regenerationAttempt: input.regenerationAttempt,
-  })
-  const parsed = generateDraftResponseSchema.safeParse(res)
+    currentDraftText: input.currentDraftText,
+    candidateDraftText: input.candidateDraftText,
+    requestId: input.requestId,
+  }, { signal: input.signal })
+  const parsed = processReviewResponseSchema.safeParse(res)
   if (!parsed.success) {
     throw new DspyServiceError(
       "MODEL_SCHEMA_ERROR",
       502,
-      `DSPy draft response schema error: ${parsed.error.message}`,
+      `DSPy process response schema error: ${parsed.error.message}`,
     )
   }
   return parsed.data
 }
 
-export async function verifyDraftWithDspy(input: {
-  orgId: string
-  reviewId: string
-  evidence: EvidenceSnapshot
-  draftText: string
-}) {
-  const res = await callDspy("api/draft/verify", {
-    orgId: input.orgId,
-    reviewId: input.reviewId,
-    evidence: input.evidence,
-    draftText: input.draftText,
-  })
-  const parsed = verifyDraftResponseSchema.safeParse(res)
-  if (!parsed.success) {
-    throw new DspyServiceError(
-      "MODEL_SCHEMA_ERROR",
-      502,
-      `DSPy verify response schema error: ${parsed.error.message}`,
-    )
-  }
-
-  return {
-    ...normalizeLlmVerifierResult(llmVerifierResultSchema.parse(parsed.data)),
-    model: parsed.data.model,
-    traceId: parsed.data.traceId,
-  }
-}
-
-async function callDspy(path: string, payload: unknown) {
+async function callDspy(path: string, payload: unknown, opts?: { signal?: AbortSignal }) {
   const e = dspyEnv()
   const baseUrl = e.DSPY_SERVICE_BASE_URL.replace(/\/+$/, "")
   const timeoutMs = e.DSPY_HTTP_TIMEOUT_MS ?? 12_000
 
   const controller = new AbortController()
+  const parentSignal = opts?.signal
+  const onParentAbort = () => controller.abort()
+  if (parentSignal) {
+    if (parentSignal.aborted) controller.abort()
+    else parentSignal.addEventListener("abort", onParentAbort, { once: true })
+  }
   const timeout = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
@@ -131,6 +131,9 @@ async function callDspy(path: string, payload: unknown) {
   } catch (err) {
     if (err instanceof DspyServiceError) throw err
     if (err instanceof DOMException && err.name === "AbortError") {
+      if (parentSignal?.aborted) {
+        throw new DspyServiceError("MODEL_TIMEOUT", 504, "DSPy request cancelled due to execution budget.")
+      }
       throw new DspyServiceError(
         "MODEL_TIMEOUT",
         504,
@@ -144,6 +147,7 @@ async function callDspy(path: string, payload: unknown) {
     )
   } finally {
     clearTimeout(timeout)
+    parentSignal?.removeEventListener("abort", onParentAbort)
   }
 }
 

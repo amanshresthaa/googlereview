@@ -3,7 +3,7 @@ import { enqueueJob } from "@/lib/jobs/queue"
 import { handleAuthedPost } from "@/lib/api/handler"
 import { ApiError } from "@/lib/api/errors"
 import { requireRole } from "@/lib/api/authz"
-import { runVerifyFastPath } from "@/lib/jobs/worker"
+import { runProcessReviewFastPath } from "@/lib/jobs/worker"
 
 export const runtime = "nodejs"
 
@@ -45,12 +45,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       const draftId = review.currentDraftReplyId
       const job = await enqueueJob({
         orgId: session.orgId,
-        type: "VERIFY_DRAFT",
+        type: "PROCESS_REVIEW",
         payload: {
+          reviewId,
+          mode: "VERIFY_EXISTING_DRAFT",
           draftReplyId: draftId,
           budgetOverride: budgetOverride ? { enabled: true, reason: budgetOverrideReason } : { enabled: false },
         },
-        dedupKey: `draft:${draftId}`,
+        dedupKey: `draft:${draftId}:request:${requestId}`,
         triggeredByRequestId: requestId,
         triggeredByUserId: session.user.id,
       })
@@ -69,8 +71,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         },
       })
 
-      // Fast-path verify: bounded and verify-only, and only for the job created by this request.
-      const worker = await runVerifyFastPath({
+      // Fast-path process: bounded and process-only, and only for the job created by this request.
+      const worker = await runProcessReviewFastPath({
         jobId: job.id,
         orgId: session.orgId,
         workerId: `fastpath:${requestId}`,

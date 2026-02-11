@@ -28,6 +28,7 @@ export async function GET(req: Request) {
         range: summary.range,
         kpis: summary.kpis,
         series: summary.series,
+        dspy: summary.dspy,
       },
     }
   })

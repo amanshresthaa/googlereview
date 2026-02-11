@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import type { ReviewListCounts, ReviewListPage, ReviewListRow } from "@/lib/reviews/types"
+import { REVIEWS_PAGE_SIZE } from "@/lib/reviews/constants"
 
 export type ReviewFilter = "unanswered" | "urgent" | "five_star" | "mentions" | "all"
 
@@ -17,16 +18,26 @@ type UsePaginatedReviewsResult = {
   hasMore: boolean
   loadMore: () => void
   refresh: () => void
+  updateRow: (id: string, updater: (row: ReviewRow) => ReviewRow) => void
 }
 
 export function usePaginatedReviews(opts: {
   filter: ReviewFilter
   mention?: string
+  status?: "pending" | "replied" | "all"
+  locationId?: string
+  rating?: number
+  search?: string
   initialPage?: (ReviewListPage & { filter: ReviewFilter; mention?: string | null }) | null
 }): UsePaginatedReviewsResult {
-  const { filter, mention, initialPage } = opts
+  const { filter, mention, status = "all", locationId, rating, search, initialPage } = opts
+  const statusCompatibleWithInitial = status === "all" || (status === "pending" && filter === "unanswered")
   const initialMatches =
     !!initialPage &&
+    statusCompatibleWithInitial &&
+    !locationId &&
+    rating == null &&
+    !search &&
     initialPage.filter === filter &&
     (initialPage.mention ?? null) === (mention ?? null)
   const initialConsumedRef = React.useRef(false)
@@ -57,8 +68,12 @@ export function usePaginatedReviews(opts: {
       }
       setError(null)
 
-      const params = new URLSearchParams({ filter, limit: "50" })
+      const params = new URLSearchParams({ filter, limit: String(REVIEWS_PAGE_SIZE) })
       if (mention) params.set("mention", mention)
+      params.set("status", status)
+      if (locationId) params.set("locationId", locationId)
+      if (rating != null) params.set("rating", String(rating))
+      if (search) params.set("search", search)
       if (cursor) params.set("cursor", cursor)
 
       try {
@@ -114,7 +129,7 @@ export function usePaginatedReviews(opts: {
         }
       }
     },
-    [filter, mention],
+    [filter, mention, status, locationId, rating, search],
   )
 
   React.useEffect(() => {
@@ -124,6 +139,10 @@ export function usePaginatedReviews(opts: {
     const canUseInitialPage =
       !!initialPage &&
       !initialConsumedRef.current &&
+      statusCompatibleWithInitial &&
+      !locationId &&
+      rating == null &&
+      !search &&
       initialPage.filter === filter &&
       (initialPage.mention ?? null) === (mention ?? null)
 
@@ -146,7 +165,7 @@ export function usePaginatedReviews(opts: {
     return () => {
       abortRef.current?.abort()
     }
-  }, [fetchPage, filter, mention, initialPage])
+  }, [fetchPage, filter, mention, statusCompatibleWithInitial, locationId, rating, search, initialPage])
 
   const loadMore = React.useCallback(() => {
     if (!hasMore || loadingMore || loading) return
@@ -158,8 +177,11 @@ export function usePaginatedReviews(opts: {
     setHasMore(false)
     fetchPage(null, false)
   }, [fetchPage])
+  const updateRow = React.useCallback((id: string, updater: (row: ReviewRow) => ReviewRow) => {
+    setRows((prev) => prev.map((row) => (row.id === id ? updater(row) : row)))
+  }, [])
 
-  return { rows, counts, loading, loadingMore, error, hasMore, loadMore, refresh }
+  return { rows, counts, loading, loadingMore, error, hasMore, loadMore, refresh, updateRow }
 }
 
 type JobSummary = {
@@ -173,6 +195,28 @@ type JobSummary = {
     completedAtIso: string | null
     lastError: string | null
   }>
+  aiQuality24h?: {
+    runs: number
+    blocked: number
+    stuffingRisk: number
+    avgKeywordCoverage: number
+    blockedRate: number
+    stuffingRiskRate: number
+    requiredKeywordUsageRate: number
+    topProgramVersion: string | null
+    programVersions: Array<{
+      version: string
+      runs: number
+      blockedRate: number
+      avgKeywordCoverage: number
+      requiredKeywordUsageRate: number
+    }>
+    modeDistribution: Array<{
+      mode: "AUTO" | "MANUAL_REGENERATE" | "VERIFY_EXISTING_DRAFT"
+      runs: number
+      ratio: number
+    }>
+  }
 }
 
 type UseJobSummaryResult = {

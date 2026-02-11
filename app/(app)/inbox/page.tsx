@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session"
 import { InboxClient } from "@/app/(app)/inbox/InboxClient"
 import { getInboxSidebarData } from "@/lib/sidebar-data"
 import { listReviewsPage } from "@/lib/reviews/query"
+import { REVIEWS_PAGE_SIZE } from "@/lib/reviews/constants"
 import type { ReviewFilter } from "@/lib/hooks"
 
 function parseFilter(input: string | undefined): ReviewFilter {
@@ -23,14 +24,14 @@ export default async function InboxPage({
 
   const sp = await searchParams
   const parsedFilter = parseFilter(sp.filter)
-  const initialRemoteFilter: ReviewFilter = parsedFilter === "all" ? "all" : "unanswered"
+  const initialRemoteFilter: ReviewFilter = parsedFilter
   const initialMention = sp.mention?.trim().toLowerCase() ?? null
 
   const initialPage = await listReviewsPage({
     orgId: session.orgId,
     filter: initialRemoteFilter,
     mention: initialMention ?? undefined,
-    limit: 50,
+    limit: REVIEWS_PAGE_SIZE,
   })
 
   const { settings, locations } = await getInboxSidebarData(session.orgId)

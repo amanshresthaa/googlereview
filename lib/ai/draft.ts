@@ -15,6 +15,11 @@ export const evidenceSnapshotSchema = z.object({
     }),
   ),
   mentionKeywords: z.array(z.string()),
+  seoProfile: z.object({
+    primaryKeywords: z.array(z.string()),
+    secondaryKeywords: z.array(z.string()),
+    geoTerms: z.array(z.string()),
+  }),
   tone: z.object({
     preset: z.string(),
     customInstructions: z.string().nullable(),

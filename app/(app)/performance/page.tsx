@@ -21,7 +21,7 @@ export default async function PerformancePage() {
 
   return (
     <div className="max-w-6xl mx-auto p-10 space-y-10">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
         <StatItem
           label="Response Rate"
           value={formatPct(summary.kpis.replyRate)}
@@ -43,6 +43,20 @@ export default async function PerformancePage() {
           icon={<Sparkles className="h-5 w-5" />}
           color="indigo"
         />
+        <StatItem
+          label="SEO Coverage"
+          value={formatPct(summary.kpis.avgSeoKeywordCoverage)}
+          trend={`${summary.kpis.seoStuffingRiskCount} stuffing risks`}
+          icon={<Sparkles className="h-5 w-5" />}
+          color="blue"
+        />
+        <StatItem
+          label="AI Block Rate"
+          value={formatPct(summary.kpis.aiBlockedRate)}
+          trend={`${formatPct(summary.kpis.requiredKeywordUsageRate)} keyword usage`}
+          icon={<CheckCircle2 className="h-5 w-5" />}
+          color="yellow"
+        />
       </div>
 
       <Card className="border-zinc-200 rounded-3xl shadow-sm h-[400px] flex items-center justify-center text-zinc-400">
@@ -52,6 +66,39 @@ export default async function PerformancePage() {
           <p className="text-sm opacity-60">
             {summary.series.daily.reduce((sum, d) => sum + d.replied, 0)} replies posted in current window
           </p>
+        </CardContent>
+      </Card>
+
+      <Card className="border-zinc-200 rounded-3xl shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">DSPy Program Quality</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-zinc-600">
+            Active program:{" "}
+            <span className="font-mono text-zinc-900">
+              {summary.dspy.activeProgramVersion ?? "unknown"}
+            </span>
+          </p>
+          {summary.dspy.programVersions.length ? (
+            <div className="space-y-2">
+              {summary.dspy.programVersions.map((item) => (
+                <div
+                  key={`${item.version}:${item.draftArtifactVersion}:${item.verifyArtifactVersion}`}
+                  className="rounded-xl border border-zinc-200 p-3"
+                >
+                  <p className="text-xs font-semibold text-zinc-700">
+                    <span className="font-mono">{item.version}</span> · {item.runs} runs
+                  </p>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    Blocked: {formatPct(item.blockedRate)} · Coverage: {formatPct(item.avgKeywordCoverage)} · Required keyword usage: {formatPct(item.requiredKeywordUsageRate)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-500">No DSPy runs in the selected range.</p>
+          )}
         </CardContent>
       </Card>
     </div>

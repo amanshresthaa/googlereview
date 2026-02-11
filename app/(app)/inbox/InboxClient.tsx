@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
-import { usePaginatedReviews, type ReviewFilter, type ReviewRow } from "@/lib/hooks"
+import { usePaginatedReviews, type ReviewDetail, type ReviewFilter, type ReviewRow } from "@/lib/hooks"
 import { BlitzMode, ReviewItem } from "@/app/(app)/inbox/inbox-ui"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,6 +24,16 @@ import {
 type LocationOption = {
   id: string
   displayName: string
+}
+
+function resolveRemoteFilter(baseFilter: ReviewFilter, tab: "all" | "pending" | "replied"): ReviewFilter {
+  if (tab === "replied") {
+    return baseFilter === "unanswered" || baseFilter === "urgent" ? "all" : baseFilter
+  }
+  if (tab === "all") {
+    return baseFilter === "unanswered" ? "all" : baseFilter
+  }
+  return baseFilter
 }
 
 type Props = {
@@ -68,35 +78,82 @@ function canBulkApprove(row: ReviewRow) {
   return row.status === "pending" && row.starRating === 5 && row.draftStatus === "READY"
 }
 
-async function waitForReadyDraft(reviewId: string, timeoutMs: number = 4500) {
-  const start = Date.now()
-  while (Date.now() - start < timeoutMs) {
-    const res = await fetch(`/api/reviews/${reviewId}`)
-    if (res.ok) {
-      const data = await res.json().catch(() => null)
-      if (data?.currentDraft?.status === "READY") return true
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500))
-  }
-  return false
+const POLL_INTERVAL_MS = 450
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function waitForDraftChange(reviewId: string, previousDraftId: string | null, timeoutMs: number = 5000) {
+async function fetchReviewDetail(reviewId: string): Promise<ReviewDetail | null> {
+  const res = await fetch(`/api/reviews/${reviewId}`)
+  if (!res.ok) return null
+  const data = await res.json().catch(() => null)
+  return data as ReviewDetail | null
+}
+
+function mapDetailToRow(existing: ReviewRow, detail: ReviewDetail): ReviewRow {
+  const draftUpdatedAt =
+    typeof (detail.currentDraft as { updatedAt?: string } | null)?.updatedAt === "string"
+      ? ((detail.currentDraft as { updatedAt?: string }).updatedAt as string)
+      : existing.currentDraft?.updatedAtIso ?? new Date().toISOString()
+
+  return {
+    ...existing,
+    starRating: detail.starRating,
+    snippet: (detail.comment ?? "").slice(0, 120),
+    comment: detail.comment ?? "",
+    reviewer: {
+      displayName: detail.reviewer.displayName,
+      isAnonymous: detail.reviewer.isAnonymous,
+    },
+    createTimeIso: detail.createTime,
+    location: {
+      id: detail.location.id,
+      displayName: detail.location.name,
+    },
+    unanswered: detail.reply.comment == null,
+    status: detail.reply.comment == null ? "pending" : "replied",
+    reply: {
+      comment: detail.reply.comment,
+      updateTimeIso: detail.reply.updateTime,
+    },
+    currentDraft: detail.currentDraft
+      ? {
+          id: detail.currentDraft.id,
+          text: detail.currentDraft.text,
+          status: detail.currentDraft.status,
+          version: detail.currentDraft.version,
+          updatedAtIso: draftUpdatedAt,
+        }
+      : null,
+    draftStatus: detail.currentDraft?.status ?? null,
+    mentions: detail.mentions,
+  }
+}
+
+function getVerifierBlockedMessage(detail: ReviewDetail | null) {
+  const violations = (
+    (detail?.currentDraft?.verifierResultJson as { dspy?: { verifier?: { violations?: Array<{ message?: string }> } } } | null)
+      ?.dspy?.verifier?.violations ?? []
+  )
+  const firstMessage = violations.find((item) => typeof item?.message === "string")?.message
+  return firstMessage?.trim() || "Draft was blocked by verifier. Please adjust and retry."
+}
+
+async function waitForReviewState(
+  reviewId: string,
+  predicate: (detail: ReviewDetail) => boolean,
+  timeoutMs: number,
+) {
   const start = Date.now()
   while (Date.now() - start < timeoutMs) {
-    const res = await fetch(`/api/reviews/${reviewId}`)
-    if (res.ok) {
-      const data = await res.json().catch(() => null)
-      const currentDraftId = data?.currentDraft?.id ?? null
-      if (previousDraftId == null) {
-        if (currentDraftId != null) return true
-      } else if (currentDraftId !== previousDraftId) {
-        return true
-      }
+    const detail = await fetchReviewDetail(reviewId)
+    if (detail && predicate(detail)) {
+      return detail
     }
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    await sleep(POLL_INTERVAL_MS)
   }
-  return false
+  return null
 }
 
 export function InboxClient({
@@ -107,7 +164,6 @@ export function InboxClient({
   locations,
   initialPage,
 }: Props) {
-  void initialMention
   void mentionKeywords
   const initialTab = initialFilter === "all" ? "all" : initialFilter === "five_star" ? "pending" : "pending"
   const [selectedIds, setSelectedIds] = React.useState<string[]>([])
@@ -117,9 +173,18 @@ export function InboxClient({
   const [activeTab, setActiveTab] = React.useState<"all" | "pending" | "replied">(initialTab as "all" | "pending" | "replied")
   const [isBulkActionLoading, setIsBulkActionLoading] = React.useState(false)
   const [blitzMode, setBlitzMode] = React.useState(false)
-  const remoteFilter: ReviewFilter = activeTab === "pending" ? "unanswered" : "all"
-  const { rows, counts, loading, loadingMore, error, hasMore, loadMore, refresh } = usePaginatedReviews({
+  const remoteFilter = resolveRemoteFilter(initialFilter, activeTab)
+  const remoteStatus = activeTab === "pending" ? "pending" : activeTab === "replied" ? "replied" : "all"
+  const normalizedSearch = searchQuery.trim()
+  const normalizedLocation = locationFilter === "all" ? undefined : locationFilter
+  const normalizedRating = ratingFilter === "all" ? undefined : Number(ratingFilter)
+  const { rows, counts, loading, loadingMore, error, hasMore, loadMore, refresh, updateRow } = usePaginatedReviews({
     filter: remoteFilter,
+    mention: initialMention ?? undefined,
+    status: remoteStatus,
+    search: normalizedSearch || undefined,
+    locationId: normalizedLocation,
+    rating: Number.isFinite(normalizedRating) ? normalizedRating : undefined,
     initialPage,
   })
 
@@ -134,21 +199,9 @@ export function InboxClient({
     return () => window.removeEventListener("replyai:open-blitz", open)
   }, [])
 
-  const filteredReviews = React.useMemo(() => {
-    return rows.filter((r) => {
-      const q = searchQuery.trim().toLowerCase()
-      const matchesSearch =
-        q.length === 0 ||
-        (r.reviewer.displayName ?? "").toLowerCase().includes(q) ||
-        r.comment.toLowerCase().includes(q) ||
-        r.location.displayName.toLowerCase().includes(q)
-      const matchesLocation = locationFilter === "all" || r.location.id === locationFilter
-      const matchesRating = ratingFilter === "all" || String(r.starRating) === ratingFilter
-      const matchesTab =
-        activeTab === "all" || (activeTab === "pending" ? r.status === "pending" : r.status === "replied")
-      return matchesSearch && matchesLocation && matchesRating && matchesTab
-    })
-  }, [rows, searchQuery, locationFilter, ratingFilter, activeTab])
+  React.useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => rows.some((row) => row.id === id)))
+  }, [rows])
 
   const pendingCount = counts?.unanswered ?? rows.filter((r) => r.status === "pending").length
 
@@ -162,48 +215,148 @@ export function InboxClient({
   )
 
   const pendingForBlitz = React.useMemo(() => rows.filter((r) => r.status === "pending"), [rows])
+  const showInitialLoading = loading && rows.length === 0
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
   const selectAllFiveStars = () => {
-    setSelectedIds(filteredReviews.filter(canBulkApprove).map((r) => r.id))
+    setSelectedIds(rows.filter(canBulkApprove).map((r) => r.id))
+  }
+
+  const syncRowFromServer = async (reviewId: string) => {
+    const detail = await fetchReviewDetail(reviewId)
+    if (detail) {
+      updateRow(reviewId, (row) => mapDetailToRow(row, detail))
+    }
+    return detail
   }
 
   const generateDraft = async (reviewId: string) => {
     const previousDraftId = rows.find((row) => row.id === reviewId)?.currentDraft?.id ?? null
+    updateRow(reviewId, (row) => ({
+      ...row,
+      draftStatus: "NEEDS_APPROVAL",
+      currentDraft: row.currentDraft
+        ? {
+            ...row.currentDraft,
+            status: "NEEDS_APPROVAL",
+          }
+        : row.currentDraft,
+    }))
     const result = await apiCall(`/api/reviews/${reviewId}/drafts/generate`, "POST")
     const claimed = Number(result?.worker?.claimed ?? 0)
     if (claimed > 0) {
+      await syncRowFromServer(reviewId)
       toast.success("Draft regenerated")
     } else {
-      const changed = await waitForDraftChange(reviewId, previousDraftId)
-      toast.success(changed ? "Draft regenerated" : "Draft generation queued")
+      const changed = await waitForReviewState(
+        reviewId,
+        (detail) => {
+          const currentDraftId = detail.currentDraft?.id ?? null
+          return previousDraftId == null ? currentDraftId != null : currentDraftId !== previousDraftId
+        },
+        5000,
+      )
+      if (changed) {
+        updateRow(reviewId, (row) => mapDetailToRow(row, changed))
+        toast.success("Draft regenerated")
+      } else {
+        toast.success("Draft generation queued")
+      }
     }
-    refresh()
+    void refresh()
   }
 
   const saveDraft = async (reviewId: string, text: string) => {
-    await apiCall(`/api/reviews/${reviewId}/drafts/edit`, "POST", { text })
-    toast.success("Draft saved")
-    refresh()
+    const result = await apiCall(`/api/reviews/${reviewId}/drafts/edit`, "POST", { text })
+    const claimed = Number(result?.worker?.claimed ?? 0)
+    if (claimed > 0) {
+      await syncRowFromServer(reviewId)
+      toast.success("Draft saved and verified")
+    } else {
+      const settled = await waitForReviewState(
+        reviewId,
+        (detail) => {
+          const status = detail.currentDraft?.status
+          return status === "READY" || status === "BLOCKED_BY_VERIFIER"
+        },
+        5500,
+      )
+      if (settled) {
+        updateRow(reviewId, (row) => mapDetailToRow(row, settled))
+        if (settled.currentDraft?.status === "BLOCKED_BY_VERIFIER") {
+          toast.error(getVerifierBlockedMessage(settled))
+        } else {
+          toast.success("Draft saved and verified")
+        }
+      } else {
+        toast.success("Draft saved; verification queued")
+      }
+    }
+    void refresh()
   }
 
   const publishReply = async (reviewId: string, text: string, row: ReviewRow) => {
     if (!text.trim()) throw new Error("Draft is empty.")
     const current = row.currentDraft?.text.trim() ?? ""
     const incoming = text.trim()
+    let verified: ReviewDetail | null = null
+
     if (current !== incoming) {
-      await apiCall(`/api/reviews/${reviewId}/drafts/edit`, "POST", { text: incoming })
+      const editResult = await apiCall(`/api/reviews/${reviewId}/drafts/edit`, "POST", { text: incoming })
+      const editClaimed = Number(editResult?.worker?.claimed ?? 0)
+      const afterEdit = await waitForReviewState(
+        reviewId,
+        (detail) => {
+          const currentText = detail.currentDraft?.text.trim() ?? ""
+          const status = detail.currentDraft?.status
+          return currentText === incoming && (status === "READY" || status === "BLOCKED_BY_VERIFIER")
+        },
+        editClaimed > 0 ? 5000 : 6500,
+      )
+      if (afterEdit) {
+        updateRow(reviewId, (nextRow) => mapDetailToRow(nextRow, afterEdit))
+        verified = afterEdit
+      }
     }
 
-    await apiCall(`/api/reviews/${reviewId}/drafts/verify`, "POST")
-    await waitForReadyDraft(reviewId)
-    await apiCall(`/api/reviews/${reviewId}/reply/post`, "POST")
+    if (!verified) {
+      const verifyResult = await apiCall(`/api/reviews/${reviewId}/drafts/verify`, "POST")
+      const verifyClaimed = Number(verifyResult?.worker?.claimed ?? 0)
+      verified = await waitForReviewState(
+        reviewId,
+        (detail) => {
+          const status = detail.currentDraft?.status
+          return status === "READY" || status === "BLOCKED_BY_VERIFIER"
+        },
+        verifyClaimed > 0 ? 5000 : 7000,
+      )
+    }
 
-    toast.success("Reply published")
-    refresh()
+    if (!verified) {
+      throw new Error("Verification is still processing. Please try publishing again in a few seconds.")
+    }
+    updateRow(reviewId, (nextRow) => mapDetailToRow(nextRow, verified))
+    if (verified.currentDraft?.status !== "READY") {
+      throw new Error(getVerifierBlockedMessage(verified))
+    }
+
+    const postResult = await apiCall(`/api/reviews/${reviewId}/reply/post`, "POST")
+    const postClaimed = Number(postResult?.worker?.claimed ?? 0)
+    const posted = await waitForReviewState(
+      reviewId,
+      (detail) => detail.reply.comment != null,
+      postClaimed > 0 ? 4500 : 7000,
+    )
+    if (posted) {
+      updateRow(reviewId, (nextRow) => mapDetailToRow(nextRow, posted))
+      toast.success("Reply published")
+    } else {
+      toast.success("Reply posting queued")
+    }
+    void refresh()
   }
 
   const handleBulkApprove = async () => {
@@ -350,7 +503,17 @@ export function InboxClient({
 
       <ScrollArea className="flex-1">
         <div className="p-6 space-y-4">
-          {filteredReviews.length === 0 ? (
+          {showInitialLoading ? (
+            <Card className="h-full min-h-[360px] flex flex-col items-center justify-center text-center py-20 border-zinc-200">
+              <CardContent className="pt-6">
+                <div className="h-16 w-16 bg-zinc-100 rounded-full flex items-center justify-center mb-4 mx-auto">
+                  <RefreshCw className="h-8 w-8 text-zinc-300 animate-spin" />
+                </div>
+                <h3 className="text-lg font-medium text-zinc-900">Loading reviews</h3>
+                <p className="text-zinc-500 max-w-xs">Fetching the latest inbox data.</p>
+              </CardContent>
+            </Card>
+          ) : rows.length === 0 ? (
             <Card className="h-full min-h-[360px] flex flex-col items-center justify-center text-center py-20 border-zinc-200">
               <CardContent className="pt-6">
                 <div className="h-16 w-16 bg-zinc-100 rounded-full flex items-center justify-center mb-4 mx-auto">
@@ -361,7 +524,7 @@ export function InboxClient({
               </CardContent>
             </Card>
           ) : (
-            filteredReviews.map((review) => (
+            rows.map((review) => (
               <ReviewItem
                 key={review.id}
                 review={review}

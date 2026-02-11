@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db"
 import { handleAuthedPost } from "@/lib/api/handler"
 import { ApiError } from "@/lib/api/errors"
 import { requireRole } from "@/lib/api/authz"
-import { runGenerateFastPath } from "@/lib/jobs/worker"
+import { runProcessReviewFastPath } from "@/lib/jobs/worker"
 
 export const runtime = "nodejs"
 
@@ -43,10 +43,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
       const job = await enqueueJob({
         orgId: session.orgId,
-        type: "GENERATE_DRAFT",
+        type: "PROCESS_REVIEW",
         payload: {
           reviewId,
-          requestedBy: "MANUAL",
+          mode: "MANUAL_REGENERATE",
           budgetOverride: budgetOverride ? { enabled: true, reason: budgetOverrideReason } : { enabled: false },
         },
         dedupKey: `review:${reviewId}:request:${requestId}`,
@@ -68,8 +68,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         },
       })
 
-      // Fast-path generate: bounded and generate-only, and only for this request's job.
-      const worker = await runGenerateFastPath({
+      // Fast-path process: bounded and process-only, and only for this request's job.
+      const worker = await runProcessReviewFastPath({
         jobId: job.id,
         orgId: session.orgId,
         workerId: `fastpath:${requestId}`,

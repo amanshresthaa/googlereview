@@ -3,6 +3,7 @@ import { enqueueJob } from "@/lib/jobs/queue"
 import { handleAuthedPost } from "@/lib/api/handler"
 import { ApiError } from "@/lib/api/errors"
 import { requireRole } from "@/lib/api/authz"
+import { runPostReplyFastPath } from "@/lib/jobs/worker"
 
 export const runtime = "nodejs"
 
@@ -43,7 +44,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         },
       })
 
-      return { body: { jobId: job.id, worker: { claimed: 0, results: [] } } }
+      const worker = await runPostReplyFastPath({
+        jobId: job.id,
+        orgId: session.orgId,
+        workerId: `fastpath:${requestId}`,
+        budgetMs: 2500,
+      })
+
+      return { body: { jobId: job.id, worker } }
     }
   )
 }

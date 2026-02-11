@@ -19,9 +19,30 @@ export type PerformanceSummary = {
     totalReviews: number
     replyRate: number
     flaggedClaims: number
+    aiBlockedRate: number
+    avgSeoKeywordCoverage: number
+    seoStuffingRiskCount: number
+    requiredKeywordUsageRate: number
   }
   series: {
     daily: PerformanceDailyPoint[]
+  }
+  dspy: {
+    activeProgramVersion: string | null
+    programVersions: Array<{
+      version: string
+      draftArtifactVersion: string
+      verifyArtifactVersion: string
+      runs: number
+      blockedRate: number
+      avgKeywordCoverage: number
+      requiredKeywordUsageRate: number
+    }>
+    modeDistribution: Array<{
+      mode: "AUTO" | "MANUAL_REGENERATE" | "VERIFY_EXISTING_DRAFT"
+      runs: number
+      ratio: number
+    }>
   }
 }
 
@@ -55,7 +76,24 @@ export async function getPerformanceSummary(input: {
     location: { enabled: true },
   } as const
 
-  const [totalReviews, repliedReviews, avgAgg, flaggedClaims] = await Promise.all([
+  type AiQualityRow = {
+    runs: number
+    blocked: number
+    stuffing_risk: number
+    avg_keyword_coverage: number | null
+    required_keyword_used: number
+  }
+  type ProgramVersionRow = {
+    program_version: string
+    draft_artifact_version: string
+    verify_artifact_version: string
+    runs: number
+    blocked: number
+    avg_keyword_coverage: number | null
+    required_keyword_used: number
+  }
+
+  const [totalReviews, repliedReviews, avgAgg, flaggedClaims, aiQualityRows, aiProgramVersionRows, aiModeCounts] = await Promise.all([
     prisma.review.count({ where: baseWhere }),
     prisma.review.count({ where: { ...baseWhere, googleReplyComment: { not: null } } }),
     prisma.review.aggregate({ where: baseWhere, _avg: { starRating: true } }),
@@ -64,6 +102,57 @@ export async function getPerformanceSummary(input: {
         ...baseWhere,
         currentDraftReply: { is: { status: "BLOCKED_BY_VERIFIER" } },
       },
+    }),
+    prisma.$queryRaw<AiQualityRow[]>`
+      SELECT
+        COUNT(*)::int AS "runs",
+        SUM(CASE WHEN "decision" = 'BLOCKED_BY_VERIFIER' THEN 1 ELSE 0 END)::int AS "blocked",
+        SUM(
+          CASE
+            WHEN COALESCE((NULLIF("outputJson"->'seoQuality'->>'stuffingRisk', ''))::boolean, false) THEN 1
+            ELSE 0
+          END
+        )::int AS "stuffing_risk",
+        AVG((NULLIF("outputJson"->'seoQuality'->>'keywordCoverage', ''))::double precision) AS "avg_keyword_coverage",
+        SUM(
+          CASE
+            WHEN COALESCE((NULLIF("outputJson"->'seoQuality'->>'requiredKeywordUsed', ''))::boolean, false) THEN 1
+            ELSE 0
+          END
+        )::int AS "required_keyword_used"
+      FROM "DspyRun"
+      WHERE "orgId" = ${input.orgId}
+        AND "createdAt" >= ${start}
+        AND "createdAt" <= ${end}
+        AND "status" = 'COMPLETED';
+    `,
+    prisma.$queryRaw<ProgramVersionRow[]>`
+      SELECT
+        COALESCE(NULLIF("programVersion", ''), 'unknown') AS "program_version",
+        COALESCE(NULLIF("draftArtifactVersion", ''), 'unknown') AS "draft_artifact_version",
+        COALESCE(NULLIF("verifyArtifactVersion", ''), 'unknown') AS "verify_artifact_version",
+        COUNT(*)::int AS "runs",
+        SUM(CASE WHEN "decision" = 'BLOCKED_BY_VERIFIER' THEN 1 ELSE 0 END)::int AS "blocked",
+        AVG((NULLIF("outputJson"->'seoQuality'->>'keywordCoverage', ''))::double precision) AS "avg_keyword_coverage",
+        SUM(
+          CASE
+            WHEN COALESCE((NULLIF("outputJson"->'seoQuality'->>'requiredKeywordUsed', ''))::boolean, false) THEN 1
+            ELSE 0
+          END
+        )::int AS "required_keyword_used"
+      FROM "DspyRun"
+      WHERE "orgId" = ${input.orgId}
+        AND "createdAt" >= ${start}
+        AND "createdAt" <= ${end}
+        AND "status" = 'COMPLETED'
+      GROUP BY 1, 2, 3
+      ORDER BY "runs" DESC, "program_version" ASC
+      LIMIT 5;
+    `,
+    prisma.dspyRun.groupBy({
+      by: ["mode"],
+      where: { orgId: input.orgId, createdAt: { gte: start, lte: end }, status: "COMPLETED" },
+      _count: { _all: true },
     }),
   ])
 
@@ -124,6 +213,32 @@ export async function getPerformanceSummary(input: {
 
   const avgRating = avgAgg._avg.starRating ?? 0
   const replyRate = totalReviews > 0 ? repliedReviews / totalReviews : 0
+  const aiQuality = aiQualityRows[0] ?? {
+    runs: 0,
+    blocked: 0,
+    stuffing_risk: 0,
+    avg_keyword_coverage: null,
+    required_keyword_used: 0,
+  }
+  const aiBlockedRate = aiQuality.runs > 0 ? aiQuality.blocked / aiQuality.runs : 0
+  const requiredKeywordUsageRate = aiQuality.runs > 0 ? aiQuality.required_keyword_used / aiQuality.runs : 0
+  const programVersions = aiProgramVersionRows.map((row) => {
+    const runs = row.runs
+    return {
+      version: row.program_version,
+      draftArtifactVersion: row.draft_artifact_version,
+      verifyArtifactVersion: row.verify_artifact_version,
+      runs,
+      blockedRate: runs > 0 ? row.blocked / runs : 0,
+      avgKeywordCoverage: row.avg_keyword_coverage ?? 0,
+      requiredKeywordUsageRate: runs > 0 ? row.required_keyword_used / runs : 0,
+    }
+  })
+  const modeDistribution = aiModeCounts.map((row) => ({
+    mode: row.mode,
+    runs: row._count._all,
+    ratio: aiQuality.runs > 0 ? row._count._all / aiQuality.runs : 0,
+  }))
 
   return {
     range: { days, startIso: start.toISOString(), endIso: end.toISOString() },
@@ -132,8 +247,16 @@ export async function getPerformanceSummary(input: {
       totalReviews,
       replyRate: Number(replyRate.toFixed(4)),
       flaggedClaims,
+      aiBlockedRate: Number(aiBlockedRate.toFixed(4)),
+      avgSeoKeywordCoverage: Number((aiQuality.avg_keyword_coverage ?? 0).toFixed(4)),
+      seoStuffingRiskCount: aiQuality.stuffing_risk,
+      requiredKeywordUsageRate: Number(requiredKeywordUsageRate.toFixed(4)),
     },
     series: { daily },
+    dspy: {
+      activeProgramVersion: programVersions[0]?.version ?? null,
+      programVersions,
+      modeDistribution,
+    },
   }
 }
-

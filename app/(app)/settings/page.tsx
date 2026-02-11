@@ -8,12 +8,13 @@ export default async function SettingsPage() {
   const session = await getSession()
   if (!session?.user?.id || !session.orgId) redirect("/signin")
 
-  const { org, settings, google } = await getSettingsSidebarData(session.orgId)
+  const { org, settings, google, locations } = await getSettingsSidebarData(session.orgId)
 
   return (
     <SettingsClient
       orgName={org?.name ?? "Organization"}
       googleConnection={google}
+      locations={locations}
       showBulkApprove
       settings={{
         tonePreset: settings?.tonePreset ?? "friendly",

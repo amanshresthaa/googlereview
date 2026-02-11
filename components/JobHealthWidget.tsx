@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 
 export function JobHealthWidget({ compact = false }: { compact?: boolean }) {
   const { summary, backlog, failed24h, error } = useJobSummaryPolling(20_000)
+  const aiQuality = summary?.aiQuality24h
 
   const label = error
     ? "Unavailable"
@@ -61,7 +62,7 @@ export function JobHealthWidget({ compact = false }: { compact?: boolean }) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className={cn("grid gap-3", aiQuality ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2")}>
           <Card className="rounded-xl p-4 shadow-card">
             <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Backlog</div>
             <div className="mt-1.5 text-2xl font-bold tabular-nums">{backlog}</div>
@@ -70,7 +71,26 @@ export function JobHealthWidget({ compact = false }: { compact?: boolean }) {
             <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Failed (24h)</div>
             <div className={cn("mt-1.5 text-2xl font-bold tabular-nums", failed24h > 0 && "text-destructive")}>{failed24h}</div>
           </Card>
+          {aiQuality ? (
+            <Card className="rounded-xl p-4 shadow-card">
+              <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">SEO Coverage</div>
+              <div className="mt-1.5 text-2xl font-bold tabular-nums">{(aiQuality.avgKeywordCoverage * 100).toFixed(0)}%</div>
+            </Card>
+          ) : null}
+          {aiQuality ? (
+            <Card className="rounded-xl p-4 shadow-card">
+              <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Stuffing Risk</div>
+              <div className={cn("mt-1.5 text-2xl font-bold tabular-nums", aiQuality.stuffingRisk > 0 && "text-destructive")}>
+                {(aiQuality.stuffingRiskRate * 100).toFixed(1)}%
+              </div>
+            </Card>
+          ) : null}
         </div>
+        {aiQuality?.topProgramVersion ? (
+          <div className="text-[11px] text-muted-foreground">
+            Active DSPy program: <span className="font-mono">{aiQuality.topProgramVersion}</span>
+          </div>
+        ) : null}
 
         {summary?.recentFailures?.length ? (
           <div className="space-y-2">

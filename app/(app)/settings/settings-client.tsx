@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
 import { cn } from "@/lib/utils"
 import { X, Star, Settings, Sparkles, Zap, Globe, Loader2, CheckCircle2 } from "@/components/icons"
+import { SeoProfilesEditor, type SeoLocationProfilePayload } from "@/app/(app)/settings/seo-profiles-editor"
 
 type SettingsShape = {
   tonePreset: string
@@ -29,6 +30,13 @@ type SettingsShape = {
 type Props = {
   orgName: string
   googleConnection: { status: string; googleEmail: string; scopes: string[] } | null
+  locations: Array<{
+    id: string
+    displayName: string
+    seoPrimaryKeywords: string[]
+    seoSecondaryKeywords: string[]
+    seoGeoTerms: string[]
+  }>
   settings: SettingsShape
   showBulkApprove?: boolean
 }
@@ -41,10 +49,17 @@ function isValidKeyword(raw: string) {
   return v
 }
 
-export function SettingsClient({ orgName, googleConnection, settings, showBulkApprove = true }: Props) {
+export function SettingsClient({
+  orgName,
+  googleConnection,
+  locations,
+  settings,
+  showBulkApprove = true,
+}: Props) {
   const router = useRouter()
 
   const [saving, setSaving] = React.useState(false)
+  const [savingSeo, setSavingSeo] = React.useState(false)
   const [draft, setDraft] = React.useState<SettingsShape>(settings)
   const [keywordInput, setKeywordInput] = React.useState("")
 
@@ -70,6 +85,36 @@ export function SettingsClient({ orgName, googleConnection, settings, showBulkAp
       toast.error(e instanceof Error ? e.message : String(e))
     } finally {
       setSaving(false)
+      router.refresh()
+    }
+  }
+
+  const saveSeoProfiles = async (profiles: SeoLocationProfilePayload[]) => {
+    setSavingSeo(true)
+    try {
+      const res = await fetch("/api/settings/seo-locations", {
+        method: "POST",
+        headers: withIdempotencyHeader({ "content-type": "application/json" }),
+        body: JSON.stringify({
+          locations: profiles.map((profile) => ({
+            locationId: profile.locationId,
+            primaryKeywords: profile.primaryKeywords,
+            secondaryKeywords: profile.secondaryKeywords,
+            geoTerms: profile.geoTerms,
+          })),
+        }),
+      })
+      if (res.status === 401) {
+        router.replace("/signin")
+        return
+      }
+      const body = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(body?.error ?? res.statusText)
+      toast.success("SEO profiles saved")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSavingSeo(false)
       router.refresh()
     }
   }
@@ -113,6 +158,7 @@ export function SettingsClient({ orgName, googleConnection, settings, showBulkAp
         <TabsList className="bg-muted p-1 rounded-xl h-10 border border-border">
           <TabsTrigger value="general" className="text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-card data-[state=active]:text-foreground text-muted-foreground font-medium">General</TabsTrigger>
           <TabsTrigger value="automation" className="text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-card data-[state=active]:text-foreground text-muted-foreground font-medium">Automation</TabsTrigger>
+          <TabsTrigger value="seo" className="text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-card data-[state=active]:text-foreground text-muted-foreground font-medium">SEO</TabsTrigger>
           <TabsTrigger value="tone" className="text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-card data-[state=active]:text-foreground text-muted-foreground font-medium">AI Tone</TabsTrigger>
         </TabsList>
 
@@ -284,6 +330,21 @@ export function SettingsClient({ orgName, googleConnection, settings, showBulkAp
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ─── SEO Profiles ─── */}
+        <TabsContent value="seo" className="space-y-5">
+          <SeoProfilesEditor
+            initialProfiles={locations.map((location) => ({
+              locationId: location.id,
+              displayName: location.displayName,
+              primaryKeywords: location.seoPrimaryKeywords,
+              secondaryKeywords: location.seoSecondaryKeywords,
+              geoTerms: location.seoGeoTerms,
+            }))}
+            saving={savingSeo}
+            onSave={saveSeoProfiles}
+          />
         </TabsContent>
 
         {/* ─── AI Tone ─── */}

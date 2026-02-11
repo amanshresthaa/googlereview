@@ -76,6 +76,9 @@ Recommended optional service env vars:
 - `DSPY_ENABLE_MEMORY_CACHE`
 - `DSPY_MEMORY_CACHE_MAX_ENTRIES`
 - `DSPY_ENABLE_DISK_CACHE` (default `false`)
+- `DSPY_PROGRAM_VERSION` (for run provenance, e.g. `2026-02-11-a`)
+- `DSPY_DRAFT_ARTIFACT_PATH` (default `artifacts/draft_program.json`)
+- `DSPY_VERIFY_ARTIFACT_PATH` (default `artifacts/verify_program.json`)
 
 After deploying the DSPy service, copy its URL into app env var `DSPY_SERVICE_BASE_URL`.
 

@@ -1,0 +1,4 @@
+ALTER TABLE "Location"
+  ADD COLUMN "seoPrimaryKeywords" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  ADD COLUMN "seoSecondaryKeywords" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  ADD COLUMN "seoGeoTerms" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
