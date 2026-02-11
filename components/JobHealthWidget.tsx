@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useJobSummaryPolling } from "@/lib/hooks"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { AlertTriangle, CheckCircle2, Loader2 } from "@/components/icons"
@@ -24,8 +25,9 @@ export function JobHealthWidget({ compact = false }: { compact?: boolean }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <button
+        <Button
           type="button"
+          variant="ghost"
           className={cn(
             "w-full flex items-center gap-2 text-left py-1.5 px-1.5 rounded-lg transition-colors hover:bg-muted/60 outline-none focus-visible:ring-2 focus-visible:ring-ring",
             compact && "px-0"
@@ -48,7 +50,7 @@ export function JobHealthWidget({ compact = false }: { compact?: boolean }) {
             <div className="text-[10px] font-semibold leading-none">Jobs</div>
             <div className="text-[9px] text-muted-foreground truncate mt-0.5">{label}</div>
           </div>
-        </button>
+        </Button>
       </DialogTrigger>
 
       <DialogContent className="max-w-lg rounded-xl">

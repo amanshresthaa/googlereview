@@ -5,9 +5,12 @@ import { motion } from "framer-motion"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { formatAge, type ReviewRow } from "@/lib/hooks"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Textarea } from "@/components/ui/textarea"
 import {
   AlertTriangle,
-  Check,
   CheckCircle2,
   ChevronRight,
   Globe,
@@ -76,15 +79,20 @@ export function ReviewItem({
   }
 
   return (
-    <div className={cn("group bg-white border rounded-xl transition-all", isSelected ? "border-blue-500 ring-1 ring-blue-500 shadow-md" : "border-zinc-200 hover:border-zinc-300 shadow-sm")}>
-      <div className="flex items-start p-5 gap-4">
+    <Card className={cn("group bg-white rounded-xl transition-all", isSelected ? "border-blue-500 ring-1 ring-blue-500 shadow-md" : "border-zinc-200 hover:border-zinc-300 shadow-sm")}>
+      <CardContent className="flex items-start p-5 gap-4">
         <div className="pt-1">
-          <button
-            onClick={onToggle}
-            className={cn("h-5 w-5 rounded border flex items-center justify-center transition-colors", isSelected ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-zinc-300 group-hover:border-blue-400")}
-          >
-            {isSelected ? <Check className="h-3.5 w-3.5" /> : null}
-          </button>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={onToggle}
+            aria-label={`Select review by ${review.reviewer.displayName ?? "anonymous reviewer"}`}
+            className={cn(
+              "h-5 w-5 rounded border transition-colors",
+              isSelected
+                ? "bg-blue-600 border-blue-600 text-white data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                : "bg-white border-zinc-300 group-hover:border-blue-400"
+            )}
+          />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -114,29 +122,33 @@ export function ReviewItem({
           <p className="text-sm text-zinc-700 leading-relaxed mb-4">{review.comment || "No written comment provided."}</p>
 
           {review.status === "pending" ? (
-            <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4">
+            <Card className="bg-blue-50/50 border-blue-100 rounded-xl">
+              <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 text-blue-700 text-xs font-bold uppercase tracking-wide">
                   <Sparkles className="h-3.5 w-3.5" />
                   AI Suggested Draft
                 </div>
                 <div className="flex items-center gap-3">
-                  <button onClick={() => setIsEditing((v) => !v)} className="text-xs font-semibold text-blue-600 hover:underline">
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditing((v) => !v)} className="text-xs font-semibold text-blue-600 hover:underline h-auto p-0">
                     {isEditing ? "Cancel" : "Edit Draft"}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => run("generate", () => onGenerate(review.id))}
-                    className="text-xs font-semibold text-blue-600 hover:underline inline-flex items-center gap-1"
+                    className="text-xs font-semibold text-blue-600 hover:underline inline-flex items-center gap-1 h-auto p-0"
                   >
                     {busy === "generate" ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
                     Regenerate
-                  </button>
+                  </Button>
                 </div>
               </div>
 
               {isEditing ? (
-                <textarea
-                  className="w-full bg-white border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3 min-h-[100px]"
+                <Textarea
+                  className="w-full bg-white border border-blue-200 rounded-lg p-3 text-sm focus-visible:ring-2 focus-visible:ring-blue-500 mb-3 min-h-[100px]"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                 />
@@ -146,42 +158,45 @@ export function ReviewItem({
 
               <div className="flex gap-2">
                 {isEditing ? (
-                  <button
+                  <Button
                     onClick={() => run("save", () => onSave(review.id, draft))}
                     className="bg-zinc-800 hover:bg-zinc-900 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-2"
                   >
                     {busy === "save" ? <RefreshCw className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
                     Save Draft
-                  </button>
+                  </Button>
                 ) : null}
-                <button
+                <Button
                   onClick={() => run("publish", () => onPublish(review.id, draft, review))}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 disabled:opacity-70"
                   disabled={!draft.trim() || busy === "publish"}
                 >
                   {busy === "publish" ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
                   Approve & Post
-                </button>
+                </Button>
               </div>
-            </div>
+              </CardContent>
+            </Card>
           ) : (
             <div className="mt-4 pt-4 border-t border-zinc-100 flex gap-3">
               <div className="h-8 w-8 bg-zinc-100 rounded-lg flex items-center justify-center shrink-0">
                 <Globe className="h-4 w-4 text-zinc-400" />
               </div>
-              <div className="bg-zinc-50 rounded-xl p-3 flex-1">
+              <Card className="bg-zinc-50 rounded-xl flex-1 border-zinc-100">
+                <CardContent className="p-3">
                 <p className="text-xs font-bold text-zinc-500 uppercase mb-1">Your Response</p>
                 <p className="text-sm text-zinc-700">{review.reply.comment}</p>
-              </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </div>
 
-        <button className="p-1 text-zinc-300 hover:text-zinc-500 transition-colors">
+        <Button type="button" variant="ghost" size="icon" className="p-1 text-zinc-300 hover:text-zinc-500 transition-colors h-7 w-7">
           <MoreHorizontal className="h-5 w-5" />
-        </button>
-      </div>
-    </div>
+        </Button>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -228,9 +243,9 @@ export function BlitzMode({
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-white z-[100] flex flex-col">
       <header className="h-20 border-b border-zinc-200 flex items-center justify-between px-8">
         <div className="flex items-center gap-6">
-          <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-full transition-colors">
+          <Button type="button" variant="ghost" size="icon" onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-full transition-colors h-10 w-10">
             <X className="h-6 w-6 text-zinc-500" />
-          </button>
+          </Button>
           <div className="h-1 bg-zinc-100 w-48 rounded-full overflow-hidden">
             <motion.div className="h-full bg-blue-600" animate={{ width: `${((index + 1) / reviews.length) * 100}%` }} />
           </div>
@@ -266,29 +281,29 @@ export function BlitzMode({
           <div className="max-w-xl w-full mx-auto">
             <div className="flex items-center justify-between mb-4">
               <label className="text-sm font-black text-zinc-500 uppercase tracking-widest">AI Proposed Response</label>
-              <button onClick={() => run("generate", () => onGenerate(current.id))} className="flex items-center gap-2 text-blue-600 text-xs font-bold hover:underline">
+              <Button type="button" variant="ghost" size="sm" onClick={() => run("generate", () => onGenerate(current.id))} className="flex items-center gap-2 text-blue-600 text-xs font-bold hover:underline h-auto p-0">
                 {busy === "generate" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Regenerate
-              </button>
+              </Button>
             </div>
 
-            <textarea
+            <Textarea
               className="w-full h-64 border-2 border-blue-600 rounded-3xl p-8 text-lg text-zinc-800 focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all shadow-xl shadow-blue-500/5 mb-8"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
             />
 
             <div className="flex items-center gap-4">
-              <button onClick={goNext} className="flex-1 py-5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-black uppercase tracking-widest rounded-2xl transition-all">
+              <Button type="button" variant="secondary" onClick={goNext} className="flex-1 py-5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-black uppercase tracking-widest rounded-2xl transition-all h-auto">
                 Skip
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => run("publish", async () => { await onPublish(current.id, draft, current); goNext() })}
                 className="flex-[2] py-5 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-3 disabled:opacity-70"
                 disabled={!draft.trim() || busy === "publish"}
               >
                 {busy === "publish" ? <RefreshCw className="h-6 w-6 animate-spin" /> : "Publish & Next"}
                 <ChevronRight className="h-6 w-6" />
-              </button>
+              </Button>
             </div>
           </div>
         </div>

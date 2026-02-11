@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 import { useReviewDetail, formatAge } from "@/lib/hooks"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DraftEditor } from "@/components/DraftEditor"
@@ -109,9 +110,9 @@ export function ReviewDetail({ reviewId, backHref }: { reviewId: string; backHre
         </div>
         <p className="text-sm font-bold text-foreground">Unable to load review</p>
         <p className="text-xs text-muted-foreground mt-1.5 max-w-[200px]">{error}</p>
-        <button type="button" onClick={() => refresh()} className="mt-6 text-xs text-primary font-bold hover:underline">
+        <Button type="button" variant="ghost" onClick={() => refresh()} className="mt-6 text-xs text-primary font-bold hover:underline h-auto p-0">
           Try Again
-        </button>
+        </Button>
       </div>
     )
   }

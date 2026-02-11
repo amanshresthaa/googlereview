@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
@@ -204,33 +205,38 @@ export function SettingsClient({ orgName, googleConnection, settings, showBulkAp
 
               <div className={cn("pl-14 space-y-3", !draft.autoDraftEnabled && "opacity-40 pointer-events-none")}>
                 <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Draft for ratings</div>
-                <div className="flex flex-wrap gap-2">
+                <ToggleGroup
+                  type="multiple"
+                  value={draft.autoDraftForRatings.map(String)}
+                  disabled={!draft.autoDraftEnabled}
+                  onValueChange={(values) => {
+                    const next = values
+                      .map((value) => Number(value))
+                      .filter((value): value is number => Number.isInteger(value) && value >= 1 && value <= 5)
+                      .sort((a, b) => a - b)
+                    setDraft((p) => ({ ...p, autoDraftForRatings: next }))
+                  }}
+                  className="flex flex-wrap justify-start gap-2 bg-transparent p-0"
+                >
                   {ratings.map((r) => {
                     const active = selectedRatings.has(r)
                     return (
-                      <button
+                      <ToggleGroupItem
                         key={r}
-                        type="button"
+                        value={String(r)}
                         className={cn(
                           "h-9 px-4 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition-all border",
                           active
                             ? "bg-primary/10 text-primary border-primary/30"
                             : "bg-card text-muted-foreground border-border hover:bg-accent"
                         )}
-                        disabled={!draft.autoDraftEnabled}
-                        onClick={() => {
-                          const next = new Set(selectedRatings)
-                          if (next.has(r)) next.delete(r)
-                          else next.add(r)
-                          setDraft((p) => ({ ...p, autoDraftForRatings: Array.from(next).sort() }))
-                        }}
                       >
                         {r}
                         <Star className="size-3" weight={active ? "fill" : "regular"} />
-                      </button>
+                      </ToggleGroupItem>
                     )
                   })}
-                </div>
+                </ToggleGroup>
               </div>
 
               {showBulkApprove ? (
@@ -318,26 +324,33 @@ export function SettingsClient({ orgName, googleConnection, settings, showBulkAp
               {/* Tone Preset */}
               <div className="space-y-3">
                 <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Tone Preset</Label>
-                <div className="flex flex-wrap gap-2">
+                <ToggleGroup
+                  type="single"
+                  value={draft.tonePreset}
+                  onValueChange={(value) => {
+                    if (!value) return
+                    setDraft((p) => ({ ...p, tonePreset: value }))
+                  }}
+                  className="flex flex-wrap justify-start gap-2 bg-transparent p-0"
+                >
                   {TONE_PRESETS.map((t) => {
                     const active = draft.tonePreset === t
                     return (
-                      <button
+                      <ToggleGroupItem
                         key={t}
-                        type="button"
+                        value={t}
                         className={cn(
                           "h-9 px-4 rounded-xl text-xs font-semibold capitalize transition-all border",
                           active
                             ? "bg-primary/10 text-primary border-primary/30"
                             : "bg-card text-muted-foreground border-border hover:bg-accent"
                         )}
-                        onClick={() => setDraft((p) => ({ ...p, tonePreset: t }))}
                       >
                         {t}
-                      </button>
+                      </ToggleGroupItem>
                     )
                   })}
-                </div>
+                </ToggleGroup>
               </div>
 
               {/* Custom Instructions */}
@@ -390,14 +403,16 @@ export function SettingsClient({ orgName, googleConnection, settings, showBulkAp
                     {draft.mentionKeywords.map((k) => (
                       <Badge key={k} variant="secondary" className="rounded-lg gap-2 px-3 h-7 text-xs bg-muted text-muted-foreground hover:bg-accent border border-border">
                         {k}
-                        <button
+                        <Button
                           type="button"
-                          className="text-muted-foreground hover:text-foreground rounded-sm p-0.5 transition-colors"
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-foreground rounded-sm p-0.5 transition-colors h-4 w-4"
                           onClick={() => removeKeyword(k)}
                           aria-label={`Remove ${k}`}
                         >
                           <X className="size-3" />
-                        </button>
+                        </Button>
                       </Badge>
                     ))}
                   </div>

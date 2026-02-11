@@ -1,37 +1,12 @@
 "use client"
 
 import * as React from "react"
+import type { ReviewListCounts, ReviewListPage, ReviewListRow } from "@/lib/reviews/types"
 
 export type ReviewFilter = "unanswered" | "urgent" | "five_star" | "mentions" | "all"
 
-export type ReviewRow = {
-  id: string
-  starRating: number
-  snippet: string
-  comment: string
-  reviewer: { displayName: string | null; isAnonymous: boolean }
-  location: { id: string; displayName: string }
-  createTimeIso: string
-  unanswered: boolean
-  status: "pending" | "replied"
-  reply: { comment: string | null; updateTimeIso: string | null }
-  currentDraft: {
-    id: string
-    text: string
-    status: string
-    version: number
-    updatedAtIso: string
-  } | null
-  draftStatus: string | null
-  mentions: string[]
-}
-
-export type ReviewCounts = {
-  unanswered: number
-  urgent: number
-  five_star: number
-  mentions_total: number
-}
+export type ReviewRow = ReviewListRow
+export type ReviewCounts = ReviewListCounts
 
 type UsePaginatedReviewsResult = {
   rows: ReviewRow[]
@@ -47,15 +22,26 @@ type UsePaginatedReviewsResult = {
 export function usePaginatedReviews(opts: {
   filter: ReviewFilter
   mention?: string
+  initialPage?: (ReviewListPage & { filter: ReviewFilter; mention?: string | null }) | null
 }): UsePaginatedReviewsResult {
-  const { filter, mention } = opts
-  const [rows, setRows] = React.useState<ReviewRow[]>([])
-  const [counts, setCounts] = React.useState<ReviewCounts | null>(null)
-  const [loading, setLoading] = React.useState(true)
+  const { filter, mention, initialPage } = opts
+  const initialMatches =
+    !!initialPage &&
+    initialPage.filter === filter &&
+    (initialPage.mention ?? null) === (mention ?? null)
+  const initialConsumedRef = React.useRef(false)
+
+  const [rows, setRows] = React.useState<ReviewRow[]>(
+    initialMatches ? initialPage.rows : []
+  )
+  const [counts, setCounts] = React.useState<ReviewCounts | null>(
+    initialMatches ? initialPage.counts ?? null : null
+  )
+  const [loading, setLoading] = React.useState(!initialMatches)
   const [loadingMore, setLoadingMore] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
-  const [hasMore, setHasMore] = React.useState(false)
-  const cursorRef = React.useRef<string | null>(null)
+  const [hasMore, setHasMore] = React.useState(initialMatches ? Boolean(initialPage.nextCursor) : false)
+  const cursorRef = React.useRef<string | null>(initialMatches ? initialPage.nextCursor : null)
   const abortRef = React.useRef<AbortController | null>(null)
 
   const fetchPage = React.useCallback(
@@ -135,12 +121,34 @@ export function usePaginatedReviews(opts: {
     cursorRef.current = null
     setRows([])
     setHasMore(false)
+    setCounts(null)
+
+    const canUseInitialPage =
+      !!initialPage &&
+      !initialConsumedRef.current &&
+      initialPage.filter === filter &&
+      (initialPage.mention ?? null) === (mention ?? null)
+
+    if (canUseInitialPage) {
+      initialConsumedRef.current = true
+      setRows(initialPage.rows)
+      setCounts(initialPage.counts ?? null)
+      cursorRef.current = initialPage.nextCursor
+      setHasMore(Boolean(initialPage.nextCursor))
+      setLoading(false)
+      setLoadingMore(false)
+      setError(null)
+      return () => {
+        abortRef.current?.abort()
+      }
+    }
+
     fetchPage(null, false)
 
     return () => {
       abortRef.current?.abort()
     }
-  }, [fetchPage])
+  }, [fetchPage, filter, mention, initialPage])
 
   const loadMore = React.useCallback(() => {
     if (!hasMore || loadingMore || loading) return

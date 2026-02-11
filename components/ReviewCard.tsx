@@ -143,15 +143,14 @@ export const ReviewCard = React.memo(function ReviewCard({
                {formatAge(row.createTimeIso)}
              </span>
              {showCheckbox ? (
-                <button
-                  type="button"
+                <div
                   onClick={(e) => {
                     e.stopPropagation()
                   }}
-                  className="pt-1 flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md cursor-default"
+                  className="pt-1 flex items-center justify-center"
                 >
                   <Checkbox checked={checked} onCheckedChange={(v) => onCheckedChange(reviewId, Boolean(v))} />
-                </button>
+                </div>
              ) : (
                 <StarsRow value={row.starRating} />
              )}

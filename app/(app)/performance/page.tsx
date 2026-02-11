@@ -2,6 +2,8 @@ import type { ReactNode } from "react"
 import { redirect } from "next/navigation"
 import { getSession } from "@/lib/session"
 import { getPerformanceSidebarData } from "@/lib/sidebar-data"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BarChart, CheckCircle2, Sparkles, Star } from "@/components/icons"
 
 function formatPct(value: number) {
@@ -43,15 +45,15 @@ export default async function PerformancePage() {
         />
       </div>
 
-      <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm h-[400px] flex items-center justify-center text-zinc-400">
-        <div className="text-center">
+      <Card className="border-zinc-200 rounded-3xl shadow-sm h-[400px] flex items-center justify-center text-zinc-400">
+        <CardContent className="text-center p-8">
           <BarChart className="h-12 w-12 mx-auto mb-4 opacity-20" />
           <p className="font-medium">Response Trend ({summary.range.days} days)</p>
           <p className="text-sm opacity-60">
             {summary.series.daily.reduce((sum, d) => sum + d.replied, 0)} replies posted in current window
           </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
@@ -76,15 +78,19 @@ function StatItem({
   } as const
 
   return (
-    <div className="bg-white border border-zinc-200 p-6 rounded-2xl shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`p-2 rounded-lg ${colors[color]}`}>{icon}</div>
-        <span className="text-xs font-bold text-zinc-600 bg-zinc-100 px-2 py-1 rounded-full">
-          {trend}
-        </span>
-      </div>
-      <p className="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-1">{label}</p>
-      <p className="text-3xl font-black text-zinc-900">{value}</p>
-    </div>
+    <Card className="border-zinc-200 rounded-2xl shadow-sm">
+      <CardHeader className="p-6 pb-3">
+        <div className="flex items-center justify-between">
+          <div className={`p-2 rounded-lg ${colors[color]}`}>{icon}</div>
+          <Badge variant="secondary" className="text-xs font-bold text-zinc-600 bg-zinc-100 px-2 py-1 rounded-full border-transparent">
+            {trend}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="px-6 pb-6 pt-0">
+        <p className="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-1">{label}</p>
+        <CardTitle className="text-3xl font-black text-zinc-900">{value}</CardTitle>
+      </CardContent>
+    </Card>
   )
 }

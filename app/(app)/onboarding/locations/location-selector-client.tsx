@@ -3,7 +3,6 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { motion } from "framer-motion"
 import { useGlobalSearch } from "@/components/search-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -190,16 +189,11 @@ export function LocationSelectorClient({
             <p className="text-xs text-muted-foreground mt-1.5">Try adjusting your search or sync from Google.</p>
           </div>
         ) : (
-          visible.map((l, idx) => {
+          visible.map((l) => {
             const isEnabled = selected.has(l.id)
 
             return (
-              <motion.div
-                key={l.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: Math.min(idx * 0.03, 0.15), duration: 0.25 }}
-              >
+              <div key={l.id}>
                 <Card
                   className={cn(
                     "rounded-2xl border-border bg-card shadow-card cursor-pointer transition-all hover:shadow-elevated",
@@ -247,7 +241,7 @@ export function LocationSelectorClient({
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </div>
             )
           })
         )}

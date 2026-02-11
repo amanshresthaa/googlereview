@@ -7,7 +7,13 @@ import { cn } from "@/lib/utils"
 import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
 import { usePaginatedReviews, type ReviewFilter, type ReviewRow } from "@/lib/hooks"
 import { BlitzMode, ReviewItem } from "@/app/(app)/inbox/inbox-ui"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   CheckCircle2,
   MessageSquare,
@@ -26,6 +32,18 @@ type Props = {
   mentionKeywords: string[]
   bulkApproveEnabled: boolean
   locations: LocationOption[]
+  initialPage: {
+    filter: ReviewFilter
+    mention?: string | null
+    rows: ReviewRow[]
+    counts?: {
+      unanswered: number
+      urgent: number
+      five_star: number
+      mentions_total: number
+    }
+    nextCursor: string | null
+  } | null
 }
 
 async function apiCall(url: string, method: string, body?: unknown) {
@@ -69,6 +87,7 @@ export function InboxClient({
   mentionKeywords,
   bulkApproveEnabled,
   locations,
+  initialPage,
 }: Props) {
   void initialMention
   void mentionKeywords
@@ -81,7 +100,10 @@ export function InboxClient({
   const [isBulkActionLoading, setIsBulkActionLoading] = React.useState(false)
   const [blitzMode, setBlitzMode] = React.useState(false)
   const remoteFilter: ReviewFilter = activeTab === "pending" ? "unanswered" : "all"
-  const { rows, counts, loading, loadingMore, error, hasMore, loadMore, refresh } = usePaginatedReviews({ filter: remoteFilter })
+  const { rows, counts, loading, loadingMore, error, hasMore, loadMore, refresh } = usePaginatedReviews({
+    filter: remoteFilter,
+    initialPage,
+  })
 
   React.useEffect(() => {
     if (!error) return
@@ -183,74 +205,90 @@ export function InboxClient({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-4 bg-white border-b border-zinc-200 sticky top-0 z-10 flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[240px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Search by author, location or keywords..."
-              className="w-full pl-10 pr-4 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+      <Card className="rounded-none border-x-0 border-t-0 sticky top-0 z-10">
+        <CardContent className="px-6 py-4 flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[240px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+              <Input
+                type="text"
+                placeholder="Search by author, location or keywords..."
+                className="pl-10 h-10 bg-zinc-50 border-zinc-200 text-sm focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <Select value={locationFilter} onValueChange={setLocationFilter}>
+              <SelectTrigger className="w-[180px] h-10 bg-white border-zinc-200 text-sm font-medium">
+                <SelectValue placeholder="All Locations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
+                {locations.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>
+                    {l.displayName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={ratingFilter} onValueChange={setRatingFilter}>
+              <SelectTrigger className="w-[150px] h-10 bg-white border-zinc-200 text-sm font-medium">
+                <SelectValue placeholder="Any Rating" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any Rating</SelectItem>
+                <SelectItem value="5">5 Stars Only</SelectItem>
+                <SelectItem value="4">4 Stars</SelectItem>
+                <SelectItem value="3">3 Stars</SelectItem>
+                <SelectItem value="2">2 Stars</SelectItem>
+                <SelectItem value="1">1 Star</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <select
-            className="px-3 py-2 bg-white border border-zinc-200 rounded-lg text-sm font-medium"
-            value={locationFilter}
-            onChange={(e) => setLocationFilter(e.target.value)}
-          >
-            <option value="all">All Locations</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.displayName}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center justify-between">
+            <ToggleGroup
+              type="single"
+              value={activeTab}
+              onValueChange={(value) => {
+                if (value === "all" || value === "pending" || value === "replied") {
+                  setActiveTab(value)
+                }
+              }}
+              className="bg-zinc-100 p-1 rounded-lg gap-1"
+            >
+              {(["all", "pending", "replied"] as const).map((tab) => (
+                <ToggleGroupItem
+                  key={tab}
+                  value={tab}
+                  className={cn(
+                    "px-4 py-1.5 text-sm font-medium rounded-md transition-all capitalize",
+                    "data-[state=on]:bg-white data-[state=on]:text-blue-600 data-[state=on]:shadow-sm",
+                    "text-zinc-500 hover:text-zinc-700"
+                  )}
+                >
+                  {tab}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
 
-          <select
-            className="px-3 py-2 bg-white border border-zinc-200 rounded-lg text-sm font-medium"
-            value={ratingFilter}
-            onChange={(e) => setRatingFilter(e.target.value)}
-          >
-            <option value="all">Any Rating</option>
-            <option value="5">5 Stars Only</option>
-            <option value="4">4 Stars</option>
-            <option value="3">3 Stars</option>
-            <option value="2">2 Stars</option>
-            <option value="1">1 Star</option>
-          </select>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center bg-zinc-100 p-1 rounded-lg">
-            {(["all", "pending", "replied"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  "px-4 py-1.5 text-sm font-medium rounded-md transition-all capitalize",
-                  activeTab === tab ? "bg-white text-blue-600 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
-                )}
-              >
-                {tab}
-              </button>
-            ))}
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs font-semibold text-zinc-600 bg-zinc-100 border-transparent">
+                {pendingCount} pending
+              </Badge>
+              <Button type="button" variant="ghost" size="sm" onClick={selectAllFiveStars} className="text-xs font-semibold text-blue-600 hover:bg-blue-50 px-2 py-1.5 rounded h-auto">
+                Select 5-Stars
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => refresh()} className="text-xs font-semibold text-zinc-500 hover:bg-zinc-50 px-2 py-1.5 rounded h-auto inline-flex items-center gap-1">
+                <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+                Refresh
+              </Button>
+            </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-zinc-500">{pendingCount} pending</span>
-            <button onClick={selectAllFiveStars} className="text-xs font-semibold text-blue-600 hover:bg-blue-50 px-2 py-1.5 rounded">
-              Select 5-Stars
-            </button>
-            <button onClick={() => refresh()} className="text-xs font-semibold text-zinc-500 hover:bg-zinc-50 px-2 py-1.5 rounded inline-flex items-center gap-1">
-              <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <AnimatePresence>
         {selectedIds.length > 0 ? (
@@ -268,54 +306,58 @@ export function InboxClient({
             </div>
 
             <div className="flex items-center gap-4">
-              <button
+              <Button
                 onClick={handleBulkApprove}
                 disabled={isBulkActionLoading}
-                className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-70"
+                className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-70 text-white"
               >
                 {isBulkActionLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 <span>Approve & Publish</span>
-              </button>
+              </Button>
 
-              <button onClick={() => setSelectedIds([])} className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
+              <Button type="button" variant="ghost" onClick={() => setSelectedIds([])} className="text-sm font-medium text-zinc-400 hover:text-white transition-colors h-auto p-0">
                 Cancel
-              </button>
+              </Button>
             </div>
           </motion.div>
         ) : null}
       </AnimatePresence>
 
-      <div className="flex-1 p-6 space-y-4 overflow-y-auto">
-        {filteredReviews.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center py-20">
-            <div className="h-16 w-16 bg-zinc-100 rounded-full flex items-center justify-center mb-4">
-              <MessageSquare className="h-8 w-8 text-zinc-300" />
-            </div>
-            <h3 className="text-lg font-medium text-zinc-900">No reviews found</h3>
-            <p className="text-zinc-500 max-w-xs">Try adjusting your filters or search query.</p>
-          </div>
-        ) : (
-          filteredReviews.map((review) => (
-            <ReviewItem
-              key={review.id}
-              review={review}
-              isSelected={selectedIds.includes(review.id)}
-              onToggle={() => toggleSelect(review.id)}
-              onGenerate={generateDraft}
-              onSave={saveDraft}
-              onPublish={publishReply}
-            />
-          ))
-        )}
+      <ScrollArea className="flex-1">
+        <div className="p-6 space-y-4">
+          {filteredReviews.length === 0 ? (
+            <Card className="h-full min-h-[360px] flex flex-col items-center justify-center text-center py-20 border-zinc-200">
+              <CardContent className="pt-6">
+                <div className="h-16 w-16 bg-zinc-100 rounded-full flex items-center justify-center mb-4 mx-auto">
+                  <MessageSquare className="h-8 w-8 text-zinc-300" />
+                </div>
+                <h3 className="text-lg font-medium text-zinc-900">No reviews found</h3>
+                <p className="text-zinc-500 max-w-xs">Try adjusting your filters or search query.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredReviews.map((review) => (
+              <ReviewItem
+                key={review.id}
+                review={review}
+                isSelected={selectedIds.includes(review.id)}
+                onToggle={() => toggleSelect(review.id)}
+                onGenerate={generateDraft}
+                onSave={saveDraft}
+                onPublish={publishReply}
+              />
+            ))
+          )}
 
-        {hasMore ? (
-          <div className="pt-2">
-            <Button type="button" variant="outline" className="w-full" onClick={loadMore} disabled={loadingMore}>
-              {loadingMore ? "Loading..." : "Load more reviews"}
-            </Button>
-          </div>
-        ) : null}
-      </div>
+          {hasMore ? (
+            <div className="pt-2">
+              <Button type="button" variant="outline" className="w-full" onClick={loadMore} disabled={loadingMore}>
+                {loadingMore ? "Loading..." : "Load more reviews"}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </ScrollArea>
 
       <AnimatePresence>
         {blitzMode ? (

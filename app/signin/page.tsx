@@ -2,6 +2,7 @@
 
 import { signIn } from "next-auth/react"
 import { motion } from "framer-motion"
+import { Button } from "@/components/ui/button"
 import { MapPin, ShieldCheck, Sparkles, MessageSquare } from "@/components/icons"
 
 export default function SignInPage() {
@@ -29,7 +30,8 @@ export default function SignInPage() {
           </div>
 
           <div className="mt-8 space-y-4">
-            <button
+            <Button
+              type="button"
               onClick={() => signIn("google", { callbackUrl: "/inbox" })}
               className="w-full rounded-2xl bg-primary hover:bg-primary/90 h-14 text-base font-semibold shadow-elevated text-primary-foreground transition-colors flex items-center justify-center gap-3"
             >
@@ -40,7 +42,7 @@ export default function SignInPage() {
                 <path d="M24.48 9.571c3.44-.054 6.758 1.248 9.28 3.604l6.934-6.934C36.396 2.304 30.61.002 24.48.002 15.088.002 6.964 5.53 3.014 13.379l7.968 6.14c1.9-5.7 7.218-9.948 13.498-9.948Z" fill="#EA4335" />
               </svg>
               Continue with Google
-            </button>
+            </Button>
           </div>
 
           {/* Feature Cards */}

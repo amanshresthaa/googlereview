@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
 import {
   Sparkles,
@@ -128,7 +129,8 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
           <span className="text-sm font-semibold text-foreground">AI Draft</span>
         </div>
 
-        <button
+        <Button
+          type="button"
           onClick={generate}
           disabled={Boolean(busy)}
           className="w-full rounded-3xl border-2 border-dashed border-border bg-card hover:border-primary/40 hover:bg-primary/10 transition-all p-10 flex flex-col items-center gap-4 group"
@@ -144,7 +146,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
             <div className="text-sm font-bold text-foreground">Generate AI Draft</div>
             <div className="text-xs text-muted-foreground mt-1">Create a smart reply powered by AI</div>
           </div>
-        </button>
+        </Button>
       </div>
     )
   }
@@ -169,22 +171,27 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
         </div>
 
         {/* Tone Picker */}
-        <div className="flex bg-muted p-1 rounded-xl border border-border">
+        <ToggleGroup
+          type="single"
+          value={tone}
+          onValueChange={(value) => {
+            if (value) setTone(value)
+          }}
+          className="flex bg-muted p-1 rounded-xl border border-border"
+        >
           {["professional", "friendly", "concise"].map((t) => (
-            <button
+            <ToggleGroupItem
               key={t}
-              onClick={() => setTone(t)}
+              value={t}
               className={cn(
                 "px-3 py-1.5 text-xs font-medium rounded-lg transition-all capitalize",
-                tone === t
-                  ? "bg-card shadow-sm text-foreground ring-1 ring-border"
-                  : "text-muted-foreground hover:text-foreground"
+                tone === t ? "bg-card shadow-sm text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground"
               )}
             >
               {t}
-            </button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
       </div>
 
       {/* Editor */}

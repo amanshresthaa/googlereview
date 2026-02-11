@@ -4,6 +4,11 @@ import * as React from "react"
 import { toast } from "sonner"
 import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Trash2, Users } from "@/components/icons"
 
 type MemberRow = {
@@ -109,60 +114,61 @@ export function UsersClient({
           <p className="text-zinc-500">Manage who has access to your review inboxes.</p>
         </div>
         {canManage ? (
-          <button
+          <Button
             onClick={() => setShowInvite((v) => !v)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
             Invite Colleague
-          </button>
+          </Button>
         ) : null}
       </div>
 
       {showInvite ? (
         <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input
+            <Input
               type="email"
-              className="px-3 py-2 border border-zinc-200 rounded-lg text-sm"
+              className="h-10 border-zinc-200 rounded-lg text-sm"
               placeholder="colleague@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <select
-              className="px-3 py-2 border border-zinc-200 rounded-lg text-sm font-medium"
-              value={role}
-              onChange={(e) => setRole(e.target.value as "OWNER" | "MANAGER" | "STAFF")}
-            >
-              <option value="STAFF">Staff</option>
-              <option value="MANAGER">Manager</option>
-              <option value="OWNER">Owner</option>
-            </select>
-            <button
+            <Select value={role} onValueChange={(value) => setRole(value as "OWNER" | "MANAGER" | "STAFF")}>
+              <SelectTrigger className="h-10 border-zinc-200 rounded-lg text-sm font-medium">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="STAFF">Staff</SelectItem>
+                <SelectItem value="MANAGER">Manager</SelectItem>
+                <SelectItem value="OWNER">Owner</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
               onClick={inviteMember}
               disabled={saving}
               className="bg-zinc-900 text-white rounded-lg text-sm font-semibold px-4 py-2 hover:bg-zinc-800 disabled:opacity-70"
             >
               {saving ? "Sending..." : "Send Invite"}
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
 
       <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-left">
-          <thead className="bg-zinc-50 border-b border-zinc-200">
-            <tr>
-              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">User</th>
-              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">Role</th>
-              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase">Status</th>
-              <th className="px-6 py-4" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100">
+        <Table className="text-left">
+          <TableHeader className="bg-zinc-50 border-b border-zinc-200">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase h-auto">User</TableHead>
+              <TableHead className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase h-auto">Role</TableHead>
+              <TableHead className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase h-auto">Status</TableHead>
+              <TableHead className="px-6 py-4 h-auto" />
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-zinc-100">
             {members.map((member) => (
-              <tr key={member.userId} className="hover:bg-zinc-50 transition-colors">
-                <td className="px-6 py-4">
+              <TableRow key={member.userId} className="hover:bg-zinc-50 transition-colors">
+                <TableCell className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-sm">
                       {getInitials(member.name, member.email)}
@@ -172,24 +178,24 @@ export function UsersClient({
                       <p className="text-xs text-zinc-500">{member.email}</p>
                     </div>
                   </div>
-                </td>
-                <td className="px-6 py-4">
+                </TableCell>
+                <TableCell className="px-6 py-4">
                   <span className="text-sm font-medium text-zinc-700">{member.role}</span>
-                </td>
-                <td className="px-6 py-4">
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-green-100 text-green-700">
+                </TableCell>
+                <TableCell className="px-6 py-4">
+                  <Badge variant="secondary" className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-green-100 text-green-700 border-transparent">
                     Active
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right text-xs text-zinc-400">
+                  </Badge>
+                </TableCell>
+                <TableCell className="px-6 py-4 text-right text-xs text-zinc-400">
                   {new Date(member.createdAtIso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
 
             {invites.map((invite) => (
-              <tr key={invite.inviteId} className="hover:bg-zinc-50 transition-colors">
-                <td className="px-6 py-4">
+              <TableRow key={invite.inviteId} className="hover:bg-zinc-50 transition-colors">
+                <TableCell className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-600">
                       <Users className="h-4 w-4" />
@@ -199,34 +205,36 @@ export function UsersClient({
                       <p className="text-xs text-zinc-500">Invite pending</p>
                     </div>
                   </div>
-                </td>
-                <td className="px-6 py-4">
+                </TableCell>
+                <TableCell className="px-6 py-4">
                   <span className="text-sm font-medium text-zinc-700">{invite.role}</span>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-bold uppercase", "bg-zinc-100 text-zinc-600")}>
+                </TableCell>
+                <TableCell className="px-6 py-4">
+                  <Badge variant="secondary" className={cn("px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border-transparent", "bg-zinc-100 text-zinc-600")}>
                     Pending
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right">
+                  </Badge>
+                </TableCell>
+                <TableCell className="px-6 py-4 text-right">
                   {canManage ? (
-                    <button
+                    <Button
                       onClick={() => revokeInvite(invite.inviteId)}
                       disabled={saving}
-                      className="text-zinc-400 hover:text-red-500 transition-colors"
+                      variant="ghost"
+                      size="icon"
+                      className="text-zinc-400 hover:text-red-500 transition-colors h-8 w-8"
                     >
                       <Trash2 className="h-4 w-4" />
-                    </button>
+                    </Button>
                   ) : (
                     <span className="text-xs text-zinc-400">
                       Expires {new Date(invite.expiresAtIso).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </span>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   )
