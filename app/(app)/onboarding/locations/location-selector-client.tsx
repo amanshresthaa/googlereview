@@ -120,15 +120,15 @@ export function LocationSelectorClient({
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-8 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 lg:p-8 space-y-8 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center border border-border">
+          <div className="h-10 w-10 md:h-12 md:w-12 rounded-2xl bg-muted flex items-center justify-center border border-border">
             <LayoutDashboard className="size-5 text-muted-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
               {mode === "onboarding" ? "Choose Locations" : "Locations"}
             </h1>
             <p className="text-sm text-muted-foreground font-medium">
@@ -140,7 +140,7 @@ export function LocationSelectorClient({
           type="button"
           variant="outline"
           size="sm"
-          className="rounded-xl gap-2 h-9 text-xs border-border font-semibold"
+          className="w-full sm:w-auto rounded-xl gap-2 h-9 text-xs border-border font-semibold"
           onClick={syncFromGoogle}
           disabled={syncing}
         >
@@ -151,12 +151,12 @@ export function LocationSelectorClient({
 
       {/* Selection bar */}
       <Card className="rounded-2xl border-border bg-card shadow-card">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <Badge variant="secondary" className="rounded-md text-[11px] tabular-nums h-6 px-2.5 bg-muted text-muted-foreground font-semibold">
+        <CardContent className="p-3 md:p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Badge variant="secondary" className="rounded-md text-[11px] tabular-nums h-6 px-2.5 bg-muted text-muted-foreground font-semibold w-fit">
               {selected.size} selected
             </Badge>
-            <div className="ml-auto flex items-center gap-2">
+            <div className="sm:ml-auto flex flex-wrap items-center gap-2">
               <Button type="button" size="sm" variant="ghost" className="rounded-xl h-8 text-xs text-muted-foreground font-medium" onClick={selectAll}>
                 Select all
               </Button>
@@ -181,8 +181,8 @@ export function LocationSelectorClient({
       {/* Location cards */}
       <div className="space-y-3">
         {visible.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24">
-            <div className="h-24 w-24 bg-card shadow-sm rounded-3xl flex items-center justify-center mb-6 border border-border">
+          <div className="flex flex-col items-center justify-center py-16 md:py-24">
+            <div className="h-20 w-20 md:h-24 md:w-24 bg-card shadow-sm rounded-3xl flex items-center justify-center mb-6 border border-border">
               <Search className="h-10 w-10 opacity-20" />
             </div>
             <p className="text-sm font-medium text-foreground">No locations found</p>
@@ -201,7 +201,7 @@ export function LocationSelectorClient({
                   )}
                   onClick={() => toggle(l.id, !isEnabled)}
                 >
-                  <CardContent className="p-5">
+                  <CardContent className="p-4 md:p-5">
                     <div className="flex items-center gap-4">
                       <Checkbox
                         checked={isEnabled}
@@ -209,7 +209,7 @@ export function LocationSelectorClient({
                         onClick={(e) => e.stopPropagation()}
                       />
 
-                      <Avatar className="h-11 w-11 border border-border shadow-sm">
+                      <Avatar className="h-9 w-9 md:h-11 md:w-11 border border-border shadow-sm">
                         <AvatarFallback className={cn("font-semibold text-xs", isEnabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
                           <MapPin className="size-4" />
                         </AvatarFallback>

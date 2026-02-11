@@ -56,7 +56,7 @@ export const SheetContent = React.forwardRef<
     <SheetOverlay />
     <DialogPrimitive.Content
       ref={ref}
-      className={cn(sheetVariants({ side }), "rounded-none", className)}
+      className={cn(sheetVariants({ side }), side === "bottom" ? "rounded-t-2xl" : "rounded-none", className)}
       {...props}
     >
       {children}

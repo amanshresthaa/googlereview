@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ProfileFlow Inbox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f1f3f4; --surface: #fff; --surface-soft: #fff; --primary: #1a73e8; --text-main: #202124; --text-secondary: #5f6368; --border: #dadce0; --star: #fbbc04;
+      --shadow-1: 0 1px 2px rgba(60,64,67,.16),0 1px 3px rgba(60,64,67,.08); --shadow-2: 0 4px 10px rgba(60,64,67,.2),0 1px 3px rgba(60,64,67,.12);
+      --chip-bg: #fff; --chip-text: #5f6368; --chip-border: #dadce0; --draft-bg: #e8f0fe; --draft-text: #174ea6;
+      --header-h: 68px; --filter-h: 58px; --sheet-ease: cubic-bezier(0.32,0.72,0,1); --positive: #188038; --negative: #d93025; --pending: #f9ab00; --focus: #1a73e8;
+      --text-xs: clamp(.72rem,.68rem + .25vw,.8rem); --text-sm: clamp(.84rem,.8rem + .25vw,.95rem); --text-base: clamp(.95rem,.9rem + .25vw,1.02rem); --text-lg: clamp(1.05rem,.98rem + .35vw,1.2rem); --text-xl: clamp(1.24rem,1.1rem + .55vw,1.45rem);
+    }
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #000; --surface: #1f1f1f; --surface-soft: #1f1f1f; --primary: #8ab4f8; --text-main: #e8eaed; --text-secondary: #9aa0a6; --border: #3c4043; --star: #fdd663;
+      --shadow-1: 0 1px 2px rgba(0,0,0,.44),0 1px 3px rgba(0,0,0,.36); --shadow-2: 0 6px 18px rgba(0,0,0,.48),0 1px 3px rgba(0,0,0,.32);
+      --chip-bg: #1f1f1f; --chip-text: #9aa0a6; --chip-border: #3c4043; --draft-bg: #10213d; --draft-text: #d2e3fc; --positive: #81c995; --negative: #f28b82; --pending: #fdd663; --focus: #8ab4f8;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text-main); font-family: "Google Sans","Roboto",Arial,sans-serif; -webkit-font-smoothing: antialiased; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+    .app { min-height: 100vh; padding-bottom: 84px; }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 40; display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;
+      height: var(--header-h); padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--border); box-shadow: var(--shadow-1);
+    }
+    .desktop-logo { display: none; font-size: var(--text-lg); font-weight: 700; letter-spacing: .02em; }
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
+    .partner-badge { display: none; font-size: var(--text-xs); color: var(--text-secondary); border: 1px solid var(--border); border-radius: 999px; padding: 5px 10px; background: var(--surface-soft); }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); background: #d2e3fc; color: #174ea6; display: grid; place-items: center; font-weight: 700; font-size: var(--text-sm); }
+    [data-theme="dark"] .avatar { background: #294f86; color: #d2e3fc; }
+
+    .icon-btn, .chip, .sort-btn, .action-btn, .quick-btn, .tone-chip {
+      border: 1px solid var(--border); background: var(--surface); border-radius: 999px; cursor: pointer;
+      transition: transform 160ms ease, opacity 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+    }
+    .icon-btn:active, .chip:active, .sort-btn:active, .action-btn:active, .quick-btn:active, .tone-chip:active { transform: scale(.98); }
+    .icon-btn { width: 42px; height: 42px; display: grid; place-items: center; }
+
+    .search { display: flex; align-items: center; gap: 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); padding: 0 14px; min-height: 42px; }
+    .search input { border: 0; width: 100%; background: transparent; outline: 0; font-size: var(--text-sm); }
+
+    .filter-row {
+      position: sticky; top: var(--header-h); z-index: 35; height: var(--filter-h); display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px;
+      padding: 8px 14px; background: var(--bg); border-bottom: 1px solid var(--border);
+    }
+    .chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip { white-space: nowrap; padding: 8px 14px; font-size: var(--text-sm); color: var(--chip-text); border-color: var(--chip-border); background: var(--chip-bg); }
+    .chip.is-active { background: var(--primary); color: #fff; border-color: transparent; }
+    .sort-btn { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: var(--text-sm); }
+    .sort-btn select { border: 0; background: transparent; color: inherit; outline: 0; min-width: 84px; }
+
+    .main { padding: 12px 14px 96px; }
+    .list { display: grid; gap: 12px; }
+
+    .review-card {
+      position: relative; border-radius: 16px; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow-1); padding: 12px; overflow: hidden;
+      opacity: 0; transform: translateY(12px); transition: opacity 300ms ease, transform 300ms ease, box-shadow 180ms ease, background-color 180ms ease;
+    }
+    .review-card.visible { opacity: 1; transform: translateY(0); }
+    .review-card:hover { box-shadow: var(--shadow-2); }
+    .review-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
+    .review-card[data-status="positive"]::before { background: var(--positive); }
+    .review-card[data-status="negative"]::before { background: var(--negative); }
+    .review-card[data-status="pending"]::before { background: var(--pending); }
+
+    .card-top, .card-meta, .card-actions { display: flex; align-items: center; justify-content: space-between; }
+    .card-top { gap: 10px; }
+    .reviewer { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .reviewer-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--bg); display: grid; place-items: center; font-weight: 700; }
+    .reviewer-name { font-size: var(--text-base); font-weight: 500; }
+    .local-guide { border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; color: var(--text-secondary); font-size: var(--text-xs); }
+    .card-time { font-family: "Roboto Mono", monospace; font-size: var(--text-xs); color: var(--text-secondary); }
+    .stars { color: var(--star); letter-spacing: 1px; font-size: .92rem; }
+    .snippet {
+      margin: 8px 0 10px; color: var(--text-secondary); font-size: var(--text-sm); display: -webkit-box;
+      -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.7em;
+    }
+    .card-actions { gap: 8px; }
+    .quick-btn { font-size: var(--text-sm); padding: 7px 12px; }
+    .quick-btn.primary, .action-btn.primary { background: var(--primary); border-color: transparent; color: #fff; }
+
+    .detail { display: none; }
+    .detail-panel {
+      border: 1px solid var(--border); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-1); padding: 16px;
+      max-height: calc(100vh - var(--header-h) - var(--filter-h) - 30px); overflow: auto;
+    }
+    .detail-title { margin: 0; font-size: var(--text-xl); font-weight: 700; }
+    .detail-text { margin: 10px 0 0; font-size: var(--text-base); line-height: 1.6; }
+    .ai-draft { margin-top: 16px; border: 1px solid rgba(26,115,232,.22); background: var(--draft-bg); color: var(--draft-text); border-radius: 14px; padding: 12px; }
+    .detail textarea { width: 100%; margin-top: 14px; border: 1px solid var(--border); border-radius: 12px; min-height: 118px; padding: 10px; background: var(--surface); resize: vertical; }
+    .tone-row { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .tone-chip { padding: 6px 10px; font-size: var(--text-xs); }
+    .tone-chip.active { background: var(--primary); color: #fff; border-color: transparent; }
+
+    .mobile-actions {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; display: flex; gap: 10px;
+      padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); background: color-mix(in srgb,var(--surface) 95%,transparent); border-top: 1px solid var(--border);
+    }
+    .action-btn { flex: 1; min-height: 44px; border-radius: 12px; }
+
+    .sheet-backdrop { position: fixed; inset: 0; z-index: 49; background: rgba(0,0,0,.42); opacity: 0; pointer-events: none; transition: opacity 240ms ease; }
+    .sheet {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; border-radius: 20px 20px 0 0; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-2);
+      transform: translateY(100%); transition: transform 380ms var(--sheet-ease); max-height: 85vh; overflow: auto; padding: 10px 14px 20px;
+    }
+    .sheet.open { transform: translateY(0); }
+    .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+    .sheet-handle { width: 44px; height: 5px; border-radius: 999px; background: var(--border); margin: 4px auto 12px; }
+
+    .empty { display: none; text-align: center; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-1); padding: 24px 14px; }
+    .empty svg { width: 130px; height: 90px; }
+    .empty p { margin: 12px 0 0; font-size: var(--text-base); }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 12px; transform: translate(-50%,20px); background: var(--surface); color: var(--text-main); border: 1px solid var(--border);
+      box-shadow: var(--shadow-1); border-radius: 999px; padding: 9px 12px; display: flex; align-items: center; gap: 10px; opacity: 0; pointer-events: none;
+      transition: transform 220ms ease, opacity 220ms ease; z-index: 60; font-size: var(--text-sm);
+    }
+    .toast.show { opacity: 1; pointer-events: auto; transform: translate(-50%,0); }
+    .toast button { border: 0; color: var(--primary); background: transparent; font-weight: 700; cursor: pointer; }
+    :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+    @media (min-width: 600px) {
+      .app { padding-bottom: 22px; }
+      .topbar { grid-template-columns: auto minmax(320px,640px) auto; justify-content: space-between; padding: 10px 20px; }
+      .mobile-menu { display: none; }
+      .desktop-logo { display: block; }
+      .partner-badge { display: inline-flex; }
+      .main { padding: 16px 20px 24px; }
+      .layout { display: grid; grid-template-columns: 35% 65%; gap: 16px; align-items: start; }
+      .list { max-height: calc(100vh - var(--header-h) - var(--filter-h) - 34px); overflow: auto; padding-right: 4px; }
+      .detail { display: block; }
+      .card-actions { opacity: 0; transform: translateY(4px); pointer-events: none; }
+      .review-card:hover .card-actions, .review-card:focus-within .card-actions { opacity: 1; transform: translateY(0); pointer-events: auto; }
+      .mobile-actions, .sheet, .sheet-backdrop { display: none; }
+      .desktop-floating { position: sticky; bottom: 12px; margin-top: 16px; display: flex; gap: 10px; justify-content: flex-end; }
+      .desktop-floating .action-btn { flex: none; min-width: 162px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <button class="icon-btn mobile-menu" aria-label="Open menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+      </button>
+      <div class="desktop-logo">ProfileFlow</div>
+      <label class="search" aria-label="Search reviews">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" /><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+        <input id="searchInput" type="search" placeholder="Search reviews or locations" />
+      </label>
+      <div class="topbar-right">
+        <span class="partner-badge">Google Partner</span>
+        <button id="themeToggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme"><span id="themeGlyph">☀</span></button>
+        <div class="avatar" aria-label="Profile avatar">AK</div>
+      </div>
+    </header>
+
+    <section class="filter-row" aria-label="Review filters">
+      <div class="chips">
+        <button class="chip is-active" data-filter="all">All Reviews</button>
+        <button class="chip" data-filter="unreplied">Unreplied</button>
+        <button class="chip" data-filter="low">1-3 Stars</button>
+        <button class="chip" data-filter="photos">Photos</button>
+      </div>
+      <label class="sort-btn" for="sortSelect">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+        <span>Sort</span>
+        <select id="sortSelect" aria-label="Sort reviews">
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="high">Highest rating</option>
+          <option value="low">Lowest rating</option>
+        </select>
+      </label>
+    </section>
+
+    <main class="main">
+      <div class="layout">
+        <section class="list" id="reviewList" aria-live="polite"></section>
+        <section class="detail" id="desktopDetail"></section>
+      </div>
+      <section class="empty" id="emptyState" aria-live="polite">
+        <svg viewBox="0 0 176 120" role="img" aria-label="Inbox empty illustration">
+          <rect x="18" y="24" width="140" height="82" rx="14" fill="#e8f0fe" />
+          <rect x="30" y="36" width="116" height="58" rx="10" fill="#fff" stroke="#dadce0" />
+          <circle cx="58" cy="64" r="10" fill="#1a73e8" opacity=".9" />
+          <path d="M78 60h50M78 70h38" stroke="#5f6368" stroke-width="6" stroke-linecap="round" />
+        </svg>
+        <p>All caught up! No pending reviews.</p>
+      </section>
+    </main>
+
+    <section class="sheet-backdrop" id="sheetBackdrop"></section>
+    <section class="sheet" id="mobileSheet" aria-label="Review detail bottom sheet">
+      <div class="sheet-handle"></div>
+      <div id="mobileDetail"></div>
+    </section>
+
+    <section class="mobile-actions" aria-label="Quick workflow">
+      <button class="action-btn" id="mobileRegenerate">Edit / Regenerate</button>
+      <button class="action-btn primary" id="mobileApprove">Approve &amp; Post</button>
+    </section>
+
+    <div class="toast" id="toast" role="status" aria-live="polite">
+      <span id="toastMessage">Reply posted successfully.</span>
+      <button id="undoToast" type="button">Undo</button>
+    </div>
+  </div>
+
+  <script>
+    const reviews = [
+      {
+        id: "r1", name: "John Doe", localGuide: true, stars: 5, time: "02:14", hasPhoto: true, replied: false, status: "positive",
+        snippet: "Fantastic flat white and the barista remembered my usual order. Cozy seating and quick service.",
+        fullText: "Fantastic flat white and the barista remembered my usual order. Cozy seating and quick service even during the morning rush. Music volume was perfect for taking client calls.",
+        aiDraft: "Hi John, thanks for the thoughtful review. We’re glad the team made your morning easier. Looking forward to welcoming you back for your next flat white!"
+      },
+      {
+        id: "r2", name: "Sarah K.", localGuide: true, stars: 2, time: "09:38", hasPhoto: false, replied: false, status: "negative",
+        snippet: "Cold cappuccino and a long wait for pastry pickup. Team was polite but the queue felt unmanaged.",
+        fullText: "My cappuccino arrived lukewarm and I waited almost 20 minutes for a croissant that was already in the display. Staff were friendly, but peak-hour flow needs improvement.",
+        aiDraft: "Hi Sarah, thank you for sharing this. You’re right, that wait and drink temperature are not acceptable. We’ve reviewed rush-hour handoff steps and would love to make this right on your next visit."
+      },
+      {
+        id: "r3", name: "Maya Patel", localGuide: false, stars: 3, time: "13:22", hasPhoto: false, replied: true, status: "pending",
+        snippet: "Good espresso, but Wi-Fi dropped twice while I was working. Seating area is clean and bright.",
+        fullText: "Espresso was strong and smooth. I had to reconnect to Wi-Fi a couple times during a one-hour meeting. Staff checked in quickly and the place was spotless.",
+        aiDraft: "Hi Maya, thanks for the balanced feedback. We’re happy you enjoyed the espresso and appreciate the Wi-Fi note. Our team is already tuning router coverage this week."
+      },
+      {
+        id: "r4", name: "Diego R.", localGuide: true, stars: 4, time: "18:07", hasPhoto: true, replied: false, status: "positive",
+        snippet: "Loved the seasonal pour-over. Outdoor tables near the street were a bit noisy at lunch.",
+        fullText: "Seasonal pour-over was excellent and the staff gave useful brew recommendations. Outdoor seating is nice but traffic noise gets loud around noon.",
+        aiDraft: "Hi Diego, thank you for stopping by and trying the seasonal pour-over. We appreciate your note on outdoor noise and are adjusting table placement during lunchtime."
+      }
+    ];
+
+    const state = { filter: "all", sort: "newest", selectedId: reviews[0].id, query: "" };
+    const root = document.documentElement;
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)");
+    const listEl = document.getElementById("reviewList");
+    const emptyEl = document.getElementById("emptyState");
+    const desktopDetail = document.getElementById("desktopDetail");
+    const mobileDetail = document.getElementById("mobileDetail");
+    const sheet = document.getElementById("mobileSheet");
+    const backdrop = document.getElementById("sheetBackdrop");
+    const toast = document.getElementById("toast");
+    const toastMessage = document.getElementById("toastMessage");
+    const themeGlyph = document.getElementById("themeGlyph");
+
+    function setTheme(theme) { root.dataset.theme = theme; localStorage.setItem("profileflow-theme", theme); }
+    function initTheme() {
+      const saved = localStorage.getItem("profileflow-theme");
+      root.dataset.theme = saved === "light" || saved === "dark" ? saved : (prefersDark.matches ? "dark" : "light");
+      themeGlyph.textContent = root.dataset.theme === "dark" ? "☾" : "☀";
+    }
+
+    function stars(value) { return `<span class="stars" aria-label="${value} star rating">${"★".repeat(value)}${"☆".repeat(5 - value)}</span>`; }
+    function listData() {
+      const q = state.query.trim().toLowerCase();
+      return reviews
+        .filter((r) => {
+          if (state.filter === "unreplied" && r.replied) return false;
+          if (state.filter === "low" && r.stars > 3) return false;
+          if (state.filter === "photos" && !r.hasPhoto) return false;
+          if (!q) return true;
+          return r.name.toLowerCase().includes(q) || r.snippet.toLowerCase().includes(q) || r.fullText.toLowerCase().includes(q);
+        })
+        .sort((a, b) => {
+          if (state.sort === "oldest") return a.time.localeCompare(b.time);
+          if (state.sort === "high") return b.stars - a.stars;
+          if (state.sort === "low") return a.stars - b.stars;
+          return b.time.localeCompare(a.time);
+        });
+    }
+
+    function detailTemplate(review) {
+      if (!review) return "";
+      return `
+        <div class="detail-panel">
+          <h2 class="detail-title">${review.name}</h2>
+          <div class="card-meta" style="margin-top:8px;">${stars(review.stars)}<span class="card-time">${review.time}</span></div>
+          <p class="detail-text">${review.fullText}</p>
+          <section class="ai-draft"><strong>✨ AI Draft</strong><p style="margin:6px 0 0;">${review.aiDraft}</p></section>
+          <label class="sr-only">Edit response</label>
+          <textarea>${review.aiDraft}</textarea>
+          <div class="tone-row" role="listbox" aria-label="Tone selector">
+            <button class="tone-chip active" data-tone="professional">Professional</button>
+            <button class="tone-chip" data-tone="friendly">Friendly</button>
+            <button class="tone-chip" data-tone="apologetic">Apologetic</button>
+          </div>
+          <div class="desktop-floating" aria-label="Desktop action bar">
+            <button class="action-btn" data-action="regenerate">Edit / Regenerate</button>
+            <button class="action-btn primary" data-action="approve">Approve &amp; Post</button>
+          </div>
+        </div>`;
+    }
+
+    function cardTemplate(review, index) {
+      const guide = review.localGuide ? '<span class="local-guide">Local Guide</span>' : "";
+      return `
+        <article class="review-card" data-index="${index}" data-id="${review.id}" data-status="${review.status}">
+          <div class="card-top">
+            <div class="reviewer"><div class="reviewer-avatar">${review.name.slice(0, 1)}</div><div><div class="reviewer-name">${review.name}</div>${guide}</div></div>
+            <span class="card-time">${review.time}</span>
+          </div>
+          <div class="card-meta" style="margin-top:8px;">${stars(review.stars)}<span class="card-time">${review.replied ? "Replied" : "Needs reply"}</span></div>
+          <p class="snippet">${review.snippet}</p>
+          <div class="card-actions"><button class="quick-btn primary" data-action="reply">Reply</button><button class="quick-btn" data-action="dismiss">Dismiss</button></div>
+        </article>`;
+    }
+
+    function revealCards() {
+      const cards = [...document.querySelectorAll(".review-card")];
+      cards.forEach((card, index) => { card.style.transitionDelay = `${index * 55}ms`; });
+      const observer = new IntersectionObserver((entries, obs) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("visible");
+          obs.unobserve(entry.target);
+        });
+      }, { threshold: 0.14 });
+      cards.forEach((card) => observer.observe(card));
+    }
+
+    function showToast(message) {
+      toastMessage.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 2600);
+    }
+    showToast.timer = null;
+
+    function closeSheet() { sheet.classList.remove("open"); backdrop.classList.remove("open"); }
+    function openSheet() { sheet.classList.add("open"); backdrop.classList.add("open"); }
+
+    function bindDetailControls() {
+      const tones = [...document.querySelectorAll(".tone-chip")];
+      tones.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          tones.forEach((item) => item.classList.remove("active"));
+          btn.classList.add("active");
+        });
+      });
+      document.querySelectorAll('.detail [data-action="approve"]').forEach((button) => {
+        button.addEventListener("click", () => { showToast("Reply posted successfully."); closeSheet(); });
+      });
+      document.querySelectorAll('.detail [data-action="regenerate"]').forEach((button) => {
+        button.addEventListener("click", () => showToast("AI draft regenerated."));
+      });
+    }
+
+    function bindCardActions() {
+      [...document.querySelectorAll(".review-card")].forEach((card) => {
+        card.addEventListener("click", (event) => {
+          const id = card.dataset.id;
+          if (!id) return;
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) return;
+          const action = target.dataset.action;
+
+          if (action === "dismiss") {
+            const review = reviews.find((r) => r.id === id);
+            if (review) review.replied = true;
+            showToast("Review dismissed.");
+            render();
+            return;
+          }
+
+          state.selectedId = id;
+          render();
+          if (action === "reply" || window.innerWidth < 600) openSheet();
+        });
+      });
+    }
+
+    function render() {
+      const rows = listData();
+      emptyEl.style.display = rows.length ? "none" : "block";
+      listEl.innerHTML = rows.map((review, index) => cardTemplate(review, index)).join("");
+
+      const selected = rows.find((r) => r.id === state.selectedId) || rows[0] || null;
+      state.selectedId = selected ? selected.id : null;
+      const detail = detailTemplate(selected);
+      desktopDetail.innerHTML = detail;
+      mobileDetail.innerHTML = detail;
+
+      bindDetailControls();
+      bindCardActions();
+
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        document.querySelectorAll(".review-card").forEach((card) => card.classList.add("visible"));
+      } else {
+        revealCards();
+      }
+    }
+
+    function bindStaticControls() {
+      document.querySelectorAll(".chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          document.querySelectorAll(".chip").forEach((el) => el.classList.remove("is-active"));
+          chip.classList.add("is-active");
+          state.filter = chip.dataset.filter;
+          render();
+        });
+      });
+
+      document.getElementById("sortSelect").addEventListener("change", (event) => { state.sort = event.target.value; render(); });
+      document.getElementById("searchInput").addEventListener("input", (event) => { state.query = event.target.value; render(); });
+      document.getElementById("themeToggle").addEventListener("click", () => {
+        const next = root.dataset.theme === "dark" ? "light" : "dark";
+        setTheme(next);
+        themeGlyph.textContent = next === "dark" ? "☾" : "☀";
+      });
+      document.getElementById("mobileApprove").addEventListener("click", () => { showToast("Reply posted successfully."); closeSheet(); });
+      document.getElementById("mobileRegenerate").addEventListener("click", () => showToast("AI draft regenerated."));
+      document.getElementById("undoToast").addEventListener("click", () => toast.classList.remove("show"));
+      backdrop.addEventListener("click", closeSheet);
+      document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeSheet(); });
+
+      if (!localStorage.getItem("profileflow-theme")) {
+        prefersDark.addEventListener("change", (event) => {
+          root.dataset.theme = event.matches ? "dark" : "light";
+          themeGlyph.textContent = event.matches ? "☾" : "☀";
+        });
+      }
+    }
+
+    initTheme();
+    bindStaticControls();
+    render();
+  </script>
+</body>
+</html>

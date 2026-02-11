@@ -6,9 +6,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const { token } = await params
 
   return (
-    <div className="min-h-screen grid place-items-center px-4 py-10">
-      <Card className="w-full max-w-md rounded-3xl p-8 space-y-5 shadow-xl border">
-        <h1 className="text-xl font-bold tracking-tight">Invite Link</h1>
+    <div className="min-h-screen grid place-items-center p-4 md:p-6">
+      <Card className="w-full max-w-md rounded-2xl p-5 md:p-8 space-y-5 shadow-floating border-border">
+        <h1 className="text-lg md:text-xl font-bold tracking-tight">Invite Link</h1>
         <p className="text-sm text-muted-foreground leading-relaxed font-medium">
           Invites are currently disabled for this deployment. If you expected to be invited,
           contact your administrator.
@@ -18,9 +18,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
             Token: {token}
           </p>
         </div>
-        <div className="flex justify-end">
+        <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
           <Link href="/signin">
-            <Button type="button" className="rounded-xl shadow-google-sm">Go to sign in</Button>
+            <Button type="button" className="w-full sm:w-auto rounded-xl shadow-elevated">Go to sign in</Button>
           </Link>
         </div>
       </Card>

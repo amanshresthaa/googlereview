@@ -28,18 +28,22 @@ export function usePaginatedReviews(opts: {
   locationId?: string
   rating?: number
   search?: string
-  initialPage?: (ReviewListPage & { filter: ReviewFilter; mention?: string | null }) | null
+  enabled?: boolean
+  initialPage?: (ReviewListPage & {
+    filter: ReviewFilter
+    status?: "pending" | "replied" | "all"
+    mention?: string | null
+  }) | null
 }): UsePaginatedReviewsResult {
-  const { filter, mention, status = "all", locationId, rating, search, initialPage } = opts
-  const statusCompatibleWithInitial = status === "all" || (status === "pending" && filter === "unanswered")
+  const { filter, mention, status = "all", locationId, rating, search, enabled = true, initialPage } = opts
   const initialMatches =
     !!initialPage &&
-    statusCompatibleWithInitial &&
     !locationId &&
     rating == null &&
     !search &&
     initialPage.filter === filter &&
-    (initialPage.mention ?? null) === (mention ?? null)
+    (initialPage.mention ?? null) === (mention ?? null) &&
+    (initialPage.status == null || initialPage.status === status)
   const initialConsumedRef = React.useRef(false)
 
   const [rows, setRows] = React.useState<ReviewRow[]>(
@@ -48,15 +52,18 @@ export function usePaginatedReviews(opts: {
   const [counts, setCounts] = React.useState<ReviewCounts | null>(
     initialMatches ? initialPage.counts ?? null : null
   )
-  const [loading, setLoading] = React.useState(!initialMatches)
+  const [loading, setLoading] = React.useState(enabled && !initialMatches)
   const [loadingMore, setLoadingMore] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [hasMore, setHasMore] = React.useState(initialMatches ? Boolean(initialPage.nextCursor) : false)
   const cursorRef = React.useRef<string | null>(initialMatches ? initialPage.nextCursor : null)
   const abortRef = React.useRef<AbortController | null>(null)
+  const countsAbortRef = React.useRef<AbortController | null>(null)
+  const countsLoadingRef = React.useRef(false)
+  const hasLoadedCountsRef = React.useRef(initialMatches && initialPage.counts !== undefined)
 
   const fetchPage = React.useCallback(
-    async (cursor: string | null, append: boolean) => {
+    async (cursor: string | null, append: boolean, includeCounts: boolean) => {
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
@@ -75,6 +82,7 @@ export function usePaginatedReviews(opts: {
       if (rating != null) params.set("rating", String(rating))
       if (search) params.set("search", search)
       if (cursor) params.set("cursor", cursor)
+      params.set("includeCounts", !cursor && includeCounts ? "1" : "0")
 
       try {
         const res = await fetch(`/api/reviews?${params.toString()}`, {
@@ -94,7 +102,7 @@ export function usePaginatedReviews(opts: {
             const body = await res.json()
             if (body.error === "BAD_CURSOR") {
               cursorRef.current = null
-              fetchPage(null, false)
+              fetchPage(null, false, includeCounts)
               return
             }
             msg = body.error || msg
@@ -117,6 +125,10 @@ export function usePaginatedReviews(opts: {
           setCounts(data.counts)
         }
 
+        if (!append && !cursor && includeCounts) {
+          hasLoadedCountsRef.current = true
+        }
+
         cursorRef.current = data.nextCursor ?? null
         setHasMore(!!data.nextCursor)
       } catch (err: unknown) {
@@ -132,6 +144,43 @@ export function usePaginatedReviews(opts: {
     [filter, mention, status, locationId, rating, search],
   )
 
+  const fetchCounts = React.useCallback(async () => {
+    if (hasLoadedCountsRef.current || countsLoadingRef.current) return
+
+    countsAbortRef.current?.abort()
+    const controller = new AbortController()
+    countsAbortRef.current = controller
+    countsLoadingRef.current = true
+
+    try {
+      const res = await fetch("/api/reviews/counts", { signal: controller.signal })
+      if (controller.signal.aborted) return
+
+      if (res.status === 401) {
+        setError("SESSION_EXPIRED")
+        return
+      }
+
+      if (!res.ok) {
+        return
+      }
+
+      const data = await res.json()
+      if (data.counts !== undefined) {
+        setCounts(data.counts)
+        hasLoadedCountsRef.current = true
+      }
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") return
+      // Ignore background count refresh failures to avoid interrupting list UX.
+    } finally {
+      countsLoadingRef.current = false
+      if (countsAbortRef.current === controller) {
+        countsAbortRef.current = null
+      }
+    }
+  }, [])
+
   React.useEffect(() => {
     cursorRef.current = null
     setHasMore(false)
@@ -139,15 +188,16 @@ export function usePaginatedReviews(opts: {
     const canUseInitialPage =
       !!initialPage &&
       !initialConsumedRef.current &&
-      statusCompatibleWithInitial &&
       !locationId &&
       rating == null &&
       !search &&
       initialPage.filter === filter &&
-      (initialPage.mention ?? null) === (mention ?? null)
+      (initialPage.mention ?? null) === (mention ?? null) &&
+      (initialPage.status == null || initialPage.status === status)
 
     if (canUseInitialPage) {
       initialConsumedRef.current = true
+      hasLoadedCountsRef.current = initialPage.counts !== undefined
       setRows(initialPage.rows)
       setCounts(initialPage.counts ?? null)
       cursorRef.current = initialPage.nextCursor
@@ -157,26 +207,65 @@ export function usePaginatedReviews(opts: {
       setError(null)
       return () => {
         abortRef.current?.abort()
+        countsAbortRef.current?.abort()
       }
     }
 
-    fetchPage(null, false)
+    if (!enabled) {
+      setLoading(false)
+      setLoadingMore(false)
+      return () => {
+        abortRef.current?.abort()
+        countsAbortRef.current?.abort()
+      }
+    }
+
+    fetchPage(null, false, false)
 
     return () => {
       abortRef.current?.abort()
+      countsAbortRef.current?.abort()
     }
-  }, [fetchPage, filter, mention, statusCompatibleWithInitial, locationId, rating, search, initialPage])
+  }, [enabled, fetchPage, filter, mention, status, locationId, rating, search, initialPage])
+
+  React.useEffect(() => {
+    if (!enabled) return
+    if (loading || hasLoadedCountsRef.current) return
+    if (typeof window === "undefined") return
+
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (cb: () => void, options?: { timeout?: number }) => number
+      cancelIdleCallback?: (handle: number) => void
+    }
+
+    const run = () => {
+      void fetchCounts()
+    }
+
+    if (typeof idleWindow.requestIdleCallback === "function") {
+      const handle = idleWindow.requestIdleCallback(run, { timeout: 1200 })
+      return () => {
+        idleWindow.cancelIdleCallback?.(handle)
+      }
+    }
+
+    const timeout = window.setTimeout(run, 0)
+    return () => {
+      window.clearTimeout(timeout)
+    }
+  }, [enabled, loading, fetchCounts])
 
   const loadMore = React.useCallback(() => {
-    if (!hasMore || loadingMore || loading) return
-    fetchPage(cursorRef.current, true)
-  }, [hasMore, loadingMore, loading, fetchPage])
+    if (!enabled || !hasMore || loadingMore || loading) return
+    fetchPage(cursorRef.current, true, false)
+  }, [enabled, hasMore, loadingMore, loading, fetchPage])
 
   const refresh = React.useCallback(() => {
+    if (!enabled) return
     cursorRef.current = null
     setHasMore(false)
-    fetchPage(null, false)
-  }, [fetchPage])
+    fetchPage(null, false, true)
+  }, [enabled, fetchPage])
   const updateRow = React.useCallback((id: string, updater: (row: ReviewRow) => ReviewRow) => {
     setRows((prev) => prev.map((row) => (row.id === id ? updater(row) : row)))
   }, [])
@@ -291,12 +380,14 @@ export type ReviewDetail = {
     status: string
     version: number
     verifierResultJson: unknown | null
+    updatedAt?: string
   } | null
   drafts: Array<{
     id: string
     text: string
     status: string
     version: number
+    updatedAt?: string
   }>
 }
 

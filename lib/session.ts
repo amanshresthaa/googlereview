@@ -7,6 +7,15 @@ import crypto from "node:crypto"
 import { z } from "zod"
 
 const E2E_COOKIE_NAME = "__e2e_session"
+const MEMBERSHIP_CACHE_TTL_MS = 10_000
+const MEMBERSHIP_CACHE_MAX_ENTRIES = 2048
+
+type MembershipCacheEntry = {
+  expiresAt: number
+}
+
+const membershipExistsCache = new Map<string, MembershipCacheEntry>()
+const membershipInflight = new Map<string, Promise<boolean>>()
 
 const e2eSessionSchema = z.object({
   orgId: z.string().min(1),
@@ -34,6 +43,64 @@ function timingSafeEqual(a: string, b: string) {
 
 function signPayloadBase64Url(payloadB64Url: string, secret: string) {
   return crypto.createHmac("sha256", secret).update(payloadB64Url).digest("base64url")
+}
+
+function membershipCacheKey(orgId: string, userId: string) {
+  return `${orgId}:${userId}`
+}
+
+function hasCachedMembership(key: string): boolean {
+  const cached = membershipExistsCache.get(key)
+  if (!cached) return false
+  if (cached.expiresAt <= Date.now()) {
+    membershipExistsCache.delete(key)
+    return false
+  }
+  // Promote as most recently used.
+  membershipExistsCache.delete(key)
+  membershipExistsCache.set(key, cached)
+  return true
+}
+
+function cacheMembershipExists(key: string): void {
+  membershipExistsCache.set(key, { expiresAt: Date.now() + MEMBERSHIP_CACHE_TTL_MS })
+  if (membershipExistsCache.size <= MEMBERSHIP_CACHE_MAX_ENTRIES) return
+  const oldest = membershipExistsCache.keys().next()
+  if (!oldest.done) {
+    membershipExistsCache.delete(oldest.value)
+  }
+}
+
+async function membershipExists(orgId: string, userId: string): Promise<boolean> {
+  const key = membershipCacheKey(orgId, userId)
+  if (hasCachedMembership(key)) {
+    return true
+  }
+
+  const inflight = membershipInflight.get(key)
+  if (inflight) {
+    return inflight
+  }
+
+  const lookup = prisma.membership
+    .findUnique({
+      where: { orgId_userId: { orgId, userId } },
+      select: { orgId: true },
+    })
+    .then((membership) => {
+      const exists = Boolean(membership)
+      // Cache only positive membership to keep revocation lag bounded.
+      if (exists) {
+        cacheMembershipExists(key)
+      }
+      return exists
+    })
+    .finally(() => {
+      membershipInflight.delete(key)
+    })
+
+  membershipInflight.set(key, lookup)
+  return lookup
 }
 
 function verifyCookie(raw: string, secret: string): string | null {
@@ -82,10 +149,7 @@ export async function requireApiSession() {
     return null
   }
   // Enforce org membership existence on every API request (org isolation).
-  const membership = await prisma.membership.findUnique({
-    where: { orgId_userId: { orgId: session.orgId, userId: session.user.id } },
-    select: { orgId: true },
-  })
-  if (!membership) return null
+  const exists = await membershipExists(session.orgId, session.user.id)
+  if (!exists) return null
   return session
 }

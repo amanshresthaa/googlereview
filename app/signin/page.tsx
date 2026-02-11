@@ -14,13 +14,13 @@ export default function SignInPage() {
         transition={{ duration: 0.3 }}
         className="w-full max-w-md"
       >
-        <div className="rounded-3xl border border-border shadow-floating bg-card p-8">
+        <div className="rounded-3xl border border-border shadow-floating bg-card p-5 md:p-8">
           <div className="flex items-center gap-4 mb-8">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-elevated">
               <MapPin className="h-7 w-7" />
             </div>
             <div>
-              <div className="text-xl font-bold text-foreground tracking-tight">Business Profile</div>
+              <div className="text-lg md:text-xl font-bold text-foreground tracking-tight">Business Profile</div>
               <div className="text-sm font-medium text-muted-foreground">Review Manager</div>
             </div>
           </div>
@@ -45,23 +45,22 @@ export default function SignInPage() {
             </Button>
           </div>
 
-          {/* Feature Cards */}
-          <div className="mt-8 grid grid-cols-3 gap-3">
-            <div className="rounded-2xl border border-border bg-card p-4 text-center shadow-card">
-              <div className="h-10 w-10 mx-auto rounded-xl bg-purple-50 flex items-center justify-center mb-3 border border-purple-100">
-                <Sparkles className="h-5 w-5 text-purple-600" />
+          <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-border bg-card p-4 text-center shadow-card min-h-[100px]">
+              <div className="h-10 w-10 mx-auto rounded-xl bg-secondary flex items-center justify-center mb-3 border border-border">
+                <Sparkles className="h-5 w-5 text-secondary-foreground" />
               </div>
               <div className="text-xs font-bold text-foreground">AI Drafting</div>
               <div className="text-[10px] text-muted-foreground mt-1">Generate smart replies instantly</div>
             </div>
-            <div className="rounded-2xl border border-border bg-card p-4 text-center shadow-card">
-              <div className="h-10 w-10 mx-auto rounded-xl bg-emerald-50 flex items-center justify-center mb-3 border border-emerald-100">
-                <ShieldCheck className="h-5 w-5 text-emerald-600" />
+            <div className="rounded-2xl border border-border bg-card p-4 text-center shadow-card min-h-[100px]">
+              <div className="h-10 w-10 mx-auto rounded-xl bg-accent flex items-center justify-center mb-3 border border-border">
+                <ShieldCheck className="h-5 w-5 text-accent-foreground" />
               </div>
               <div className="text-xs font-bold text-foreground">Claim Verify</div>
               <div className="text-[10px] text-muted-foreground mt-1">Automated fact-checking</div>
             </div>
-            <div className="rounded-2xl border border-border bg-card p-4 text-center shadow-card">
+            <div className="rounded-2xl border border-border bg-card p-4 text-center shadow-card min-h-[100px]">
               <div className="h-10 w-10 mx-auto rounded-xl bg-primary/10 flex items-center justify-center mb-3 border border-primary/20">
                 <MessageSquare className="h-5 w-5 text-primary" />
               </div>

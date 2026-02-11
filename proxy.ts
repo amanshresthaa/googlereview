@@ -71,11 +71,9 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/performance/:path*",
     "/inbox/:path*",
     "/reviews/:path*",
     "/locations/:path*",
-    "/users/:path*",
     "/settings/:path*",
     "/onboarding/:path*",
   ],

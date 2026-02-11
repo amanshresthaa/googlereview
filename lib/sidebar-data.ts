@@ -1,9 +1,7 @@
 import { unstable_cache } from "next/cache"
 import { prisma } from "@/lib/db"
-import { getPerformanceSummary } from "@/lib/performance"
 
 const SIDEBAR_CACHE_TTL_SEC = 15
-const PERFORMANCE_CACHE_TTL_SEC = 30
 
 function sidebarTag(orgId: string) {
   return `org:${orgId}:sidebar`
@@ -68,50 +66,6 @@ export async function getSettingsSidebarData(orgId: string) {
       }),
     ])
     return { org, settings, google, locations }
-  })
-}
-
-export async function getUsersSidebarData(orgId: string) {
-  return forOrg(orgId, "users", SIDEBAR_CACHE_TTL_SEC, async () => {
-    const now = new Date()
-    const [memberships, invites] = await Promise.all([
-      prisma.membership.findMany({
-        where: { orgId },
-        orderBy: [{ role: "asc" }, { createdAt: "asc" }],
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-        },
-      }),
-      prisma.invite.findMany({
-        where: { orgId, usedAt: null, expiresAt: { gt: now } },
-        orderBy: { createdAt: "desc" },
-        select: { id: true, email: true, role: true, expiresAt: true, createdAt: true },
-      }),
-    ])
-    return { memberships, invites }
-  })
-}
-
-export async function getPerformanceSidebarData(orgId: string) {
-  return forOrg(orgId, "performance", PERFORMANCE_CACHE_TTL_SEC, async () => {
-    const summary = await getPerformanceSummary({ orgId, days: 30 })
-    const rangeStart = new Date(summary.range.startIso)
-    const rangeEnd = new Date(summary.range.endIso)
-    const aiDraftedInRange = await prisma.review.count({
-      where: {
-        orgId,
-        location: { enabled: true },
-        createTime: { gte: rangeStart, lte: rangeEnd },
-        currentDraftReplyId: { not: null },
-      },
-    })
-    return { summary, aiDraftedInRange }
   })
 }
 

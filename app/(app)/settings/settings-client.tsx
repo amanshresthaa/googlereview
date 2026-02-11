@@ -3,8 +3,22 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
+import { cn } from "@/lib/utils"
+import {
+  CheckCircle2,
+  Globe,
+  Loader2,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  X,
+  Zap,
+} from "@/components/icons"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
@@ -12,10 +26,6 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { Badge } from "@/components/ui/badge"
-import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
-import { cn } from "@/lib/utils"
-import { X, Star, Settings, Sparkles, Zap, Globe, Loader2, CheckCircle2 } from "@/components/icons"
 import { SeoProfilesEditor, type SeoLocationProfilePayload } from "@/app/(app)/settings/seo-profiles-editor"
 
 type SettingsShape = {
@@ -44,9 +54,9 @@ type Props = {
 const TONE_PRESETS = ["friendly", "professional", "empathetic", "concise", "upbeat"] as const
 
 function isValidKeyword(raw: string) {
-  const v = raw.trim().toLowerCase()
-  if (v.length < 1 || v.length > 32) return null
-  return v
+  const value = raw.trim().toLowerCase()
+  if (value.length < 1 || value.length > 32) return null
+  return value
 }
 
 export function SettingsClient({
@@ -62,6 +72,7 @@ export function SettingsClient({
   const [savingSeo, setSavingSeo] = React.useState(false)
   const [draft, setDraft] = React.useState<SettingsShape>(settings)
   const [keywordInput, setKeywordInput] = React.useState("")
+  const [activeTab, setActiveTab] = React.useState("general")
 
   const ratings = [1, 2, 3, 4, 5] as const
   const selectedRatings = React.useMemo(() => new Set(draft.autoDraftForRatings), [draft.autoDraftForRatings])
@@ -120,12 +131,12 @@ export function SettingsClient({
   }
 
   const addKeyword = () => {
-    const v = isValidKeyword(keywordInput)
-    if (!v) {
+    const value = isValidKeyword(keywordInput)
+    if (!value) {
       toast.error("Keyword must be 1-32 characters.")
       return
     }
-    if (draft.mentionKeywords.includes(v)) {
+    if (draft.mentionKeywords.includes(value)) {
       setKeywordInput("")
       return
     }
@@ -133,90 +144,101 @@ export function SettingsClient({
       toast.error("Maximum 30 keywords.")
       return
     }
-    setDraft((prev) => ({ ...prev, mentionKeywords: [...prev.mentionKeywords, v] }))
+    setDraft((prev) => ({ ...prev, mentionKeywords: [...prev.mentionKeywords, value] }))
     setKeywordInput("")
   }
 
-  const removeKeyword = (k: string) => {
-    setDraft((prev) => ({ ...prev, mentionKeywords: prev.mentionKeywords.filter((x) => x !== k) }))
+  const removeKeyword = (keyword: string) => {
+    setDraft((prev) => ({ ...prev, mentionKeywords: prev.mentionKeywords.filter((x) => x !== keyword) }))
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-8 max-w-3xl mx-auto">
-      {/* Header */}
+    <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
       <div className="flex items-center gap-4">
-        <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center border border-border">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-muted md:h-12 md:w-12">
           <Settings className="size-5 text-muted-foreground" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Settings</h1>
-          <p className="text-sm text-muted-foreground font-medium">Configure automation and AI behavior</p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">Settings</h1>
+          <p className="text-sm text-muted-foreground">Configure automation and AI behavior</p>
         </div>
       </div>
 
-      <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="bg-muted p-1 rounded-xl h-10 border border-border">
-          <TabsTrigger value="general" className="text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-card data-[state=active]:text-foreground text-muted-foreground font-medium">General</TabsTrigger>
-          <TabsTrigger value="automation" className="text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-card data-[state=active]:text-foreground text-muted-foreground font-medium">Automation</TabsTrigger>
-          <TabsTrigger value="seo" className="text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-card data-[state=active]:text-foreground text-muted-foreground font-medium">SEO</TabsTrigger>
-          <TabsTrigger value="tone" className="text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-card data-[state=active]:text-foreground text-muted-foreground font-medium">AI Tone</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="flex h-auto flex-wrap gap-1 rounded-xl bg-muted p-1">
+          <TabsTrigger value="general" className="rounded-lg text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
+            <Globe className="mr-1.5 h-3.5 w-3.5" />
+            General
+          </TabsTrigger>
+          <TabsTrigger value="automation" className="rounded-lg text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
+            <Zap className="mr-1.5 h-3.5 w-3.5" />
+            Automation
+          </TabsTrigger>
+          <TabsTrigger value="seo" className="rounded-lg text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
+            <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+            SEO
+          </TabsTrigger>
+          <TabsTrigger value="tone" className="rounded-lg text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
+            <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+            Tone
+          </TabsTrigger>
         </TabsList>
 
-        {/* ─── General ─── */}
-        <TabsContent value="general" className="space-y-5">
-          <Card className="rounded-2xl border-border bg-card shadow-card">
-            <CardContent className="p-6 space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center border border-border">
-                  <Globe className="size-4 text-muted-foreground" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-bold text-foreground">Organization</div>
-                  <div className="text-xs text-muted-foreground truncate font-medium">{orgName}</div>
+        <TabsContent value="general" className="space-y-4">
+          <Card className="border-border bg-card">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Globe className="h-4 w-4 text-muted-foreground" />
+                Organization
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-4 rounded-xl border border-border bg-muted/50 p-4">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">{orgName}</p>
+                  <p className="text-xs text-muted-foreground">Organization name</p>
                 </div>
               </div>
 
               <Separator className="bg-border" />
 
-              <div className="space-y-4">
-                <div className="text-sm font-bold text-foreground">Google Connection</div>
+              <div className="space-y-3">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Google Connection
+                </Label>
                 {googleConnection ? (
-                  <div className="rounded-2xl border border-border bg-muted/50 p-5 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-card border border-border flex items-center justify-center shadow-sm">
-                        <Globe className="size-4 text-muted-foreground" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold truncate text-foreground">{googleConnection.googleEmail}</div>
-                      </div>
-                      <Badge
-                        variant="secondary"
-                        className={cn(
-                          "rounded-lg px-3 py-1.5 text-xs font-medium",
-                          googleConnection.status === "ACTIVE"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-rose-100 text-rose-700"
-                        )}
-                      >
-                        {googleConnection.status === "ACTIVE" ? (
-                          <span className="flex items-center gap-1.5">
-                            <CheckCircle2 className="size-3" /> Active
-                          </span>
-                        ) : (
-                          googleConnection.status
-                        )}
-                      </Badge>
+                  <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-muted/50 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-background">
+                      <Globe className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <div className="flex gap-2">
-                      <Badge variant="secondary" className="rounded-md font-mono text-[9px] px-2 h-5 bg-muted text-muted-foreground">
-                        {googleConnection.scopes.length} scope{googleConnection.scopes.length !== 1 ? "s" : ""}
-                      </Badge>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">{googleConnection.googleEmail}</p>
+                      <p className="text-xs text-muted-foreground">{googleConnection.scopes.length} scopes granted</p>
                     </div>
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        "text-xs font-medium",
+                        googleConnection.status === "ACTIVE"
+                          ? "border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400"
+                          : "bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400",
+                      )}
+                    >
+                      {googleConnection.status === "ACTIVE" ? (
+                        <span className="flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Active
+                        </span>
+                      ) : (
+                        googleConnection.status
+                      )}
+                    </Badge>
                   </div>
                 ) : (
-                  <div className="rounded-2xl border-2 border-dashed border-border p-8 text-center">
-                    <p className="text-sm text-muted-foreground font-medium">Not connected</p>
-                    <p className="text-xs text-muted-foreground mt-1">Connect your Google account to sync reviews</p>
+                  <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border p-8 text-center">
+                    <Globe className="mb-3 h-8 w-8 text-muted-foreground/40" />
+                    <p className="text-sm font-medium text-foreground">Not connected</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Connect your Google account to sync reviews</p>
                   </div>
                 )}
               </div>
@@ -224,116 +246,108 @@ export function SettingsClient({
           </Card>
         </TabsContent>
 
-        {/* ─── Automation ─── */}
-        <TabsContent value="automation" className="space-y-5">
-          <Card className="rounded-2xl border-border bg-card shadow-card">
-            <CardContent className="p-6 space-y-6">
-              {/* Auto-draft */}
+        <TabsContent value="automation" className="space-y-4">
+          <Card className="border-border bg-card">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Zap className="h-4 w-4 text-muted-foreground" />
+                Auto Draft
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 mt-0.5">
-                    <Sparkles className="size-4 text-primary" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-sm font-bold text-foreground">Auto draft</div>
-                    <div className="text-xs text-muted-foreground leading-relaxed max-w-[280px] font-medium">
-                      Automatically generate AI drafts for incoming reviews.
-                    </div>
-                  </div>
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">Enable auto draft</Label>
+                  <p className="text-xs text-muted-foreground">Automatically generate AI drafts for new reviews</p>
                 </div>
                 <Switch
                   checked={draft.autoDraftEnabled}
-                  onCheckedChange={(v) => setDraft((p) => ({ ...p, autoDraftEnabled: v }))}
+                  onCheckedChange={(value) => setDraft((prev) => ({ ...prev, autoDraftEnabled: value }))}
+                  aria-label="Toggle auto draft"
                 />
               </div>
 
-              <div className={cn("pl-14 space-y-3", !draft.autoDraftEnabled && "opacity-40 pointer-events-none")}>
-                <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Draft for ratings</div>
+              <div className={cn("space-y-3", !draft.autoDraftEnabled && "pointer-events-none opacity-50")}>
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Draft for ratings
+                </Label>
                 <ToggleGroup
                   type="multiple"
                   value={draft.autoDraftForRatings.map(String)}
                   disabled={!draft.autoDraftEnabled}
                   onValueChange={(values) => {
                     const next = values
-                      .map((value) => Number(value))
-                      .filter((value): value is number => Number.isInteger(value) && value >= 1 && value <= 5)
+                      .map(Number)
+                      .filter((n): n is number => Number.isInteger(n) && n >= 1 && n <= 5)
                       .sort((a, b) => a - b)
-                    setDraft((p) => ({ ...p, autoDraftForRatings: next }))
+                    setDraft((prev) => ({ ...prev, autoDraftForRatings: next }))
                   }}
                   className="flex flex-wrap justify-start gap-2 bg-transparent p-0"
+                  aria-label="Select ratings for auto draft"
                 >
-                  {ratings.map((r) => {
-                    const active = selectedRatings.has(r)
+                  {ratings.map((rating) => {
+                    const isActive = selectedRatings.has(rating)
                     return (
                       <ToggleGroupItem
-                        key={r}
-                        value={String(r)}
+                        key={rating}
+                        value={String(rating)}
+                        aria-label={`${rating} star${rating !== 1 ? "s" : ""}`}
                         className={cn(
-                          "h-9 px-4 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition-all border",
-                          active
-                            ? "bg-primary/10 text-primary border-primary/30"
-                            : "bg-card text-muted-foreground border-border hover:bg-accent"
+                          "inline-flex h-9 items-center gap-1 rounded-xl border px-4 text-xs font-semibold transition-all",
+                          isActive
+                            ? "border-primary/30 bg-primary/10 text-primary"
+                            : "border-border bg-background text-muted-foreground hover:bg-muted",
                         )}
                       >
-                        {r}
-                        <Star className="size-3" weight={active ? "fill" : "regular"} />
+                        {rating}
+                        <Star className="h-3 w-3" weight={isActive ? "fill" : "regular"} />
                       </ToggleGroupItem>
                     )
                   })}
                 </ToggleGroup>
               </div>
 
-              {showBulkApprove ? (
-                <>
-                  <Separator className="bg-border" />
+              <Separator className="bg-border" />
 
-                  {/* Bulk approve */}
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4">
-                      <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-100 mt-0.5">
-                        <Zap className="size-4 text-emerald-600" />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-sm font-bold text-foreground">Bulk approve 5-star</div>
-                        <div className="text-xs text-muted-foreground leading-relaxed max-w-[280px] font-medium">
-                          Enable one-click bulk posting for ready 5-star drafts.
-                        </div>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={draft.bulkApproveEnabledForFiveStar}
-                      onCheckedChange={(v) => setDraft((p) => ({ ...p, bulkApproveEnabledForFiveStar: v }))}
-                    />
+              {showBulkApprove ? (
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-medium">Bulk approve 5-star</Label>
+                    <p className="text-xs text-muted-foreground">Allow one-click bulk posting for ready 5-star drafts</p>
                   </div>
-                </>
+                  <Switch
+                    checked={draft.bulkApproveEnabledForFiveStar}
+                    onCheckedChange={(value) =>
+                      setDraft((prev) => ({ ...prev, bulkApproveEnabledForFiveStar: value }))
+                    }
+                    aria-label="Toggle bulk approve"
+                  />
+                </div>
               ) : null}
 
-              <div className="flex justify-end pt-2">
+              <div className="flex flex-col sm:flex-row sm:justify-end pt-2 gap-2">
                 <Button
-                  type="button"
                   size="sm"
-                  className="rounded-xl gap-2 h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-elevated min-w-[100px]"
                   disabled={saving}
                   onClick={() =>
                     submit({
                       autoDraftEnabled: draft.autoDraftEnabled,
                       autoDraftForRatings: draft.autoDraftForRatings,
-                      ...(showBulkApprove
-                        ? { bulkApproveEnabledForFiveStar: draft.bulkApproveEnabledForFiveStar }
-                        : {}),
+                      ...(showBulkApprove && {
+                        bulkApproveEnabledForFiveStar: draft.bulkApproveEnabledForFiveStar,
+                      }),
                     })
                   }
+                  className="w-full sm:w-auto min-w-[100px]"
                 >
-                  {saving ? <Loader2 className="size-3.5 animate-spin" /> : null}
-                  {saving ? "Saving…" : "Save changes"}
+                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save changes"}
                 </Button>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* ─── SEO Profiles ─── */}
-        <TabsContent value="seo" className="space-y-5">
+        <TabsContent value="seo" className="space-y-4">
           <SeoProfilesEditor
             initialProfiles={locations.map((location) => ({
               locationId: location.id,
@@ -347,122 +361,137 @@ export function SettingsClient({
           />
         </TabsContent>
 
-        {/* ─── AI Tone ─── */}
-        <TabsContent value="tone" className="space-y-5">
-          <Card className="rounded-2xl border-border bg-card shadow-card">
-            <CardContent className="p-6 space-y-6">
-              <div className="space-y-3">
-                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Model Runtime</Label>
-                <div className="rounded-xl border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+        <TabsContent value="tone" className="space-y-4">
+          <Card className="border-border bg-card">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                AI Tone
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Model Runtime
+                </Label>
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 p-3 text-sm text-muted-foreground">
+                  <ShieldCheck className="h-4 w-4" />
                   OpenAI via DSPy service
                 </div>
               </div>
 
               <Separator className="bg-border" />
 
-              {/* Tone Preset */}
               <div className="space-y-3">
-                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Tone Preset</Label>
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Tone Preset
+                </Label>
                 <ToggleGroup
                   type="single"
                   value={draft.tonePreset}
-                  onValueChange={(value) => {
-                    if (!value) return
-                    setDraft((p) => ({ ...p, tonePreset: value }))
-                  }}
+                  onValueChange={(value) => value && setDraft((prev) => ({ ...prev, tonePreset: value }))}
                   className="flex flex-wrap justify-start gap-2 bg-transparent p-0"
+                  aria-label="Select tone preset"
                 >
-                  {TONE_PRESETS.map((t) => {
-                    const active = draft.tonePreset === t
+                  {TONE_PRESETS.map((tone) => {
+                    const isActive = draft.tonePreset === tone
                     return (
                       <ToggleGroupItem
-                        key={t}
-                        value={t}
+                        key={tone}
+                        value={tone}
+                        aria-label={tone}
                         className={cn(
-                          "h-9 px-4 rounded-xl text-xs font-semibold capitalize transition-all border",
-                          active
-                            ? "bg-primary/10 text-primary border-primary/30"
-                            : "bg-card text-muted-foreground border-border hover:bg-accent"
+                          "h-9 rounded-xl border px-4 text-xs font-semibold capitalize transition-all",
+                          isActive
+                            ? "border-primary/30 bg-primary/10 text-primary"
+                            : "border-border bg-background text-muted-foreground hover:bg-muted",
                         )}
                       >
-                        {t}
+                        {tone}
                       </ToggleGroupItem>
                     )
                   })}
                 </ToggleGroup>
               </div>
 
-              {/* Custom Instructions */}
-              <div className="space-y-3">
-                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Custom Instructions</Label>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Custom Instructions
+                </Label>
                 <Textarea
-                  className="rounded-xl resize-none text-sm border-border focus-visible:ring-ring/30 focus-visible:ring-4"
+                  className="resize-none rounded-xl border-border focus-visible:ring-primary/30"
                   value={draft.toneCustomInstructions ?? ""}
-                  onChange={(e) => setDraft((p) => ({ ...p, toneCustomInstructions: e.target.value || null }))}
-                  placeholder="Optional. Example: Keep replies under 70 words and avoid exclamation marks."
-                  rows={4}
+                  onChange={(event) =>
+                    setDraft((prev) => ({ ...prev, toneCustomInstructions: event.target.value || null }))
+                  }
+                  placeholder="Optional. Example: Keep replies under 70 words..."
+                  rows={3}
+                  aria-label="Custom tone instructions"
                 />
               </div>
 
               <Separator className="bg-border" />
 
-              {/* Mention Keywords */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Mention Keywords</Label>
-                  <Badge variant="secondary" className="rounded-md font-mono text-[9px] h-5 px-2 bg-muted text-muted-foreground">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Mention Keywords
+                  </Label>
+                  <Badge variant="secondary" className="text-[10px] font-mono">
                     {draft.mentionKeywords.length}/30
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2">
                   <Input
-                    className="rounded-xl h-10 text-sm border-border"
+                    className="h-9 rounded-xl border-border"
                     value={keywordInput}
                     placeholder="Add keyword (e.g., staff)"
-                    onChange={(e) => setKeywordInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
+                    onChange={(event) => setKeywordInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault()
                         addKeyword()
                       }
                     }}
+                    aria-label="Add mention keyword"
                   />
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="rounded-xl h-10 text-xs border-border font-semibold"
                     onClick={addKeyword}
+                    className="h-9 rounded-xl"
                   >
                     Add
                   </Button>
                 </div>
-                {draft.mentionKeywords.length > 0 && (
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {draft.mentionKeywords.map((k) => (
-                      <Badge key={k} variant="secondary" className="rounded-lg gap-2 px-3 h-7 text-xs bg-muted text-muted-foreground hover:bg-accent border border-border">
-                        {k}
-                        <Button
+                {draft.mentionKeywords.length > 0 ? (
+                  <div className="flex flex-wrap gap-2" role="list" aria-label="Mention keywords">
+                    {draft.mentionKeywords.map((keyword) => (
+                      <Badge
+                        key={keyword}
+                        variant="secondary"
+                        className="gap-1.5 rounded-lg border-border bg-muted px-2.5 py-1 text-xs"
+                        role="listitem"
+                      >
+                        {keyword}
+                        <button
                           type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="text-muted-foreground hover:text-foreground rounded-sm p-0.5 transition-colors h-4 w-4"
-                          onClick={() => removeKeyword(k)}
-                          aria-label={`Remove ${k}`}
+                          onClick={() => removeKeyword(keyword)}
+                          className="text-muted-foreground transition-colors hover:text-foreground"
+                          aria-label={`Remove ${keyword}`}
                         >
-                          <X className="size-3" />
-                        </Button>
+                          <X className="h-3 w-3" />
+                        </button>
                       </Badge>
                     ))}
                   </div>
-                )}
+                ) : null}
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="flex flex-col sm:flex-row sm:justify-end pt-2 gap-2">
                 <Button
-                  type="button"
                   size="sm"
-                  className="rounded-xl gap-2 h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-elevated min-w-[100px]"
                   disabled={saving}
                   onClick={() =>
                     submit({
@@ -471,9 +500,9 @@ export function SettingsClient({
                       mentionKeywords: draft.mentionKeywords,
                     })
                   }
+                  className="w-full sm:w-auto min-w-[100px]"
                 >
-                  {saving ? <Loader2 className="size-3.5 animate-spin" /> : null}
-                  {saving ? "Saving…" : "Save changes"}
+                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save changes"}
                 </Button>
               </div>
             </CardContent>

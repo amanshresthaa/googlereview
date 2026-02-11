@@ -137,33 +137,6 @@ const JobDetailResponse = withOk(
   })
 )
 
-const PerformanceSummaryResponse = withOk(
-  z.object({
-    range: z.object({
-      days: z.number().int().min(1).max(365),
-      startIso: z.string(),
-      endIso: z.string(),
-    }),
-    kpis: z.object({
-      avgRating: z.number().nullable(),
-      totalReviews: z.number().int().nonnegative(),
-      replyRate: z.number().min(0).max(1),
-      flaggedClaims: z.number().int().nonnegative(),
-    }),
-    series: z.object({
-      daily: z.array(
-        z.object({
-          dayIso: z.string(),
-          reviews: z.number().int().nonnegative(),
-          replied: z.number().int().nonnegative(),
-          avgRating: z.number().nullable(),
-          flagged: z.number().int().nonnegative(),
-        })
-      ),
-    }),
-  })
-)
-
 const CronWorkerResponse = withOk(
   z.object({
     disabled: z.boolean().optional(),
@@ -310,30 +283,6 @@ registerAuthedPost("/api/locations/select", {
   summary: "Enable selected locations and enqueue review syncs.",
   body: z.object({ enabledLocationIds: z.array(z.string().min(1)).max(200) }),
   response: LocationsSelectResponse,
-})
-
-registerAuthedPost("/api/team/invite", {
-  summary: "Create a team invite (OWNER only).",
-  body: z.object({ email: z.string().email(), role: z.enum(["OWNER", "MANAGER", "STAFF"]) }),
-  response: withOk(
-    z.object({
-      inviteId: z.string(),
-      inviteUrl: z.string(),
-      expiresAt: z.string(),
-    })
-  ),
-})
-
-registerAuthedPost("/api/team/invite/revoke", {
-  summary: "Revoke a team invite (OWNER only).",
-  body: z.object({ inviteId: z.string().min(1) }),
-  response: withOk(z.object({})),
-})
-
-registerAuthedGet("/api/performance/summary", {
-  summary: "Get performance summary for enabled locations (daily buckets).",
-  query: z.object({ days: z.coerce.number().int().min(1).max(365).optional() }),
-  response: PerformanceSummaryResponse,
 })
 
 // Cron is bearer-auth protected (and can be disabled via DISABLE_CRON).

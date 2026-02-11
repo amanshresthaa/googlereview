@@ -142,8 +142,8 @@ export function SeoProfilesEditor({ initialProfiles, saving, onSave }: SeoProfil
 
   return (
     <Card className="rounded-2xl border-border bg-card shadow-card">
-      <CardContent className="p-6 space-y-6">
-        <div className="flex items-start justify-between gap-3">
+      <CardContent className="p-4 md:p-6 space-y-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
           <div className="space-y-1">
             <div className="text-sm font-bold text-foreground">Location SEO Profiles</div>
             <p className="text-xs text-muted-foreground leading-relaxed font-medium max-w-xl">
@@ -164,7 +164,7 @@ export function SeoProfilesEditor({ initialProfiles, saving, onSave }: SeoProfil
         ) : (
           <div className="space-y-4">
             {profiles.map((profile) => (
-              <div key={profile.locationId} className="rounded-2xl border border-border bg-muted/30 p-4 space-y-4">
+              <div key={profile.locationId} className="rounded-2xl border border-border bg-muted/30 p-3 md:p-4 space-y-4">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="h-7 w-7 rounded-lg border border-border bg-card flex items-center justify-center shrink-0">
                     <MapPin className="size-3.5 text-muted-foreground" />
@@ -207,7 +207,7 @@ export function SeoProfilesEditor({ initialProfiles, saving, onSave }: SeoProfil
           <Button
             type="button"
             size="sm"
-            className="rounded-xl gap-2 h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-elevated min-w-[120px]"
+            className="w-full sm:w-auto rounded-xl gap-2 h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-elevated min-w-[120px]"
             disabled={saving || profiles.length === 0}
             onClick={() => onSave(profiles)}
           >

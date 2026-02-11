@@ -15,6 +15,7 @@ import {
   getReview,
 } from "@/lib/google/gbp"
 import { extractMentionsAndHighlights } from "@/lib/reviews/mentions"
+import { invalidateReviewCountsCache } from "@/lib/reviews/query"
 import { enqueueJob } from "@/lib/jobs/queue"
 import { evidenceSnapshotSchema } from "@/lib/ai/draft"
 import { DspyServiceError, type DspyProcessMode, processReviewWithDspy } from "@/lib/ai/dspy-client"
@@ -146,6 +147,7 @@ async function handleSyncReviews(job: Job) {
   let pageToken: string | undefined
   let pageCount = 0
   const autoDraftCandidates: Array<{ reviewId: string; createTimeMs: number }> = []
+  let touchedReviews = false
 
   while (pageCount < 20) {
     const listKey = "GOOGLE:listReviews"
@@ -209,6 +211,7 @@ async function handleSyncReviews(job: Job) {
           mentions,
         },
       })
+      touchedReviews = true
 
       const isNew = !existingSet.has(r.name)
       const isUnanswered = !r.reviewReply?.comment
@@ -239,6 +242,10 @@ async function handleSyncReviews(job: Job) {
     where: { id: location.id },
     data: { lastReviewsSyncAt: new Date() },
   })
+
+  if (touchedReviews) {
+    invalidateReviewCountsCache(job.orgId)
+  }
 }
 
 const UNKNOWN_MODEL = "unknown"
@@ -551,6 +558,7 @@ async function handlePostReply(job: Job) {
       where: { id: draft.id },
       data: { status: "POSTED" },
     })
+    invalidateReviewCountsCache(job.orgId)
     return
   }
 
@@ -586,4 +594,5 @@ async function handlePostReply(job: Job) {
       },
     })
   })
+  invalidateReviewCountsCache(job.orgId)
 }

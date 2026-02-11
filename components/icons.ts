@@ -60,4 +60,5 @@ export {
   GlobeSimple as Globe,
   ArrowUp,
   ArrowDown,
+  Tray as InboxIcon,
 } from "@phosphor-icons/react/ssr"

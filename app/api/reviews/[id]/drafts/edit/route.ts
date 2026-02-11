@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api/errors"
 import { zodFields } from "@/lib/api/validation"
 import { requireRole } from "@/lib/api/authz"
 import { runProcessReviewFastPath } from "@/lib/jobs/worker"
+import { getReviewDetailForOrg } from "@/lib/reviews/detail"
 
 export const runtime = "nodejs"
 
@@ -148,11 +149,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         budgetMs: 2000,
       })
 
+      const reviewSnapshot = await getReviewDetailForOrg({
+        reviewId: review.id,
+        orgId: session.orgId,
+      })
+
       return {
         body: {
           draftReplyId: created.id,
           verifyJobId: verifyJob.id,
           worker,
+          review: reviewSnapshot,
         },
       }
     }

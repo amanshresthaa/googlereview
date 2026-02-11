@@ -4,6 +4,7 @@ import { handleAuthedPost } from "@/lib/api/handler"
 import { ApiError } from "@/lib/api/errors"
 import { requireRole } from "@/lib/api/authz"
 import { runProcessReviewFastPath } from "@/lib/jobs/worker"
+import { getReviewDetailForOrg } from "@/lib/reviews/detail"
 
 export const runtime = "nodejs"
 
@@ -79,7 +80,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         budgetMs: 2000,
       })
 
-      return { body: { jobId: job.id, worker } }
+      const reviewSnapshot = worker.claimed > 0
+        ? await getReviewDetailForOrg({ reviewId, orgId: session.orgId })
+        : null
+
+      return { body: { jobId: job.id, worker, review: reviewSnapshot } }
     }
   )
 }

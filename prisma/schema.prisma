@@ -184,6 +184,8 @@ model Review {
   @@index([locationId, createTime(sort: Desc)])
   @@index([locationId, starRating])
   @@index([orgId, googleReplyComment])
+  @@index([orgId, createTime(sort: Desc), id(sort: Desc)])
+  @@index([orgId, starRating, createTime(sort: Desc), id(sort: Desc)])
 }
 
 model DraftReply {

@@ -1,55 +1,59 @@
-import { redirect } from "next/navigation"
 import { getSession } from "@/lib/session"
-import { InboxClient } from "@/app/(app)/inbox/InboxClient"
-import { getInboxSidebarData } from "@/lib/sidebar-data"
-import { listReviewsPage } from "@/lib/reviews/query"
-import { REVIEWS_PAGE_SIZE } from "@/lib/reviews/constants"
-import type { ReviewFilter } from "@/lib/hooks"
-
-function parseFilter(input: string | undefined): ReviewFilter {
-  const v = (input ?? "").toLowerCase()
-  if (v === "unanswered" || v === "urgent" || v === "five_star" || v === "mentions" || v === "all") {
-    return v
-  }
-  return "unanswered"
-}
+import { fetchInboxBootstrap } from "@/lib/reviews/bootstrap"
+import { parseFilter, resolveRemoteFilter } from "./model"
+import InboxClient from "./InboxClient"
+import type { InboxBootstrap } from "./types"
 
 export default async function InboxPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string; mention?: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
+  const params = await searchParams
   const session = await getSession()
-  if (!session?.user?.id || !session.orgId) redirect("/signin")
 
-  const sp = await searchParams
-  const parsedFilter = parseFilter(sp.filter)
-  const initialRemoteFilter: ReviewFilter = parsedFilter
-  const initialMention = sp.mention?.trim().toLowerCase() ?? null
+  let ssrBootstrap: InboxBootstrap | null = null
 
-  const initialPage = await listReviewsPage({
-    orgId: session.orgId,
-    filter: initialRemoteFilter,
-    mention: initialMention ?? undefined,
-    limit: REVIEWS_PAGE_SIZE,
-  })
+  if (session?.orgId) {
+    try {
+      const rawFilter = typeof params.filter === "string" ? params.filter : null
+      const rawTab = typeof params.tab === "string" ? params.tab : null
+      const rawMention = typeof params.mention === "string" ? params.mention.trim().toLowerCase() : ""
+      const rawLocationId = typeof params.locationId === "string" ? params.locationId.trim() : ""
+      const rawRating = typeof params.rating === "string" ? params.rating : null
 
-  const { settings, locations } = await getInboxSidebarData(session.orgId)
+      const filter = parseFilter(rawFilter)
+      const derivedTab = filter === "all" ? "all" : "pending"
+      const tab =
+        rawTab === "all" || rawTab === "pending" || rawTab === "replied" ? rawTab : derivedTab
 
-  return (
-    <InboxClient
-      initialFilter={parsedFilter}
-      initialMention={initialMention}
-      mentionKeywords={settings?.mentionKeywords ?? []}
-      bulkApproveEnabled={settings?.bulkApproveEnabledForFiveStar ?? true}
-      locations={locations}
-      initialPage={{
-        filter: initialRemoteFilter,
-        mention: initialMention,
-        rows: initialPage.rows,
-        counts: initialPage.counts,
-        nextCursor: initialPage.nextCursor,
-      }}
-    />
-  )
+      const effectiveFilter =
+        filter === "mentions" && rawMention.length === 0 ? "all" : filter
+      const remoteFilter = resolveRemoteFilter(effectiveFilter, tab)
+      const remoteStatus =
+        tab === "pending" ? "pending" : tab === "replied" ? "replied" : "all"
+      const remoteMention =
+        effectiveFilter === "mentions" ? rawMention || undefined : undefined
+
+      const ratingNum = rawRating ? Number(rawRating) : undefined
+      const validRating =
+        ratingNum && Number.isFinite(ratingNum) && ratingNum >= 1 && ratingNum <= 5
+          ? Math.floor(ratingNum)
+          : undefined
+
+      ssrBootstrap = await fetchInboxBootstrap({
+        orgId: session.orgId,
+        filter: remoteFilter,
+        status: remoteStatus as "pending" | "replied" | "all",
+        mention: remoteMention,
+        locationId: rawLocationId || undefined,
+        rating: validRating,
+        includeCounts: false,
+      })
+    } catch {
+      ssrBootstrap = null
+    }
+  }
+
+  return <InboxClient ssrBootstrap={ssrBootstrap} />
 }
