@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { useGlobalSearch } from "@/components/search-context"
@@ -9,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { RefreshCw, Search, MapPin, Loader2, LayoutDashboard, CheckCircle2 } from "@/components/icons"
+import { RefreshCw, Search, MapPin, Loader2, LayoutDashboard, CheckCircle2, ChevronRight } from "@/components/icons"
 import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
 import { cn } from "@/lib/utils"
 
@@ -120,130 +121,185 @@ export function LocationSelectorClient({
   }
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-8 max-w-4xl mx-auto">
+    <div className="p-6 md:p-10 space-y-10 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-center gap-4">
-          <div className="h-10 w-10 md:h-12 md:w-12 rounded-2xl bg-muted flex items-center justify-center border border-border">
-            <LayoutDashboard className="size-5 text-muted-foreground" />
-          </div>
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
-              {mode === "onboarding" ? "Choose Locations" : "Locations"}
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-5">
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm"
+          >
+            <LayoutDashboard className="size-7 text-primary" />
+          </motion.div>
+          <div className="space-y-1">
+            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">
+              {mode === "onboarding" ? "Select Locations" : "Managed Locations"}
             </h1>
-            <p className="text-sm text-muted-foreground font-medium">
-              Enable locations to sync and manage reviews
+            <p className="text-sm text-muted-foreground font-semibold uppercase tracking-widest text-[10px]">
+              Sync reviews for active business units
             </p>
           </div>
         </div>
         <Button
           type="button"
           variant="outline"
-          size="sm"
-          className="w-full sm:w-auto rounded-xl gap-2 h-9 text-xs border-border font-semibold"
+          className="w-full sm:w-auto rounded-xl gap-2 h-11 px-6 font-bold border-border/50 bg-background shadow-sm hover:bg-muted/50 transition-all"
           onClick={syncFromGoogle}
           disabled={syncing}
         >
-          {syncing ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
-          {syncing ? "Syncing…" : "Sync from Google"}
+          {syncing ? (
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+              <Loader2 className="size-4" />
+            </motion.div>
+          ) : (
+            <RefreshCw className="size-4" />
+          )}
+          {syncing ? "Syncing Locations…" : "Sync from Google"}
         </Button>
       </div>
 
-      {/* Selection bar */}
-      <Card className="rounded-2xl border-border bg-card shadow-card">
-        <CardContent className="p-3 md:p-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Badge variant="secondary" className="rounded-md text-[11px] tabular-nums h-6 px-2.5 bg-muted text-muted-foreground font-semibold w-fit">
-              {selected.size} selected
-            </Badge>
-            <div className="sm:ml-auto flex flex-wrap items-center gap-2">
-              <Button type="button" size="sm" variant="ghost" className="rounded-xl h-8 text-xs text-muted-foreground font-medium" onClick={selectAll}>
-                Select all
+      {/* Selection Control Bar */}
+      <div className="sticky top-4 z-20">
+        <Card className="rounded-[24px] border-border/50 bg-background/80 backdrop-blur-xl shadow-google-lg overflow-hidden">
+          <CardContent className="p-4 md:p-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-3">
+              <motion.div
+                key={selected.size}
+                initial={{ scale: 0.8 }}
+                animate={{ scale: 1 }}
+                className="bg-primary px-4 py-1.5 rounded-full text-primary-foreground text-xs font-black shadow-glow-primary tabular-nums"
+              >
+                {selected.size} active
+              </motion.div>
+              <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest text-[10px]">
+                Selected for sync
+              </div>
+            </div>
+            
+            <div className="sm:ml-auto flex items-center gap-3">
+              <Button type="button" size="sm" variant="ghost" className="rounded-xl h-10 px-4 text-xs font-bold text-muted-foreground hover:bg-muted/80" onClick={selectAll}>
+                Select All
               </Button>
-              <Button type="button" size="sm" variant="ghost" className="rounded-xl h-8 text-xs text-muted-foreground font-medium" onClick={deselectAll}>
-                Deselect all
+              <Button type="button" size="sm" variant="ghost" className="rounded-xl h-10 px-4 text-xs font-bold text-muted-foreground hover:bg-muted/80" onClick={deselectAll}>
+                Clear All
               </Button>
+              <div className="w-px h-6 bg-border/50 mx-1" />
               <Button
                 type="button"
-                size="sm"
-                className="rounded-xl h-8 text-xs gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-elevated min-w-[90px]"
+                className="rounded-xl h-10 px-8 text-sm font-black bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow-primary transition-all hover:scale-[1.02] active:scale-[0.98] min-w-[120px]"
                 onClick={save}
                 disabled={busy}
               >
-                {busy ? <Loader2 className="size-3 animate-spin" /> : null}
-                {busy ? "Saving…" : "Save"}
+                {busy && (
+                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                    <Loader2 className="size-4 mr-2" />
+                  </motion.div>
+                )}
+                {busy ? "Saving…" : "Save Selection"}
               </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Location cards */}
-      <div className="space-y-3">
+      {/* Location Grid/List */}
+      <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-1">
         {visible.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 md:py-24">
-            <div className="h-20 w-20 md:h-24 md:w-24 bg-card shadow-sm rounded-3xl flex items-center justify-center mb-6 border border-border">
-              <Search className="h-10 w-10 opacity-20" />
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center justify-center py-24"
+          >
+            <div className="relative mb-8">
+              <motion.div
+                animate={{ opacity: [0.3, 0.6, 0.3] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="absolute inset-0 rounded-full bg-primary/5 blur-2xl"
+              />
+              <div className="relative h-24 w-24 bg-background shadow-card rounded-[32px] flex items-center justify-center border border-border/50 transition-transform hover:rotate-12">
+                <Search className="h-10 w-10 text-primary/40" />
+              </div>
             </div>
-            <p className="text-sm font-medium text-foreground">No locations found</p>
-            <p className="text-xs text-muted-foreground mt-1.5">Try adjusting your search or sync from Google.</p>
-          </div>
+            <h3 className="text-xl font-bold text-foreground">No locations found</h3>
+            <p className="text-sm font-medium text-muted-foreground mt-2 max-w-xs text-center">
+              We couldn&apos;t find any locations matching your search. Try a different query or sync from Google.
+            </p>
+          </motion.div>
         ) : (
-          visible.map((l) => {
-            const isEnabled = selected.has(l.id)
+          <AnimatePresence>
+            {visible.map((l, index) => {
+              const isEnabled = selected.has(l.id)
 
-            return (
-              <div key={l.id}>
-                <Card
-                  className={cn(
-                    "rounded-2xl border-border bg-card shadow-card cursor-pointer transition-all hover:shadow-elevated",
-                    isEnabled ? "border-primary/30 bg-primary/10" : ""
-                  )}
-                  onClick={() => toggle(l.id, !isEnabled)}
+              return (
+                <motion.div
+                  key={l.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
                 >
-                  <CardContent className="p-4 md:p-5">
-                    <div className="flex items-center gap-4">
-                      <Checkbox
-                        checked={isEnabled}
-                        onCheckedChange={(v) => toggle(l.id, Boolean(v))}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-
-                      <Avatar className="h-9 w-9 md:h-11 md:w-11 border border-border shadow-sm">
-                        <AvatarFallback className={cn("font-semibold text-xs", isEnabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
-                          <MapPin className="size-4" />
-                        </AvatarFallback>
-                      </Avatar>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-sm font-bold truncate text-foreground">{l.displayName}</span>
-                          {isEnabled && (
-                            <Badge variant="secondary" className="rounded-md text-[9px] px-2 h-5 gap-1 bg-emerald-100 text-emerald-700 font-bold uppercase tracking-wider">
-                              <CheckCircle2 className="size-2.5" /> enabled
-                            </Badge>
-                          )}
+                  <Card
+                    className={cn(
+                      "rounded-[24px] border-border/50 bg-background shadow-sm cursor-pointer transition-all duration-300 hover:shadow-card group overflow-hidden",
+                      isEnabled ? "border-primary/20 ring-1 ring-primary/10 bg-primary/[0.01]" : "hover:border-border"
+                    )}
+                    onClick={() => toggle(l.id, !isEnabled)}
+                  >
+                    <CardContent className="p-5 md:p-6">
+                      <div className="flex items-center gap-5">
+                        <div className="relative flex items-center justify-center">
+                          <Checkbox
+                            checked={isEnabled}
+                            onCheckedChange={(v) => toggle(l.id, Boolean(v))}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-6 w-6 rounded-lg border-2 border-border/50 data-[state=checked]:bg-primary data-[state=checked]:border-primary transition-all shadow-sm"
+                          />
                         </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          {l.storeCode && (
-                            <>
-                              <Badge variant="secondary" className="rounded-md text-[9px] font-mono h-5 px-2 bg-muted text-muted-foreground">
-                                {l.storeCode}
-                              </Badge>
-                              <span className="text-muted-foreground/60">•</span>
-                            </>
-                          )}
-                          <span className="text-xs text-muted-foreground truncate font-medium">
-                            {l.addressSummary ?? "—"}
-                          </span>
+
+                        <Avatar className="h-12 w-12 border-2 border-border/30 shadow-sm transition-transform group-hover:scale-110">
+                          <AvatarFallback className={cn("font-black text-sm transition-colors", isEnabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                            <MapPin className="size-5" />
+                          </AvatarFallback>
+                        </Avatar>
+
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="text-lg font-bold truncate text-foreground group-hover:text-primary transition-colors">{l.displayName}</span>
+                            <AnimatePresence>
+                              {isEnabled && (
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.8 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.8 }}
+                                >
+                                  <Badge className="rounded-full text-[10px] px-3 py-0.5 gap-1 bg-emerald-500/10 text-emerald-600 border-none font-black uppercase tracking-widest shadow-sm">
+                                    <CheckCircle2 className="size-3" /> Enabled
+                                  </Badge>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1.5">
+                            {l.storeCode && (
+                              <div className="bg-muted/50 px-2 py-0.5 rounded-md text-[10px] font-black font-mono text-muted-foreground/80 border border-border/50">
+                                #{l.storeCode}
+                              </div>
+                            )}
+                            <span className="text-xs font-medium text-muted-foreground truncate italic opacity-80">
+                              {l.addressSummary ?? "Address not available"}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-full bg-muted/30 text-muted-foreground group-hover:bg-primary group-hover:text-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0">
+                          <ChevronRight className="h-5 w-5" />
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )
-          })
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )
+            })}
+          </AnimatePresence>
         )}
       </div>
     </div>

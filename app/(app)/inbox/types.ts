@@ -18,6 +18,14 @@ export type InboxBootstrap = {
 }
 
 export type ReviewMutationResponse = {
+  accepted?: boolean
+  jobId?: string
+  verifyJobId?: string
+  job?: {
+    id: string
+    status: "PENDING" | "RUNNING" | "RETRYING" | "COMPLETED" | "FAILED"
+    lastError?: string | null
+  }
   worker?: { claimed?: number }
   review?: ReviewDetail | null
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui"
+import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
@@ -62,4 +62,3 @@ export const ToggleGroupItem = React.forwardRef<
   />
 ))
 ToggleGroupItem.displayName = "ToggleGroupItem"
-

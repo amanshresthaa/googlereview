@@ -40,7 +40,8 @@ const processReviewResponseSchema = z.object({
     verify: z.string().min(1),
   }),
   trace: z.object({
-    draftTraceId: z.string().min(1).optional(),
+    // The service may omit draftTraceId (or return null) for verify-only flows.
+    draftTraceId: z.string().min(1).nullable().optional(),
     verifyTraceId: z.string().min(1),
   }),
   latencyMs: z.number().int().min(0),

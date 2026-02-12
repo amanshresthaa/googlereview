@@ -1,10 +1,11 @@
 import * as React from "react"
+import { motion } from "framer-motion"
 
 import { EmptyState } from "./EmptyState"
 import { ReviewCardItem } from "./ReviewCardItem"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { InboxIcon, RefreshCw, Sparkles } from "@/components/icons"
+import { InboxIcon, RefreshCw } from "@/components/icons"
 
 import type { ReviewRow } from "@/lib/hooks"
 
@@ -42,18 +43,23 @@ export function InboxReviewList({
   const showInitialLoading = loading && rows.length === 0
 
   return (
-    <section className="h-full overflow-hidden border-r">
+    <section className="h-full overflow-hidden">
       <ScrollArea className="h-full">
         {showInitialLoading || bootstrapLoading ? (
           <EmptyState icon={RefreshCw} title="Loading reviews" description="Fetching your latest inbox data..." />
         ) : rows.length === 0 ? (
           <EmptyState
             icon={InboxIcon}
-            title="No reviews found"
-            description="Try adjusting your filters or search query to see results."
+            title="All caught up!"
+            description="No reviews found for the current filters. Try adjusting them or check back later."
           />
         ) : (
-          <div className="space-y-2 p-3 pb-28 md:p-4 md:pb-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-col gap-3 p-4 pb-32 md:pb-8"
+          >
             {rows.map((review) => (
               <ReviewCardItem
                 key={review.id}
@@ -68,24 +74,37 @@ export function InboxReviewList({
               />
             ))}
 
-            {hasMore ? (
-              <Button type="button" variant="outline" className="w-full" onClick={onLoadMore} disabled={loadingMore}>
+            {hasMore && (
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full h-12 rounded-[20px] border-border/50 bg-background shadow-sm hover:bg-muted/50 font-bold transition-all mt-2" 
+                onClick={onLoadMore} 
+                disabled={loadingMore}
+              >
                 {loadingMore ? (
                   <>
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Loading more...
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                    </motion.div>
+                    Syncing more...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Load more reviews
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Load More Reviews
                   </>
                 )}
               </Button>
-            ) : null}
-          </div>
+            )}
+          </motion.div>
         )}
       </ScrollArea>
     </section>
   )
 }
+
+

@@ -7,11 +7,30 @@ import crypto from "node:crypto"
 import { z } from "zod"
 
 const E2E_COOKIE_NAME = "__e2e_session"
-const MEMBERSHIP_CACHE_TTL_MS = 10_000
+export const MEMBERSHIP_GRANT_COOKIE_NAME = "__membership_grant"
+const MEMBERSHIP_CACHE_TTL_MS = 60_000
 const MEMBERSHIP_CACHE_MAX_ENTRIES = 2048
+const MEMBERSHIP_GRANT_TTL_SEC = 180
 
 type MembershipCacheEntry = {
   expiresAt: number
+}
+
+type MembershipLookupTiming = {
+  cacheHit: boolean
+  inflightHit: boolean
+  grantHit: boolean
+  membershipMs: number
+}
+
+type MembershipLookupResult = MembershipLookupTiming & {
+  exists: boolean
+  issuedGrantValue: string | null
+}
+
+export type ApiSessionTiming = MembershipLookupTiming & {
+  getSessionMs: number
+  totalAuthMs: number
 }
 
 const membershipExistsCache = new Map<string, MembershipCacheEntry>()
@@ -49,6 +68,63 @@ function membershipCacheKey(orgId: string, userId: string) {
   return `${orgId}:${userId}`
 }
 
+type MembershipGrantPayload = {
+  orgId: string
+  userId: string
+  exp: number
+}
+
+function nowEpochSec() {
+  return Math.floor(Date.now() / 1000)
+}
+
+function membershipGrantSecret() {
+  return process.env.NEXTAUTH_SECRET ?? null
+}
+
+function signMembershipGrantPayload(payloadB64Url: string, secret: string) {
+  return crypto.createHmac("sha256", secret).update(payloadB64Url).digest("base64url")
+}
+
+function parseMembershipGrant(raw: string, secret: string): MembershipGrantPayload | null {
+  const [payloadB64Url, sigB64Url, ...rest] = raw.split(".")
+  if (!payloadB64Url || !sigB64Url || rest.length > 0) return null
+  const expectedSig = signMembershipGrantPayload(payloadB64Url, secret)
+  if (!timingSafeEqual(sigB64Url, expectedSig)) return null
+
+  try {
+    const jsonStr = Buffer.from(payloadB64Url, "base64url").toString("utf8")
+    const parsed = JSON.parse(jsonStr) as MembershipGrantPayload
+    if (!parsed?.orgId || !parsed?.userId || !Number.isFinite(parsed?.exp)) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function buildMembershipGrant(orgId: string, userId: string, secret: string): string {
+  const payload: MembershipGrantPayload = {
+    orgId,
+    userId,
+    exp: nowEpochSec() + MEMBERSHIP_GRANT_TTL_SEC,
+  }
+  const payloadB64Url = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url")
+  const sigB64Url = signMembershipGrantPayload(payloadB64Url, secret)
+  return `${payloadB64Url}.${sigB64Url}`
+}
+
+async function hasValidMembershipGrant(orgId: string, userId: string): Promise<boolean> {
+  const secret = membershipGrantSecret()
+  if (!secret) return false
+  const cookieStore = await cookies()
+  const raw = cookieStore.get(MEMBERSHIP_GRANT_COOKIE_NAME)?.value
+  if (!raw) return false
+  const parsed = parseMembershipGrant(raw, secret)
+  if (!parsed) return false
+  if (parsed.exp < nowEpochSec()) return false
+  return parsed.orgId === orgId && parsed.userId === userId
+}
+
 function hasCachedMembership(key: string): boolean {
   const cached = membershipExistsCache.get(key)
   if (!cached) return false
@@ -56,9 +132,9 @@ function hasCachedMembership(key: string): boolean {
     membershipExistsCache.delete(key)
     return false
   }
-  // Promote as most recently used.
+  // Promote as most recently used and extend TTL while actively used.
   membershipExistsCache.delete(key)
-  membershipExistsCache.set(key, cached)
+  membershipExistsCache.set(key, { expiresAt: Date.now() + MEMBERSHIP_CACHE_TTL_MS })
   return true
 }
 
@@ -71,15 +147,43 @@ function cacheMembershipExists(key: string): void {
   }
 }
 
-async function membershipExists(orgId: string, userId: string): Promise<boolean> {
+async function membershipExistsWithTiming(orgId: string, userId: string): Promise<MembershipLookupResult> {
+  const startedAt = Date.now()
   const key = membershipCacheKey(orgId, userId)
   if (hasCachedMembership(key)) {
-    return true
+    return {
+      exists: true,
+      cacheHit: true,
+      inflightHit: false,
+      grantHit: false,
+      membershipMs: Date.now() - startedAt,
+      issuedGrantValue: null,
+    }
+  }
+
+  if (await hasValidMembershipGrant(orgId, userId)) {
+    cacheMembershipExists(key)
+    return {
+      exists: true,
+      cacheHit: false,
+      inflightHit: false,
+      grantHit: true,
+      membershipMs: Date.now() - startedAt,
+      issuedGrantValue: null,
+    }
   }
 
   const inflight = membershipInflight.get(key)
   if (inflight) {
-    return inflight
+    const exists = await inflight
+    return {
+      exists,
+      cacheHit: false,
+      inflightHit: true,
+      grantHit: false,
+      membershipMs: Date.now() - startedAt,
+      issuedGrantValue: null,
+    }
   }
 
   const lookup = prisma.membership
@@ -100,7 +204,16 @@ async function membershipExists(orgId: string, userId: string): Promise<boolean>
     })
 
   membershipInflight.set(key, lookup)
-  return lookup
+  const exists = await lookup
+  const secret = membershipGrantSecret()
+  return {
+    exists,
+    cacheHit: false,
+    inflightHit: false,
+    grantHit: false,
+    membershipMs: Date.now() - startedAt,
+    issuedGrantValue: exists && secret ? buildMembershipGrant(orgId, userId, secret) : null,
+  }
 }
 
 function verifyCookie(raw: string, secret: string): string | null {
@@ -143,13 +256,62 @@ export async function getSession() {
   return (await tryGetE2ESession()) ?? getServerSession(authOptions())
 }
 
-export async function requireApiSession() {
+export async function requireApiSessionWithTiming(): Promise<{
+  session: Session | null
+  timing: ApiSessionTiming
+  membershipGrantValue: string | null
+}> {
+  const authStartedAt = Date.now()
+  const sessionStartedAt = Date.now()
   const session = await getSession()
+  const getSessionMs = Date.now() - sessionStartedAt
   if (!session?.user?.id || !session.orgId) {
-    return null
+    return {
+      session: null,
+      timing: {
+        getSessionMs,
+        membershipMs: 0,
+        cacheHit: false,
+        inflightHit: false,
+        grantHit: false,
+        totalAuthMs: Date.now() - authStartedAt,
+      },
+      membershipGrantValue: null,
+    }
   }
+
   // Enforce org membership existence on every API request (org isolation).
-  const exists = await membershipExists(session.orgId, session.user.id)
-  if (!exists) return null
+  const membership = await membershipExistsWithTiming(session.orgId, session.user.id)
+  if (!membership.exists) {
+    return {
+      session: null,
+      timing: {
+        getSessionMs,
+        membershipMs: membership.membershipMs,
+        cacheHit: membership.cacheHit,
+        inflightHit: membership.inflightHit,
+        grantHit: membership.grantHit,
+        totalAuthMs: Date.now() - authStartedAt,
+      },
+      membershipGrantValue: null,
+    }
+  }
+
+  return {
+    session,
+    timing: {
+      getSessionMs,
+      membershipMs: membership.membershipMs,
+      cacheHit: membership.cacheHit,
+      inflightHit: membership.inflightHit,
+      grantHit: membership.grantHit,
+      totalAuthMs: Date.now() - authStartedAt,
+    },
+    membershipGrantValue: membership.issuedGrantValue,
+  }
+}
+
+export async function requireApiSession() {
+  const { session } = await requireApiSessionWithTiming()
   return session
 }

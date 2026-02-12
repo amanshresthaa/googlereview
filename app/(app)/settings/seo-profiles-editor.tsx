@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { toast } from "sonner"
+import { motion } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -211,7 +212,11 @@ export function SeoProfilesEditor({ initialProfiles, saving, onSave }: SeoProfil
             disabled={saving || profiles.length === 0}
             onClick={() => onSave(profiles)}
           >
-            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+            {saving ? (
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                <Loader2 className="size-3.5" />
+              </motion.div>
+            ) : <Save className="size-3.5" />}
             {saving ? "Saving…" : "Save SEO Profiles"}
           </Button>
         </div>

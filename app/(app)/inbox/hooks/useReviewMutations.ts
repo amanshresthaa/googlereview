@@ -2,10 +2,13 @@ import * as React from "react"
 import { toast } from "sonner"
 
 import { applyDetailSnapshot, getVerifierBlockedMessage, mapDetailToRow } from "../model"
-import { apiCall, fetchReviewDetail, waitForReviewState } from "../network"
+import { apiCall, fetchReviewDetail, waitForJobCompletion, waitForReviewState } from "../network"
 
 import type { ReviewDetail, ReviewRow } from "@/lib/hooks"
 import type { ReviewMutationResponse } from "../types"
+
+const QUICK_JOB_WAIT_MS = 1800
+const BACKGROUND_JOB_WAIT_MS = 25_000
 
 type UseReviewMutationsInput = {
   rows: ReviewRow[]
@@ -14,6 +17,12 @@ type UseReviewMutationsInput = {
 }
 
 export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutationsInput) {
+  const backgroundJobsRef = React.useRef<Set<string>>(new Set())
+
+  const getJobId = React.useCallback((result: ReviewMutationResponse) => {
+    return result.jobId ?? result.verifyJobId ?? result.job?.id ?? null
+  }, [])
+
   const syncRowFromServer = React.useCallback(async (reviewId: string) => {
     const detail = await fetchReviewDetail(reviewId)
     if (detail) {
@@ -21,6 +30,50 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
     }
     return detail
   }, [updateRow])
+
+  const settleQueuedJob = React.useCallback(async (params: {
+    jobId: string
+    queuedMessage: string
+    successMessage: string
+    failureMessage: string
+    onCompleted: () => Promise<void>
+  }) => {
+    const { jobId, queuedMessage, successMessage, failureMessage, onCompleted } = params
+
+    const quickResult = await waitForJobCompletion(jobId, QUICK_JOB_WAIT_MS)
+    if (quickResult?.status === "FAILED") {
+      throw new Error(quickResult.lastError || failureMessage)
+    }
+
+    if (quickResult?.status === "COMPLETED") {
+      await onCompleted()
+      toast.success(successMessage)
+      return
+    }
+
+    toast.success(queuedMessage)
+    if (backgroundJobsRef.current.has(jobId)) return
+    backgroundJobsRef.current.add(jobId)
+
+    void (async () => {
+      try {
+        const final = await waitForJobCompletion(jobId, BACKGROUND_JOB_WAIT_MS)
+        if (!final) return
+
+        if (final.status === "FAILED") {
+          toast.error(final.lastError || failureMessage)
+          return
+        }
+
+        await onCompleted()
+        toast.success(successMessage)
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : failureMessage)
+      } finally {
+        backgroundJobsRef.current.delete(jobId)
+      }
+    })()
+  }, [])
 
   const generateDraft = React.useCallback(async (reviewId: string) => {
     const previousDraftId = rows.find((row) => row.id === reviewId)?.currentDraft?.id ?? null
@@ -31,10 +84,17 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
       return
     }
 
-    const claimed = Number(result?.worker?.claimed ?? 0)
-    if (claimed > 0) {
-      await syncRowFromServer(reviewId)
-      toast.success("Draft regenerated")
+    const jobId = getJobId(result)
+    if (jobId) {
+      await settleQueuedJob({
+        jobId,
+        queuedMessage: "Draft generation queued",
+        successMessage: "Draft regenerated",
+        failureMessage: "Draft generation failed.",
+        onCompleted: async () => {
+          await syncRowFromServer(reviewId)
+        },
+      })
       return
     }
 
@@ -53,7 +113,7 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
     } else {
       toast.success("Draft generation queued")
     }
-  }, [rows, syncRowFromServer, updateRow])
+  }, [getJobId, rows, settleQueuedJob, syncRowFromServer, updateRow])
 
   const saveDraft = React.useCallback(async (reviewId: string, text: string) => {
     const trimmed = text.trim()
@@ -88,6 +148,23 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
       return
     }
 
+    const jobId = getJobId(result)
+    if (jobId) {
+      await settleQueuedJob({
+        jobId,
+        queuedMessage: "Draft verification queued",
+        successMessage: "Draft verified",
+        failureMessage: "Draft verification failed.",
+        onCompleted: async () => {
+          const detail = await syncRowFromServer(reviewId)
+          if (detail?.currentDraft?.status === "BLOCKED_BY_VERIFIER") {
+            throw new Error(getVerifierBlockedMessage(detail))
+          }
+        },
+      })
+      return
+    }
+
     const claimed = Number(result?.worker?.claimed ?? 0)
     const verified = await waitForReviewState(
       reviewId,
@@ -105,7 +182,7 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
       throw new Error(getVerifierBlockedMessage(verified))
     }
     toast.success("Draft verified")
-  }, [updateRow])
+  }, [getJobId, settleQueuedJob, syncRowFromServer, updateRow])
 
   const publishReply = React.useCallback(async (reviewId: string, text: string, row: ReviewRow) => {
     if (!text.trim()) throw new Error("Draft is empty.")
@@ -144,6 +221,22 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
         verified = verifyResult.review ?? null
       }
 
+      const verifyJobId = getJobId(verifyResult)
+      if (!verified && verifyJobId) {
+        await settleQueuedJob({
+          jobId: verifyJobId,
+          queuedMessage: "Draft verification queued",
+          successMessage: "Draft verified",
+          failureMessage: "Draft verification failed.",
+          onCompleted: async () => {
+            verified = await fetchReviewDetail(reviewId)
+            if (verified?.currentDraft?.status === "BLOCKED_BY_VERIFIER") {
+              throw new Error(getVerifierBlockedMessage(verified))
+            }
+          },
+        })
+      }
+
       const verifyClaimed = Number(verifyResult?.worker?.claimed ?? 0)
       if (!verified) {
         verified = await waitForReviewState(
@@ -158,16 +251,36 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
     }
 
     if (!verified) throw new Error("Verification is still processing. Please try publishing again in a few seconds.")
+    const verifiedDetail = verified
 
-    updateRow(reviewId, (nextRow) => mapDetailToRow(nextRow, verified as ReviewDetail))
-    if (verified.currentDraft?.status !== "READY") {
-      throw new Error(getVerifierBlockedMessage(verified))
+    updateRow(reviewId, (nextRow) => mapDetailToRow(nextRow, verifiedDetail))
+    if (verifiedDetail.currentDraft?.status !== "READY") {
+      throw new Error(getVerifierBlockedMessage(verifiedDetail))
     }
 
     const postResult = await apiCall<ReviewMutationResponse>(`/api/reviews/${reviewId}/reply/post`, "POST")
     if (applyDetailSnapshot(reviewId, postResult.review, updateRow) && postResult.review?.reply.comment) {
       toast.success("Reply published")
       void refresh()
+      return
+    }
+
+    const postJobId = getJobId(postResult)
+    if (postJobId) {
+      await settleQueuedJob({
+        jobId: postJobId,
+        queuedMessage: "Reply posting queued",
+        successMessage: "Reply published",
+        failureMessage: "Reply posting failed.",
+        onCompleted: async () => {
+          const posted = await syncRowFromServer(reviewId)
+          if (!posted?.reply.comment) {
+            await Promise.resolve(refresh())
+            return
+          }
+          await Promise.resolve(refresh())
+        },
+      })
       return
     }
 
@@ -186,7 +299,7 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
     }
 
     void refresh()
-  }, [refresh, updateRow])
+  }, [getJobId, refresh, settleQueuedJob, syncRowFromServer, updateRow])
 
   return {
     generateDraft,

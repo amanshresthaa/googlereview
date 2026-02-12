@@ -48,7 +48,7 @@ export default async function InboxPage({
         mention: remoteMention,
         locationId: rawLocationId || undefined,
         rating: validRating,
-        includeCounts: false,
+        includeCounts: true,
       })
     } catch {
       ssrBootstrap = null

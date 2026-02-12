@@ -1,15 +1,15 @@
 import * as React from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
 
 import { Stars } from "./Stars"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import { CheckCircle2, ChevronRight, Clock, RefreshCw, Send, Sparkles, Zap } from "@/components/icons"
+import { CheckCircle2, Clock, MapPin, RefreshCw, Save, Send, ShieldCheck, Sparkles, Zap } from "@/components/icons"
 
 import type { ReviewRow } from "@/lib/hooks"
 
@@ -68,7 +68,7 @@ export function BlitzQuickReply({ pendingRows, focusReviewId, onGenerate, onSave
 
   const totalCount = queue.length + dismissedIds.length
   const processedCount = dismissedIds.length
-  const progress = totalCount > 0 ? Math.round((processedCount / totalCount) * 100) : 100
+  const progress = totalCount > 0 ? (processedCount / totalCount) * 100 : 100
 
   const hasDraft = draft.trim().length > 0
   const isDirty = draft !== (currentReview?.currentDraft?.text ?? "")
@@ -120,178 +120,215 @@ export function BlitzQuickReply({ pendingRows, focusReviewId, onGenerate, onSave
   if (queue.length === 0) {
     return (
       <div className="flex h-full flex-col bg-background">
-        <div className="h-1.5 bg-muted">
-          <div className="h-full w-full bg-primary" />
-        </div>
-        <div className="flex flex-1 items-center justify-center p-6">
-          <Card className="w-full max-w-md">
-            <CardContent className="space-y-4 p-6 text-center">
-              <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-primary/10 text-primary">
-                <CheckCircle2 className="h-7 w-7" />
-              </div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-primary">Blitz complete</p>
-              <h2 className="text-2xl font-bold tracking-tight text-foreground">Queue cleared</h2>
-              <p className="text-sm text-muted-foreground">No pending reviews in this queue.</p>
-            </CardContent>
-          </Card>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex-1 flex flex-col items-center justify-center p-8 text-center"
+        >
+          <div className="relative mb-8">
+            <motion.div
+              animate={{ opacity: [0.3, 0.6, 0.3] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="absolute inset-0 rounded-full bg-emerald-500/10 blur-2xl"
+            />
+            <div className="relative h-24 w-24 bg-background shadow-card rounded-[32px] flex items-center justify-center border border-emerald-500/20 text-emerald-600 transition-transform duration-500 hover:rotate-12">
+              <CheckCircle2 className="h-12 w-12" />
+            </div>
+          </div>
+          <h2 className="text-3xl font-black tracking-tight text-foreground">Queue Cleared!</h2>
+          <p className="mt-2 text-sm font-medium text-muted-foreground max-w-xs leading-relaxed">
+            Fantastic work. You&apos;ve responded to all pending reviews in this session.
+          </p>
+          <Button onClick={() => window.location.reload()} className="mt-10 h-12 rounded-2xl px-10 font-black shadow-glow-primary">
+            Return to Inbox
+          </Button>
+        </motion.div>
       </div>
     )
   }
 
-  if (!currentReview) {
-    return null
-  }
+  if (!currentReview) return null
 
   const reviewerName = currentReview.reviewer.displayName || "Anonymous"
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <header className="border-b bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/75 md:p-5">
-        <div className="mx-auto w-full max-w-3xl space-y-3">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full bg-primary transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                <Zap className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-primary">Quick Reply Blitz</p>
-                <p className="text-xs text-muted-foreground">Fast queue processing</p>
+      <header className="border-b border-border/50 bg-background/80 glass-sm px-6 py-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-glow-primary">
+              <Zap className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-base font-black tracking-tight">Blitz Session</h1>
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 w-32 rounded-full bg-muted overflow-hidden">
+                  <motion.div
+                    className="h-full bg-primary"
+                    animate={{ width: `${progress}%` }}
+                    transition={{ type: "spring", stiffness: 50, damping: 20 }}
+                  />
+                </div>
+                <span className="text-[10px] font-black tabular-nums text-muted-foreground">{Math.round(progress)}%</span>
               </div>
             </div>
+          </div>
 
-            <Badge variant="outline" className="rounded-full">
-              {processedCount + 1} / {Math.max(totalCount, 1)}
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="rounded-full border-border/50 bg-muted/30 px-3 py-1 text-[10px] font-black uppercase tracking-widest tabular-nums">
+              {processedCount + 1} / {totalCount}
             </Badge>
           </div>
         </div>
       </header>
 
       <ScrollArea className="flex-1">
-        <div className="mx-auto w-full max-w-3xl space-y-4 p-4 md:space-y-6 md:p-6">
-          <Card>
-            <CardHeader className="space-y-4 pb-3">
-              <div className="flex items-start gap-3">
-                <Avatar className="h-12 w-12 border border-border/70">
-                  <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
-                    {getInitials(reviewerName)}
-                  </AvatarFallback>
-                </Avatar>
-
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <CardTitle className="truncate text-lg">{reviewerName}</CardTitle>
-                    <Badge variant="outline" className="rounded-full text-[11px]">
-                      {currentReview.location.displayName}
-                    </Badge>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Stars rating={currentReview.starRating} size="sm" />
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3.5 w-3.5" />
-                      Pending review
-                    </span>
-                  </div>
+        <div className="max-w-4xl mx-auto p-6 md:p-10 space-y-10">
+          <div className="flex items-start gap-5">
+            <Avatar className="h-14 w-14 border-2 border-primary/5 shadow-sm">
+              <AvatarFallback className="bg-primary/5 text-xl font-bold text-primary">
+                {getInitials(reviewerName)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="text-2xl font-black tracking-tight text-foreground truncate">{reviewerName}</h2>
+                <Stars rating={currentReview.starRating} size="sm" />
+              </div>
+              <div className="flex items-center gap-3 mt-1 text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="h-3 w-3" />
+                  {currentReview.location.displayName}
+                </div>
+                <span>•</span>
+                <div className="flex items-center gap-1.5">
+                  <Clock className="h-3 w-3" />
+                  Pending Response
                 </div>
               </div>
-            </CardHeader>
+            </div>
+          </div>
 
-            <CardContent className="space-y-4">
-              <blockquote className="rounded-xl border bg-muted/25 p-4 text-base leading-relaxed text-foreground md:text-lg">
-                &quot;{currentReview.comment || "No written review text provided."}&quot;
-              </blockquote>
+          <div className="space-y-8">
+            <div className="relative p-8 rounded-[32px] bg-muted/20 border border-border/50 shadow-inner">
+              <div className="absolute -left-3 top-10 h-12 w-1 rounded-full bg-primary/20" />
+              <p className="text-xl md:text-2xl leading-relaxed text-foreground font-medium italic">
+                &ldquo;{currentReview.comment || "No review text provided."}&rdquo;
+              </p>
+            </div>
 
-              <div className="space-y-3 rounded-xl border bg-muted/25 p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-medium text-muted-foreground">Draft Console</p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="h-8"
-                    onClick={handleGenerate}
-                    disabled={busy !== null}
-                  >
-                    {busy === "generate" ? (
-                      <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                    )}
-                    {hasDraft ? "Regenerate" : "Generate"}
-                  </Button>
-                </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Response Console</h3>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 rounded-lg text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5"
+                  onClick={handleGenerate}
+                  disabled={busy !== null}
+                >
+                  {busy === "generate" ? (
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                      <RefreshCw className="mr-1.5 h-3 w-3" />
+                    </motion.div>
+                  ) : (
+                    <Sparkles className="mr-1.5 h-3 w-3" />
+                  )}
+                  {hasDraft ? "Regenerate AI" : "Generate AI"}
+                </Button>
+              </div>
 
+              <div className="relative group">
                 <Textarea
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
-                  placeholder="Generate or write a response..."
+                  placeholder="Draft your response here..."
                   className={cn(
-                    "min-h-[180px] resize-none text-sm leading-relaxed",
-                    busy === "generate" && "pointer-events-none opacity-60",
+                    "min-h-[240px] rounded-[24px] border-border/50 bg-background p-8 text-lg leading-relaxed shadow-sm transition-all focus:ring-4 focus:ring-primary/5",
+                    busy === "generate" && "opacity-50 pointer-events-none",
                   )}
                 />
-
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <span>{draft.trim().split(/\s+/).filter(Boolean).length} words</span>
-                  <span>{draft.length} characters</span>
-                  {currentReview.draftStatus === "READY" ? (
-                    <span className="inline-flex items-center gap-1 text-emerald-600">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Verified
-                    </span>
-                  ) : null}
-                </div>
+                <AnimatePresence>
+                  {busy === "generate" && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 z-10 rounded-[24px] bg-background/40 backdrop-blur-sm flex items-center justify-center"
+                    >
+                      <motion.div
+                        animate={{ opacity: [0.4, 1, 0.4] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                        className="flex flex-col items-center gap-3 text-primary"
+                      >
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        >
+                          <RefreshCw className="h-8 w-8" />
+                        </motion.div>
+                        <p className="text-xs font-black uppercase tracking-widest">Generating AI Response</p>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {currentReview.draftStatus === "READY" && (
+                  <div className="absolute top-4 right-4">
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 text-[9px] font-black uppercase tracking-widest shadow-sm">
+                      <ShieldCheck className="h-3 w-3" /> Verified
+                    </div>
+                  </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </ScrollArea>
 
-      <footer className="border-t bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/75 md:p-4">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant="secondary" className="rounded-full">
-              {queue.length} left
-            </Badge>
-            <span>Blitz session active</span>
-          </div>
+      <footer className="border-t border-border/50 bg-background/80 glass-sm p-6">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-12 px-6 rounded-2xl font-bold text-muted-foreground hover:bg-muted/80"
+            onClick={handleSkip}
+          >
+            Skip Review
+          </Button>
 
-          <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center">
-            <Button type="button" variant="ghost" className="h-10" onClick={handleSkip}>
-              <ChevronRight className="mr-1.5 h-4 w-4" />
-              Skip
-            </Button>
-
+          <div className="flex items-center gap-3">
             <Button
               type="button"
               variant="outline"
-              className="h-10"
+              className="h-12 px-6 rounded-2xl font-bold border-border/50 bg-background shadow-sm hover:bg-muted/50"
               onClick={handleSave}
               disabled={!hasDraft || !isDirty || busy !== null}
             >
-              {busy === "save" ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Save"}
+              {busy === "save" ? (
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                </motion.div>
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save
             </Button>
 
             <Button
               type="button"
-              className="h-10"
+              className="h-12 px-10 rounded-2xl bg-primary font-black shadow-glow-primary transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
               onClick={handlePublishNext}
               disabled={!hasDraft || busy !== null}
             >
               {busy === "publish" ? (
-                <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                  <RefreshCw className="mr-2 h-5 w-5" />
+                </motion.div>
               ) : (
-                <Send className="mr-1.5 h-4 w-4" />
+                <Send className="mr-2 h-5 w-5" />
               )}
-              Publish & Next
+              Post & Continue
             </Button>
           </div>
         </div>
@@ -299,3 +336,5 @@ export function BlitzQuickReply({ pendingRows, focusReviewId, onGenerate, onSave
     </div>
   )
 }
+
+

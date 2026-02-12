@@ -7,6 +7,11 @@ export async function GET(req: Request) {
   return handleAuthedGet(req, async ({ session }) => {
     const counts = await getReviewCountsForOrg(session.orgId)
 
-    return { body: { count: counts.unanswered } }
+    return {
+      body: { count: counts.unanswered },
+      headers: {
+        "Cache-Control": "private, max-age=10, stale-while-revalidate=20",
+      },
+    }
   })
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ScrollArea as ScrollAreaPrimitive } from "radix-ui"
+import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 import { cn } from "@/lib/utils"
 
 export const ScrollArea = React.forwardRef<
@@ -37,4 +37,3 @@ export const ScrollBar = React.forwardRef<
   </ScrollAreaPrimitive.Scrollbar>
 ))
 ScrollBar.displayName = "ScrollBar"
-

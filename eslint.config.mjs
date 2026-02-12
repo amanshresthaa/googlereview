@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Repo hygiene: avoid linting vendored/virtualenv or nested build output.
+    "**/out/**",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/__pycache__/**",
   ]),
 ]);
 

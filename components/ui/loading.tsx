@@ -24,7 +24,7 @@ export function LoadingSpinner({
 }: LoadingSpinnerProps) {
   return (
     <div className={cn("flex items-center justify-center", className)} role="status" aria-label={label}>
-      <Loader2 className={cn("animate-spin text-primary", spinnerSizes[size])} />
+      <Loader2 className={cn("text-primary animate-spin", spinnerSizes[size])} />
       <span className="sr-only">{label}</span>
     </div>
   )

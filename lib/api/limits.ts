@@ -10,6 +10,7 @@ export type RateLimitScope =
   | "SETTINGS_UPDATE"
   | "TEAM_INVITE"
   | "TEAM_INVITE_REVOKE"
+  | "JOBS_ADMIN"
 
 export const RATE_LIMITS_PER_MINUTE: Record<RateLimitScope, number> = {
   DRAFT_GENERATE: 10,
@@ -23,6 +24,7 @@ export const RATE_LIMITS_PER_MINUTE: Record<RateLimitScope, number> = {
   SETTINGS_UPDATE: 10,
   TEAM_INVITE: 5,
   TEAM_INVITE_REVOKE: 5,
+  JOBS_ADMIN: 20,
 }
 
 export const AI_DAILY_BUDGET_PER_ORG = 200
@@ -42,4 +44,3 @@ export const CIRCUIT_BREAKER = {
   OPEN_MS: 60_000,
   HALF_OPEN_SUCCESSES_TO_CLOSE: 2,
 } as const
-

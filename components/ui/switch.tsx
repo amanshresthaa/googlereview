@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Switch as SwitchPrimitive } from "radix-ui"
+import * as SwitchPrimitive from "@radix-ui/react-switch"
 import { cn } from "@/lib/utils"
 
 export const Switch = React.forwardRef<
@@ -24,4 +24,3 @@ export const Switch = React.forwardRef<
   </SwitchPrimitive.Root>
 ))
 Switch.displayName = "Switch"
-

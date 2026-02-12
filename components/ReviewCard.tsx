@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { formatAge, type ReviewRow } from "@/lib/hooks"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -89,7 +90,7 @@ export const ReviewCard = React.memo(function ReviewCard({
     <article
       onClick={() => onOpen(reviewId)}
       className={cn(
-        "group relative flex cursor-pointer gap-3 overflow-hidden rounded-xl border p-3 transition-all duration-200 sm:p-4",
+        "group relative flex cursor-pointer gap-3 overflow-hidden rounded-xl border p-3 transition-[background-color,border-color,color,box-shadow] duration-200 sm:p-4",
         selected
           ? "border-blue-400/60 bg-blue-50/80 shadow-md ring-1 ring-blue-400/25 dark:border-blue-500/50 dark:bg-blue-950/40 dark:ring-blue-500/20"
           : "border-border bg-card hover:bg-accent/50 dark:hover:bg-accent/30"
@@ -172,7 +173,7 @@ export const ReviewCard = React.memo(function ReviewCard({
                 if (canQuickApprove) onQuickApprove?.(reviewId)
               }}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all",
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-[transform,opacity,background-color,color,border-color] duration-200",
                 "opacity-100 sm:pointer-events-none sm:translate-y-0.5 sm:opacity-0",
                 "sm:group-hover:pointer-events-auto sm:group-hover:translate-y-0 sm:group-hover:opacity-100",
                 "sm:group-focus-within:pointer-events-auto sm:group-focus-within:translate-y-0 sm:group-focus-within:opacity-100",
@@ -183,7 +184,12 @@ export const ReviewCard = React.memo(function ReviewCard({
               )}
             >
               {quickApproveLoading ? (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </motion.div>
               ) : canQuickApprove ? (
                 <Sparkles className="h-3.5 w-3.5" />
               ) : null}

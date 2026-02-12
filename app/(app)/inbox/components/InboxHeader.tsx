@@ -1,11 +1,12 @@
 import * as React from "react"
+import { motion, AnimatePresence } from "framer-motion"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn } from "@/lib/utils"
-import { Filter, InboxIcon, RefreshCw, Search, Sparkles } from "@/components/icons"
+import { Filter, InboxIcon, RefreshCw, Search, Sparkles, CheckCircle2 } from "@/components/icons"
 
 type InboxHeaderProps = {
   pendingCount: number
@@ -45,106 +46,157 @@ export function InboxHeader({
   onRefresh,
 }: InboxHeaderProps) {
   return (
-    <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75">
-      <div className="space-y-3 p-3 sm:p-4">
-        <div className="flex items-center justify-between gap-2">
+    <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-xl">
+      <div className="p-4 space-y-4">
+        <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="rounded-md bg-primary p-1.5 text-primary-foreground">
-              <InboxIcon className="h-4 w-4" />
-            </div>
-            <div>
-              <h1 className="text-base font-semibold sm:text-lg">Review Inbox</h1>
-              <p className="text-xs text-muted-foreground">{pendingCount} pending responses</p>
-            </div>
+            <h1 className="text-xl font-black tracking-tight">Inbox</h1>
+            <AnimatePresence>
+              {pendingCount > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                >
+                  <Badge variant="default" className="h-5 px-2 rounded-full text-[10px] font-black bg-primary/10 text-primary border-none shadow-none">
+                    {pendingCount}
+                  </Badge>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={onRefresh}>
-            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-          </Button>
-        </div>
-
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search reviews..."
-            value={searchQuery}
-            onChange={(event) => onSearchQueryChange(event.target.value)}
-            className="pl-9"
-          />
-        </div>
-
-        <ToggleGroup
-          type="single"
-          value={activeTab}
-          onValueChange={(value) => {
-            if (value === "pending" || value === "replied" || value === "all") {
-              onActiveTabChange(value)
-            }
-          }}
-          className="grid w-full grid-cols-3 rounded-lg border bg-muted/30 p-1"
-        >
-          {(["pending", "replied", "all"] as const).map((tab) => (
-            <ToggleGroupItem
-              key={tab}
-              value={tab}
-              className="h-8 rounded-md text-xs font-medium capitalize data-[state=on]:bg-background data-[state=on]:shadow-sm"
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={onRefresh}
+              aria-label="Refresh"
             >
-              {tab}
-            </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+              {loading ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </motion.div>
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+            </Button>
+            
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onOpenQuickReply}
+              className="h-9 w-9 rounded-xl text-primary hover:bg-primary/5"
+              disabled={quickReplyDisabled}
+              aria-label="Quick Reply"
+            >
+              <Sparkles className="h-4 w-4" />
+            </Button>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" size="sm" variant="outline" onClick={onOpenFilters} className="h-8">
-            <Filter className="mr-1.5 h-3.5 w-3.5" />
-            Filters
-            {activeFiltersCount > 0 ? (
-              <Badge variant="secondary" className="ml-1 rounded-full px-1.5 text-[10px]">
-                {activeFiltersCount}
-              </Badge>
-              ) : null}
-          </Button>
-
-          <Button
-            type="button"
-            size="sm"
-            onClick={onOpenQuickReply}
-            className="h-8"
-            disabled={quickReplyDisabled}
-          >
-            <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-            Quick Reply
-          </Button>
-
-          {bulkApproveEnabled ? (
-            <>
+            {bulkApproveEnabled && (
               <Button
                 type="button"
-                size="sm"
-                variant={selectionMode ? "default" : "outline"}
-                className="h-8"
+                variant={selectionMode ? "default" : "ghost"}
+                size="icon"
+                className={cn(
+                  "h-9 w-9 rounded-xl transition-all",
+                  selectionMode ? "bg-primary shadow-glow-primary" : "text-muted-foreground hover:bg-muted"
+                )}
                 onClick={onToggleSelectionMode}
+                aria-label="Selection Mode"
               >
-                {selectionMode ? "Done selecting" : "Select reviews"}
+                <CheckCircle2 className="h-4 w-4" />
               </Button>
-
-              {selectionMode ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-8"
-                  onClick={onSelectReady}
-                  disabled={eligibleBulkCount === 0}
-                >
-                  Select ready ({eligibleBulkCount})
-                </Button>
-              ) : null}
-            </>
-          ) : null}
+            )}
+          </div>
         </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
+            <Input
+              type="text"
+              placeholder="Filter by name, location..."
+              value={searchQuery}
+              onChange={(event) => onSearchQueryChange(event.target.value)}
+              className="h-10 rounded-2xl border-none bg-muted/40 pl-9 pr-4 text-sm font-medium focus:bg-muted/60 focus:ring-0 transition-all"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ToggleGroup
+              type="single"
+              value={activeTab}
+              onValueChange={(value) => {
+                if (value === "pending" || value === "replied" || value === "all") {
+                  onActiveTabChange(value)
+                }
+              }}
+              className="flex h-10 rounded-2xl bg-muted/40 p-1"
+            >
+              {(["pending", "replied", "all"] as const).map((tab) => (
+                <ToggleGroupItem
+                  key={tab}
+                  value={tab}
+                  className="h-8 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest transition-all data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:shadow-sm"
+                >
+                  {tab}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={onOpenFilters}
+              className="h-10 w-10 shrink-0 rounded-2xl border-none bg-muted/40 hover:bg-muted/60 relative"
+            >
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <AnimatePresence>
+                {activeFiltersCount > 0 && (
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.5 }}
+                    className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[9px] font-black text-white flex items-center justify-center shadow-sm"
+                  >
+                    {activeFiltersCount}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </Button>
+          </div>
+        </div>
+
+        <AnimatePresence>
+          {selectionMode && eligibleBulkCount > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, marginTop: 0 }}
+              animate={{ opacity: 1, height: "auto", marginTop: 12 }}
+              exit={{ opacity: 0, height: 0, marginTop: 0 }}
+              className="overflow-hidden"
+            >
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-10 rounded-2xl border-primary/20 bg-primary/5 text-primary text-xs font-black uppercase tracking-widest hover:bg-primary/10 transition-all"
+                onClick={onSelectReady}
+              >
+                Select {eligibleBulkCount} Ready for Approval
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </header>
   )
 }
+
+
+

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { motion } from "framer-motion"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { type ReviewDetail } from "@/lib/hooks"
@@ -95,28 +96,32 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
 
   if (!draft && !isReplied) {
     return (
-      <div className="rounded-2xl border border-dashed border-[#8ab4f8]/60 bg-gradient-to-b from-white to-[#f8faff] px-6 py-10 text-center dark:from-[#0b1524] dark:to-[#10213d]">
-        <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-[#1a73e8]/10 text-[#1a73e8] dark:bg-[#8ab4f8]/15 dark:text-[#8ab4f8]">
-          <Sparkles className="h-6 w-6" />
+      <div className="rounded-[24px] border-2 border-dashed border-primary/20 bg-primary/[0.02] px-6 py-12 text-center transition-all hover:bg-primary/[0.04]">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-glow-primary">
+          <Sparkles className="h-8 w-8 text-primary-foreground" />
         </div>
-        <p className="text-base font-semibold text-foreground">Generate AI draft reply</p>
-        <p className="mx-auto mt-1.5 max-w-[220px] text-xs leading-relaxed text-[#5f6368] dark:text-[#9aa0a6]">
-          Create a first response before editing and posting.
-        </p>
+        <div className="space-y-2">
+          <h3 className="text-xl font-black tracking-tight text-foreground">Generate AI Response</h3>
+          <p className="mx-auto max-w-sm text-sm font-medium leading-relaxed text-muted-foreground">
+            Our AI analysis can create a personalized, professional response based on the guest&apos;s feedback.
+          </p>
+        </div>
         <Button
           type="button"
           onClick={() =>
             run("generate", () => apiCall(`/api/reviews/${reviewId}/drafts/generate`, "POST"), "Draft generated")
           }
           disabled={Boolean(busy)}
-          className="mt-5 rounded-full bg-[#1a73e8] px-6 text-white shadow-md hover:bg-[#1765cc] dark:bg-[#8ab4f8] dark:text-[#202124]"
+          className="mt-8 h-12 rounded-2xl bg-primary px-8 font-black shadow-glow-primary hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98]"
         >
           {busy === "generate" ? (
-            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+              <RefreshCw className="mr-2 h-5 w-5" />
+            </motion.div>
           ) : (
-            <Sparkles className="mr-2 h-4 w-4" />
+            <Sparkles className="mr-2 h-5 w-5" />
           )}
-          Generate Draft
+          Start AI Drafting
         </Button>
       </div>
     )
@@ -125,16 +130,15 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
   if (isReplied) return null
 
   return (
-    <div className="space-y-3">
-      {/* Tone selector */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-[#174ea6] dark:text-[#d2e3fc]">
-            Tone
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-black uppercase tracking-widest text-primary/70">
+            Tone Preset
           </span>
           {isDirty && (
-            <Badge className="rounded-full border border-yellow-200 bg-yellow-50 px-2 py-0.5 text-[10px] font-semibold text-yellow-700 dark:border-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-300">
-              Unsaved
+            <Badge className="rounded-full bg-amber-500/10 text-amber-600 border-none px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+              Unsaved Changes
             </Badge>
           )}
         </div>
@@ -144,17 +148,17 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
           onValueChange={(value) => {
             if (value) setTone(value)
           }}
-          className="rounded-full border border-[#dadce0] bg-white p-1 dark:border-[#3c4043] dark:bg-[#1f1f1f]"
+          className="rounded-xl border border-border/50 bg-muted/30 p-1"
         >
           {(["professional", "friendly", "apologetic"] as const).map((option) => (
             <ToggleGroupItem
               key={option}
               value={option}
               className={cn(
-                "h-7 rounded-full px-3 text-[11px] font-medium capitalize",
+                "h-8 rounded-lg px-4 text-xs font-bold capitalize transition-all",
                 tone === option
-                  ? "bg-[#1a73e8] text-white dark:bg-[#8ab4f8] dark:text-[#202124]"
-                  : "text-[#5f6368] dark:text-[#9aa0a6]",
+                  ? "bg-background text-primary shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               {option}
@@ -163,24 +167,20 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
         </ToggleGroup>
       </div>
 
-      {/* Editor card */}
       <div
         className={cn(
-          "relative overflow-hidden rounded-2xl border bg-white shadow-sm transition-colors dark:bg-[#1f1f1f]",
+          "relative overflow-hidden rounded-[24px] border bg-background shadow-inner transition-all duration-300",
           isBlocked
-            ? "border-red-300 ring-1 ring-red-200 dark:border-red-800 dark:ring-red-900"
-            : "border-[#dadce0] focus-within:border-[#1a73e8] focus-within:ring-1 focus-within:ring-[#1a73e8]/30 dark:border-[#3c4043] dark:focus-within:border-[#8ab4f8] dark:focus-within:ring-[#8ab4f8]/30",
+            ? "border-destructive ring-4 ring-destructive/5"
+            : "border-border/50 focus-within:border-primary/30 focus-within:ring-4 focus-within:ring-primary/5",
         )}
       >
-        {/* Overlay placeholder when empty and not generating */}
         {!hasText && busy !== "generate" && (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-5">
-            <div className="flex flex-col items-center gap-2 text-center">
-              <Sparkles className="h-6 w-6 text-[#1a73e8]/40 dark:text-[#8ab4f8]/40" />
-              <span className="text-sm text-[#5f6368]/70 dark:text-[#9aa0a6]/70">
-                Use AI to generate a perfect response
-              </span>
-            </div>
+          <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3">
+            <Sparkles className="h-10 w-10 text-primary/10" />
+            <span className="text-sm font-bold text-muted-foreground/30 uppercase tracking-widest">
+              Awaiting Content
+            </span>
           </div>
         )}
 
@@ -189,45 +189,46 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
           onChange={(event) => setText(event.target.value)}
           placeholder=""
           disabled={busy === "generate"}
-          className="min-h-[180px] resize-none border-0 bg-transparent p-5 text-sm leading-relaxed text-[#202124] placeholder:text-transparent focus-visible:ring-0 dark:text-[#e8eaed]"
+          className="min-h-[260px] resize-none border-0 bg-transparent p-6 text-base font-medium leading-relaxed text-foreground placeholder:text-transparent focus-visible:ring-0"
         />
 
-        {/* Status indicator row */}
-        <div className="flex items-center justify-between border-t border-[#dadce0]/60 px-4 py-1.5 text-[11px] dark:border-[#3c4043]/60">
-          <div>
+        <div className="flex items-center justify-between border-t border-border/50 bg-muted/20 px-6 py-3">
+          <div className="flex items-center gap-4">
             {isBlocked ? (
-              <span className="inline-flex items-center gap-1.5 font-medium text-red-600 dark:text-red-400">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                {verifierIssue || "Verifier blocked this draft"}
+              <span className="inline-flex items-center gap-2 text-xs font-bold text-destructive">
+                <AlertTriangle className="h-4 w-4" />
+                {verifierIssue || "Verification Failed"}
               </span>
             ) : draft?.status === "READY" ? (
-              <span className="inline-flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Verified
+              <span className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600">
+                <ShieldCheck className="h-4 w-4" />
+                Verified & Ready
               </span>
             ) : (
-              <span className="text-[#5f6368] dark:text-[#9aa0a6]">Awaiting verification</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">
+                Draft Status: Pending
+              </span>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <button
               type="button"
               onClick={copyText}
               disabled={!hasText}
-              className="inline-flex items-center gap-1 text-[#5f6368] transition-colors hover:text-foreground disabled:opacity-40 dark:text-[#9aa0a6]"
+              className="flex items-center gap-2 text-xs font-bold text-muted-foreground transition-all hover:text-primary disabled:opacity-30"
             >
-              <Copy className="h-3 w-3" />
+              <Copy className="h-4 w-4" />
               Copy
             </button>
-            <span className="font-mono text-[#5f6368] dark:text-[#9aa0a6]">
-              {wordCount} {wordCount === 1 ? "word" : "words"}
+            <div className="h-4 w-px bg-border/50" />
+            <span className="text-xs font-bold tabular-nums text-muted-foreground/60">
+              {wordCount} Words
             </span>
           </div>
         </div>
       </div>
 
-      {/* Bottom toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#f1f3f4] px-3 py-2.5 dark:bg-[#292a2d]">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[24px] bg-muted/30 border border-border/50 p-4">
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -240,16 +241,17 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
               )
             }
             disabled={Boolean(busy)}
-            className="h-8 rounded-full bg-[#1a73e8] px-4 text-xs font-semibold text-white shadow-none hover:bg-[#1765cc] dark:bg-[#8ab4f8] dark:text-[#202124]"
+            className="h-10 rounded-xl bg-primary/10 px-5 text-xs font-bold text-primary shadow-none hover:bg-primary hover:text-primary-foreground transition-all"
           >
-            {busy === "generate" ? (
-              <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : draft?.text ? (
-              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-            ) : (
-              <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            {draft?.text ? "Regenerate" : "Generate AI Reply"}
+                      {busy === "generate" ? (
+                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                          <RefreshCw className="mr-1.5 h-4 w-4" />
+                        </motion.div>
+                      ) : (
+                        <Sparkles className="mr-2 h-4 w-4" />
+                      )}
+            
+            {draft?.text ? "Regenerate AI" : "Generate AI"}
           </Button>
           <Button
             type="button"
@@ -257,13 +259,13 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
             size="sm"
             onClick={clearText}
             disabled={!hasText || Boolean(busy)}
-            className="h-8 w-8 rounded-full p-0 text-red-500 hover:bg-red-50 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+            className="h-10 w-10 rounded-xl text-destructive hover:bg-destructive/10 transition-all"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-5 w-5" />
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Button
             type="button"
             variant="outline"
@@ -272,14 +274,16 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
               run("verify", () => apiCall(`/api/reviews/${reviewId}/drafts/verify`, "POST"), "Draft verified")
             }
             disabled={!hasText || Boolean(busy)}
-            className="h-8 rounded-full border-[#dadce0] bg-white text-xs dark:border-[#3c4043] dark:bg-[#1f1f1f]"
+            className="h-10 rounded-xl border-border/50 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50"
           >
             {busy === "verify" ? (
-              <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+              </motion.div>
             ) : (
-              <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+              <ShieldCheck className="mr-2 h-4 w-4" />
             )}
-            Verify
+            AI Verify
           </Button>
           <Button
             type="button"
@@ -289,12 +293,14 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
               run("save", () => apiCall(`/api/reviews/${reviewId}/drafts/edit`, "POST", { text }), "Draft saved")
             }
             disabled={!isDirty || Boolean(busy) || !hasText}
-            className="h-8 rounded-full border-[#dadce0] bg-white text-xs dark:border-[#3c4043] dark:bg-[#1f1f1f]"
+            className="h-10 rounded-xl border-border/50 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50"
           >
             {busy === "save" ? (
-              <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+              </motion.div>
             ) : (
-              <Save className="mr-1.5 h-3.5 w-3.5" />
+              <Save className="mr-2 h-4 w-4" />
             )}
             Save Draft
           </Button>
@@ -305,23 +311,25 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
               run("publish", () => apiCall(`/api/reviews/${reviewId}/reply/post`, "POST"), "Reply posted successfully")
             }
             disabled={!hasText || Boolean(busy)}
-            className="h-8 rounded-full bg-[#202124] px-4 text-xs font-semibold text-white shadow-none hover:bg-[#3c4043] dark:bg-[#e8eaed] dark:text-[#202124] dark:hover:bg-[#d2d4d7]"
+            className="h-10 rounded-xl bg-primary px-8 text-xs font-black text-primary-foreground shadow-glow-primary transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98]"
           >
             {busy === "publish" ? (
-              <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+              </motion.div>
             ) : (
-              <Send className="mr-1.5 h-3.5 w-3.5" />
+              <Send className="mr-2 h-4 w-4" />
             )}
             Post Reply
           </Button>
         </div>
       </div>
 
-      {/* Secure footer */}
-      <p className="flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-widest text-[#5f6368]/60 dark:text-[#9aa0a6]/60">
+      <p className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
         <ShieldCheck className="h-3 w-3" />
-        Secure &amp; Official Google Business Response
+        Official GBP Response System
       </p>
     </div>
   )
 }
+

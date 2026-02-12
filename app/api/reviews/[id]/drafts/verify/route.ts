@@ -4,9 +4,16 @@ import { handleAuthedPost } from "@/lib/api/handler"
 import { ApiError } from "@/lib/api/errors"
 import { requireRole } from "@/lib/api/authz"
 import { runProcessReviewFastPath } from "@/lib/jobs/worker"
+import { dspyEnv } from "@/lib/env"
 import { getReviewDetailForOrg } from "@/lib/reviews/detail"
 
 export const runtime = "nodejs"
+
+function computeInteractiveBudgetMs() {
+  const e = dspyEnv()
+  const timeoutMs = e.DSPY_HTTP_TIMEOUT_MS ?? 12_000
+  return Math.min(15_000, Math.max(5_000, timeoutMs + 750))
+}
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id: reviewId } = await ctx.params
@@ -44,6 +51,25 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       if (!review.currentDraftReplyId) throw new ApiError({ status: 400, code: "NO_DRAFT", message: "No draft." })
 
       const draftId = review.currentDraftReplyId
+      const dedupKey = `draft:${draftId}:verify`
+      const inflight = await prisma.job.findFirst({
+        where: {
+          orgId: session.orgId,
+          type: "PROCESS_REVIEW",
+          dedupKey,
+          status: { in: ["PENDING", "RUNNING", "RETRYING"] },
+        },
+        select: { id: true },
+      })
+      if (inflight) {
+        throw new ApiError({
+          status: 409,
+          code: "DEDUP_INFLIGHT",
+          message: "Draft verification is already in progress.",
+          details: { jobId: inflight.id },
+        })
+      }
+
       const job = await enqueueJob({
         orgId: session.orgId,
         type: "PROCESS_REVIEW",
@@ -53,7 +79,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           draftReplyId: draftId,
           budgetOverride: budgetOverride ? { enabled: true, reason: budgetOverrideReason } : { enabled: false },
         },
-        dedupKey: `draft:${draftId}:request:${requestId}`,
+        dedupKey,
+        maxAttemptsOverride: 1,
         triggeredByRequestId: requestId,
         triggeredByUserId: session.user.id,
       })
@@ -72,19 +99,39 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         },
       })
 
-      // Fast-path process: bounded and process-only, and only for the job created by this request.
       const worker = await runProcessReviewFastPath({
         jobId: job.id,
         orgId: session.orgId,
         workerId: `fastpath:${requestId}`,
-        budgetMs: 2000,
+        budgetMs: computeInteractiveBudgetMs(),
       })
 
-      const reviewSnapshot = worker.claimed > 0
-        ? await getReviewDetailForOrg({ reviewId, orgId: session.orgId })
-        : null
+      const updated = await prisma.job.findUnique({
+        where: { id: job.id },
+        select: { status: true, lastError: true, lastErrorCode: true },
+      })
+      if (updated?.status === "FAILED") {
+        throw new ApiError({
+          status: 502,
+          code: "INTERNAL",
+          message: updated.lastErrorCode ?? updated.lastError ?? "Draft verification failed.",
+        })
+      }
 
-      return { body: { jobId: job.id, worker, review: reviewSnapshot } }
+      const reviewSnapshot = await getReviewDetailForOrg({
+        reviewId,
+        orgId: session.orgId,
+      })
+
+      return {
+        status: 200,
+        body: {
+          jobId: job.id,
+          job: { id: job.id, status: job.status },
+          review: reviewSnapshot,
+          worker,
+        },
+      }
     }
   )
 }

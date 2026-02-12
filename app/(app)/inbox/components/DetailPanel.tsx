@@ -1,4 +1,7 @@
+"use client"
+
 import * as React from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
 
 import { initials } from "../model"
@@ -11,7 +14,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
-import { CheckCircle2, Copy, MapPin, RefreshCw, Save, Send, ShieldCheck, Sparkles, X } from "@/components/icons"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { CheckCircle2, Clock, Copy, Edit, MapPin, RefreshCw, Save, Send, ShieldCheck, Sparkles, X, MessageSquare } from "@/components/icons"
 
 import type { ReviewRow } from "@/lib/hooks"
 
@@ -57,210 +61,287 @@ export function DetailPanel({ row, onGenerate, onSave, onVerify, onPublish }: De
   }
 
   const isReplied = row.status === "replied"
+  const isVerified = row.draftStatus === "READY"
 
   return (
     <div className="flex h-full flex-col bg-background">
       <ScrollArea className="flex-1">
-        <div className="mx-auto w-full max-w-3xl space-y-4 p-4 md:space-y-6 md:p-6">
-          <Card>
-            <CardContent className="p-4 md:p-6">
-              <div className="flex items-start gap-3 md:gap-4">
-                <Avatar className="h-11 w-11 border md:h-14 md:w-14">
-                  <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary md:text-lg">
-                    {initials(row.reviewer.displayName ?? "Anonymous")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-base font-semibold text-foreground md:text-lg">
-                      {row.reviewer.displayName || "Anonymous"}
-                    </h2>
-                    {!row.reviewer.isAnonymous ? <Badge variant="outline">Verified reviewer</Badge> : null}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground md:text-sm">
-                    <Stars rating={row.starRating} />
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {row.location.displayName}
-                    </span>
-                    <span>•</span>
-                    <span>{formatAge(row.createTimeIso)} ago</span>
+        <div className="p-6 md:p-8 space-y-8 max-w-4xl mx-auto">
+          {/* Header Area */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-14 w-14 border-2 border-primary/5 shadow-sm">
+                <AvatarFallback className="bg-primary/5 text-lg font-black text-primary">
+                  {initials(row.reviewer.displayName ?? "Anonymous")}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <h2 className="text-xl font-black tracking-tight text-foreground truncate max-w-[240px]">
+                  {row.reviewer.displayName || "Anonymous"}
+                </h2>
+                <div className="flex items-center gap-3 mt-1">
+                  <Stars rating={row.starRating} size="xs" />
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+                    <Clock className="h-3 w-3" />
+                    {formatAge(row.createTimeIso)} ago
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Customer review</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
-                {row.comment || "No written comment provided."}
-              </p>
-              {row.mentions.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {row.mentions.map((mention) => (
-                    <Badge key={mention} variant="secondary" className="rounded-full text-[11px]">
-                      @{mention}
+            <div className="flex flex-col items-end gap-2">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={isReplied ? "replied" : isVerified ? "verified" : "pending"}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                >
+                  {isReplied ? (
+                    <Badge className="rounded-full bg-emerald-500/10 text-emerald-600 border-none px-3 py-1 font-black text-[10px] uppercase tracking-widest shadow-sm">
+                      <CheckCircle2 className="mr-1.5 h-3 w-3" />
+                      Published
                     </Badge>
+                  ) : isVerified ? (
+                    <Badge className="rounded-full bg-primary/10 text-primary border-none px-3 py-1 font-black text-[10px] uppercase tracking-widest shadow-sm">
+                      <ShieldCheck className="mr-1.5 h-3 w-3" />
+                      AI Verified
+                    </Badge>
+                  ) : (
+                    <Badge className="rounded-full bg-muted text-muted-foreground border-none px-3 py-1 font-black text-[10px] uppercase tracking-widest">
+                      Pending
+                    </Badge>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                <MapPin className="h-3 w-3" />
+                {row.location.displayName}
+              </div>
+            </div>
+          </div>
+
+          {/* Content Section */}
+          <div className="space-y-6">
+            <div className="relative">
+              <div className="absolute -left-3 top-0 bottom-0 w-1 rounded-full bg-primary/10" />
+              <p className="text-lg md:text-xl leading-relaxed text-foreground font-medium italic pl-4">
+                &ldquo;{row.comment || "No written comment provided."}&rdquo;
+              </p>
+              {row.mentions.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2 pl-4">
+                  {row.mentions.map((mention) => (
+                    <span key={mention} className="text-[10px] font-black uppercase tracking-widest text-primary/60 bg-primary/5 px-2 py-0.5 rounded-md">
+                      #{mention}
+                    </span>
                   ))}
                 </div>
-              ) : null}
-            </CardContent>
-          </Card>
+              )}
+            </div>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle className="text-sm">Business response</CardTitle>
-                {isReplied ? (
-                  <Badge variant="secondary">
-                    <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-                    Published
-                  </Badge>
-                ) : row.currentDraft?.updatedAtIso ? (
-                  <Badge variant="outline">Updated {formatAge(row.currentDraft.updatedAtIso)} ago</Badge>
-                ) : (
-                  <Badge variant="outline">Draft not generated</Badge>
+            <div className="h-px bg-border/50" />
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
+                  {isReplied ? "Official Response" : "Drafting Dashboard"}
+                </h3>
+                {!isReplied && (
+                  <div className="flex items-center gap-4 text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">
+                    <span>{wordCount} words</span>
+                    <span>{characterCount} chars</span>
+                  </div>
                 )}
               </div>
-            </CardHeader>
 
-            <CardContent>
               {isReplied ? (
-                <div className="rounded-xl border bg-muted/30 p-4">
-                  <p className="text-sm leading-relaxed text-foreground md:text-base">{row.reply.comment}</p>
+                <div className="rounded-[24px] bg-emerald-500/[0.02] border border-emerald-500/10 p-6 shadow-inner transition-all hover:bg-emerald-500/[0.04]">
+                  <p className="text-base leading-relaxed text-foreground font-medium">
+                    {row.reply.comment}
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {!row.currentDraft ? (
-                    <div className="rounded-xl border border-dashed bg-muted/20 p-3 text-xs text-muted-foreground">
-                      No draft exists yet. Use AI generation or write your own response below.
-                    </div>
-                  ) : null}
-
+                <div className="relative group">
                   <Textarea
                     value={text}
                     onChange={(event) => setText(event.target.value)}
-                    placeholder="Write a clear, professional response..."
+                    placeholder="Compose your response..."
                     className={cn(
-                      "min-h-[220px] resize-none text-sm leading-relaxed md:min-h-[260px]",
-                      busy === "generate" && "pointer-events-none opacity-70",
+                      "min-h-[320px] rounded-[24px] border-border/50 bg-muted/20 p-6 text-base leading-relaxed shadow-inner transition-all focus:bg-background focus:border-primary/30 focus:ring-4 focus:ring-primary/5",
+                      busy === "generate" && "pointer-events-none opacity-50",
                     )}
                   />
+                  <AnimatePresence>
+                    {busy === "generate" && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 z-10 rounded-[24px] bg-background/40 backdrop-blur-sm flex items-center justify-center"
+                      >
+                        <motion.div
+                          animate={{ opacity: [0.4, 1, 0.4] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                          className="flex flex-col items-center gap-3 text-primary"
+                        >
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          >
+                            <RefreshCw className="h-8 w-8" />
+                          </motion.div>
+                          <p className="text-xs font-black uppercase tracking-widest">Generating AI Response</p>
+                        </motion.div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  {!hasText && !busy && (
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground/30">
+                      <Edit className="h-10 w-10" />
+                      <p className="text-sm font-black uppercase tracking-widest">Start Typing</p>
+                    </div>
+                  )}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </ScrollArea>
 
-      {!isReplied ? (
-        <div className="border-t bg-background/95 p-3 backdrop-blur md:p-4">
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-2">
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <span>{wordCount} words</span>
-                <span>•</span>
-                <span>{characterCount} chars</span>
-                {row.draftStatus === "READY" ? (
-                  <span className="inline-flex items-center gap-1 text-emerald-600">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Verified
-                  </span>
-                ) : null}
-              </div>
+      {!isReplied && (
+        <div className="border-t border-border/50 bg-background/80 glass-sm p-4 md:p-6">
+          <div className="mx-auto flex w-full max-w-4xl flex-col sm:flex-row items-center gap-4">
+            <div className="flex w-full sm:flex-1 items-center gap-2">
               <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 px-2 text-xs"
-                disabled={busy !== null}
-                onClick={() => setText(row.currentDraft?.text ?? "")}
+                type="button"
+                className="h-12 flex-1 rounded-2xl bg-primary font-black shadow-glow-primary transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                disabled={!hasText || busy !== null}
+                onClick={() => run("publish", () => onPublish(row.id, text, row))}
               >
-                <X className="mr-1 h-3.5 w-3.5" />
-                Reset
+                {busy === "publish" ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  >
+                    <RefreshCw className="mr-2 h-5 w-5" />
+                  </motion.div>
+                ) : (
+                  <Send className="mr-2 h-5 w-5" />
+                )}
+                Publish Reply
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 w-12 rounded-2xl border-border/50 bg-background shadow-sm hover:bg-muted/50 transition-all flex shrink-0 items-center justify-center"
+                disabled={busy !== null}
+                onClick={() => run("generate", () => onGenerate(row.id))}
+                aria-label="Regenerate"
+              >
+                {busy === "generate" ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  >
+                    <RefreshCw className="h-5 w-5 text-primary" />
+                  </motion.div>
+                ) : (
+                  <Sparkles className="h-5 w-5 text-primary" />
+                )}
               </Button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <div className="flex w-full sm:w-auto items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
-                className="col-span-1"
-                disabled={busy !== null}
-                onClick={() => run("generate", () => onGenerate(row.id))}
-              >
-                <Sparkles className={cn("mr-1.5 h-4 w-4", busy === "generate" && "animate-spin")} />
-                {hasText ? "Regenerate" : "Generate"}
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="col-span-1"
-                disabled={!hasText || busy !== null}
-                onClick={() => run("verify", () => onVerify(row.id))}
-              >
-                {busy === "verify" ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <ShieldCheck className="mr-1.5 h-4 w-4" />
-                    Verify
-                  </>
-                )}
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="col-span-1"
-                disabled={!hasText || busy !== null}
-                onClick={() => void copyToClipboard()}
-              >
-                <Copy className="mr-1.5 h-4 w-4" />
-                Copy
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="col-span-1"
+                className="h-12 px-6 rounded-2xl font-bold border-border/50 bg-background shadow-sm hover:bg-muted/50 transition-all"
                 disabled={!isDirty || !hasText || busy !== null}
                 onClick={() => run("save", () => onSave(row.id, text))}
               >
                 {busy === "save" ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    </motion.div>
+                    Save
+                  </>
                 ) : (
                   <>
-                    <Save className="mr-1.5 h-4 w-4" />
+                    <Save className="h-4 w-4 mr-2" />
                     Save
                   </>
                 )}
               </Button>
 
-              <Button
-                type="button"
-                className="col-span-2 sm:col-span-1"
-                disabled={!hasText || busy !== null}
-                onClick={() => run("publish", () => onPublish(row.id, text, row))}
-              >
-                {busy === "publish" ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <Send className="mr-1.5 h-4 w-4" />
-                    Publish
-                  </>
-                )}
-              </Button>
+              <div className="flex items-center gap-1">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-12 w-12 rounded-2xl transition-all hover:bg-muted/80"
+                        disabled={!hasText || busy !== null}
+                        onClick={() => run("verify", () => onVerify(row.id))}
+                      >
+                        {busy === "verify" ? (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          >
+                            <RefreshCw className="h-5 w-5 text-primary" />
+                          </motion.div>
+                        ) : (
+                          <ShieldCheck className="h-5 w-5 text-primary" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="font-bold">Verify Draft</TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-12 w-12 rounded-2xl transition-all hover:bg-muted/80"
+                        disabled={!hasText || busy !== null}
+                        onClick={() => void copyToClipboard()}
+                      >
+                        <Copy className="h-5 w-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="font-bold">Copy to Clipboard</TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-12 w-12 rounded-2xl transition-all hover:bg-muted/80 text-muted-foreground/40 hover:text-destructive"
+                        disabled={busy !== null}
+                        onClick={() => setText(row.currentDraft?.text ?? "")}
+                      >
+                        <X className="h-5 w-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="font-bold">Reset Changes</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             </div>
           </div>
         </div>
-      ) : null}
+      )}
     </div>
   )
 }
+
+
+

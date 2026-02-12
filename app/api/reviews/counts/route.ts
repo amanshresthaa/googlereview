@@ -17,6 +17,7 @@ export async function GET(req: Request) {
       body: { counts },
       headers: {
         "Server-Timing": `reviews_counts;dur=${timing.countsMs}`,
+        "Cache-Control": "private, max-age=10, stale-while-revalidate=20",
       },
     }
   })

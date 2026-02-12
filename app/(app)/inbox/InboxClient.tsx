@@ -1,8 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { Roboto, Roboto_Mono } from "next/font/google"
 import { useSearchParams } from "next/navigation"
+import { AnimatePresence, motion } from "framer-motion"
 import { toast } from "sonner"
 
 import { BlitzQuickReply } from "./components/BlitzQuickReply"
@@ -19,22 +19,9 @@ import type { InboxBootstrap, ReviewMutationResponse } from "./types"
 import { useIsDesktop } from "@/lib/hooks/useMediaQuery"
 import { usePaginatedReviews, type ReviewFilter } from "@/lib/hooks"
 import { cn } from "@/lib/utils"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
-import { CheckCircle2, MessageSquare, RefreshCw } from "@/components/icons"
-
-const inboxSansFont = Roboto({
-  subsets: ["latin"],
-  variable: "--font-inbox-sans",
-  weight: ["400", "500", "700"],
-})
-
-const inboxMonoFont = Roboto_Mono({
-  subsets: ["latin"],
-  variable: "--font-inbox-mono",
-  weight: ["500"],
-})
+import { CheckCircle2, MessageSquare, RefreshCw, Send, X } from "@/components/icons"
 
 const QUEUE_FILTER_OPTIONS: Array<{ value: ReviewFilter; label: string }> = [
   { value: "unanswered", label: "Pending" },
@@ -108,7 +95,7 @@ export default function InboxClient({ ssrBootstrap }: InboxClientProps) {
         const params = new URLSearchParams({
           filter: initialRemoteFilter,
           status: initialRemoteStatus,
-          includeCounts: "0",
+          includeCounts: "1",
         })
         if (initialRemoteMention) params.set("mention", initialRemoteMention)
         if (initialLocationId) params.set("locationId", initialLocationId)
@@ -369,9 +356,7 @@ export default function InboxClient({ ssrBootstrap }: InboxClientProps) {
   return (
     <div
       className={cn(
-        inboxSansFont.variable,
-        inboxMonoFont.variable,
-        "flex h-full w-full flex-col overflow-hidden bg-background text-foreground [font-family:var(--font-inbox-sans)]",
+        "flex h-full w-full flex-col overflow-hidden bg-background text-foreground",
       )}
     >
       <InboxHeader
@@ -393,7 +378,7 @@ export default function InboxClient({ ssrBootstrap }: InboxClientProps) {
         onRefresh={() => void refresh()}
       />
 
-      <div className="flex-1 overflow-hidden md:grid md:grid-cols-[380px_minmax(0,1fr)] lg:grid-cols-[420px_minmax(0,1fr)]">
+      <div className="flex-1 overflow-hidden md:grid md:grid-cols-[400px_minmax(0,1fr)] lg:grid-cols-[440px_minmax(0,1fr)] bg-zinc-50/50 dark:bg-zinc-950/20">
         <InboxReviewList
           loading={loading}
           bootstrapLoading={bootstrapLoading}
@@ -410,33 +395,69 @@ export default function InboxClient({ ssrBootstrap }: InboxClientProps) {
           onLoadMore={loadMore}
         />
 
-        <aside className="hidden h-full overflow-hidden md:flex md:flex-col">{detailContent}</aside>
+        <motion.aside
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="hidden h-full overflow-hidden md:flex md:flex-col border-l border-border/50 bg-background/50 backdrop-blur-sm"
+        >
+          {detailContent}
+        </motion.aside>
       </div>
 
-      {selectionMode && selectedIds.length > 0 ? (
-        <div className="fixed inset-x-3 bottom-3 z-40 rounded-xl border bg-background p-3 shadow-lg md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:rounded-full md:px-5 md:py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 md:gap-3">
-            <Badge className="rounded-full px-2.5 py-1">{selectedIds.length} selected</Badge>
-            <div className="flex items-center gap-2">
-              <Button type="button" size="sm" onClick={handleBulkApprove} disabled={bulkActionLoading}>
-                {bulkActionLoading ? (
-                  <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="mr-1.5 h-4 w-4" />
-                )}
-                Approve & publish
-              </Button>
+      <AnimatePresence>
+        {selectionMode && selectedIds.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 100, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: 100, x: "-50%" }}
+            className="fixed left-1/2 bottom-8 z-50 min-w-[320px] max-w-[90vw]"
+          >
+            <div className="rounded-[24px] border border-primary/20 bg-background/80 backdrop-blur-xl p-4 shadow-google-xl flex items-center justify-between gap-6">
+              <div className="flex items-center gap-3 pl-2">
+                <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-glow-primary">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-foreground tabular-nums">{selectedIds.length} Selected</div>
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Ready for batch action</div>
+                </div>
+              </div>
 
-              <Button type="button" size="sm" variant="ghost" onClick={() => setSelectedIds([])}>
-                Clear
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  type="button" 
+                  size="sm" 
+                  onClick={handleBulkApprove} 
+                  disabled={bulkActionLoading}
+                  className="h-11 rounded-xl bg-primary px-6 font-black shadow-glow-primary hover:bg-primary/90 transition-all"
+                >
+                  {bulkActionLoading ? (
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                    </motion.div>
+                  ) : (
+                    <Send className="mr-2 h-4 w-4" />
+                  )}
+                  Post Batch
+                </Button>
+
+                <Button 
+                  type="button" 
+                  size="icon" 
+                  variant="ghost" 
+                  onClick={() => setSelectedIds([])}
+                  className="h-11 w-11 rounded-xl text-muted-foreground hover:bg-muted"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
-      ) : null}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Sheet open={showBlitzSheet} onOpenChange={setShowBlitzSheet}>
-        <SheetContent side="right" className="h-screen w-screen max-w-none p-0 sm:max-w-none">
+        <SheetContent side="right" className="h-screen w-screen max-w-none p-0 border-none">
           <SheetTitle className="sr-only">Quick Reply Blitz Mode</SheetTitle>
           <BlitzQuickReply
             pendingRows={pendingRows}

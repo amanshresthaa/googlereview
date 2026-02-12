@@ -1,11 +1,51 @@
 import { prisma } from "@/lib/db"
-import { claimJobs, completeJob, markJobFailed, retryJob } from "@/lib/jobs/queue"
+import { claimJobs, claimJobsForOrg, completeJob, markJobFailed, retryJob } from "@/lib/jobs/queue"
 import { handleJob } from "@/lib/jobs/handlers"
 import { NonRetryableError, RetryableJobError } from "@/lib/jobs/errors"
 import type { JobType } from "@prisma/client"
 
 export async function runWorkerOnce(input: { limit: number; workerId: string }) {
   const claimed = await claimJobs({ limit: input.limit, workerId: input.workerId })
+  const results: Array<{ id: string; ok: boolean; error?: string }> = []
+
+  for (const job of claimed) {
+    try {
+      await handleJob(job)
+      await completeJob(job.id)
+      results.push({ id: job.id, ok: true })
+    } catch (err) {
+      if (err instanceof NonRetryableError) {
+        await markJobFailed(job.id, err)
+        results.push({ id: job.id, ok: false, error: err.code })
+        continue
+      }
+      if (err instanceof RetryableJobError) {
+        const attempts = job.attempts ?? 0
+        const maxAttempts = job.maxAttempts ?? 10
+        if (attempts + 1 >= maxAttempts) {
+          await markJobFailed(job.id, err)
+        } else {
+          await retryJob(job.id, attempts, maxAttempts, err)
+        }
+        results.push({ id: job.id, ok: false, error: err.code })
+        continue
+      }
+      const attempts = job.attempts ?? 0
+      const maxAttempts = job.maxAttempts ?? 10
+      if (attempts + 1 >= maxAttempts) {
+        await markJobFailed(job.id, err)
+      } else {
+        await retryJob(job.id, attempts, maxAttempts, err)
+      }
+      results.push({ id: job.id, ok: false, error: "INTERNAL" })
+    }
+  }
+
+  return { claimed: claimed.length, results }
+}
+
+export async function runWorkerOnceForOrg(input: { orgId: string; limit: number; workerId: string }) {
+  const claimed = await claimJobsForOrg({ orgId: input.orgId, limit: input.limit, workerId: input.workerId })
   const results: Array<{ id: string; ok: boolean; error?: string }> = []
 
   for (const job of claimed) {
@@ -115,6 +155,27 @@ async function runSingleJobFastPath(input: {
     await completeJob(job.id)
     results.push({ id: job.id, ok: true })
   } catch (err) {
+    // Fast-path is a best-effort UX optimization. If we exhaust the local budget,
+    // avoid mutating attempts/backoff: release the lock and let the canonical worker
+    // (cron) execute later. This prevents user-initiated fast-path from creating
+    // noisy RETRYING backlogs and consuming attempts.
+    if (abort.signal.aborted) {
+      if ((job.maxAttempts ?? 10) <= 1) {
+        await markJobFailed(
+          job.id,
+          new NonRetryableError("FASTPATH_TIMEOUT", "Fast-path execution budget exhausted."),
+        )
+        results.push({ id: job.id, ok: false, error: "FASTPATH_TIMEOUT" })
+      } else {
+        await prisma.job.update({
+          where: { id: job.id },
+          data: { status: "RETRYING", lockedAt: null, lockedBy: null, runAt: new Date() },
+        })
+        results.push({ id: job.id, ok: false, error: "FASTPATH_BUDGET_EXHAUSTED" })
+      }
+      return { claimed: 1, results }
+    }
+
     if (err instanceof NonRetryableError) {
       await markJobFailed(job.id, err)
       results.push({ id: job.id, ok: false, error: err.code })

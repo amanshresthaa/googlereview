@@ -44,6 +44,7 @@ enum JobStatus {
   RETRYING
   COMPLETED
   FAILED
+  CANCELLED
 }
 
 enum DspyRunMode {
@@ -147,12 +148,18 @@ model Location {
 
   @@unique([orgId, googleAccountId, googleLocationId])
   @@index([orgId, enabled])
+  @@index([displayName(ops: raw("gin_trgm_ops"))], type: Gin, map: "Location_displayName_trgm_idx")
 }
 
 model Review {
   id            String   @id @default(cuid())
   orgId         String
   locationId    String
+
+  // Full-text search column managed by SQL migration (tsvector).
+  // Prisma doesn't natively model tsvector, so we keep it as Unsupported to
+  // prevent drift and accidental drops during future migrations.
+  searchVector Unsupported("tsvector")? @map("search_vector")
 
   googleReviewName String @unique
   googleReviewId   String
@@ -186,6 +193,11 @@ model Review {
   @@index([orgId, googleReplyComment])
   @@index([orgId, createTime(sort: Desc), id(sort: Desc)])
   @@index([orgId, starRating, createTime(sort: Desc), id(sort: Desc)])
+  @@index([orgId, locationId], map: "Review_orgId_locationId_counts_covering_idx")
+  @@index([reviewerDisplayName(ops: raw("gin_trgm_ops"))], type: Gin, map: "Review_reviewerDisplayName_trgm_idx")
+  @@index([comment(ops: raw("gin_trgm_ops"))], type: Gin, map: "Review_comment_trgm_idx")
+  @@index([mentions], type: Gin, map: "Review_mentions_gin_idx")
+  @@index([searchVector], type: Gin, map: "Review_search_vector_gin_idx")
 }
 
 model DraftReply {
@@ -245,6 +257,8 @@ model DspyRun {
   @@index([orgId, createdAt(sort: Desc)])
   @@index([reviewId, createdAt(sort: Desc)])
   @@index([draftReplyId])
+  @@index([programVersion, createdAt(sort: Desc)], map: "DspyRun_programVersion_createdAt_idx")
+  @@index([mode, createdAt(sort: Desc)], map: "DspyRun_mode_createdAt_idx")
 }
 
 model AuditLog {
@@ -336,6 +350,8 @@ model Job {
   @@index([orgId, status, runAt])
   @@index([lockedAt])
   @@index([orgId, type, dedupKey])
+  @@index([orgId, completedAt(sort: Desc), id(sort: Desc)])
+  @@index([orgId, status, createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model ApiIdempotencyKey {

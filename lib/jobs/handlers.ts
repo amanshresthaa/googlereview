@@ -20,7 +20,7 @@ import { enqueueJob } from "@/lib/jobs/queue"
 import { evidenceSnapshotSchema } from "@/lib/ai/draft"
 import { DspyServiceError, type DspyProcessMode, processReviewWithDspy } from "@/lib/ai/dspy-client"
 import { MAX_GOOGLE_REPLY_CHARS } from "@/lib/policy"
-import { NonRetryableError } from "@/lib/jobs/errors"
+import { NonRetryableError, RetryableJobError } from "@/lib/jobs/errors"
 import {
   breakerPrecheckOrThrow,
   breakerRecordFailure,
@@ -147,7 +147,7 @@ async function handleSyncReviews(job: Job) {
   let pageToken: string | undefined
   let pageCount = 0
   const autoDraftCandidates: Array<{ reviewId: string; createTimeMs: number }> = []
-  let touchedReviews = false
+  let countsStateChanged = false
 
   while (pageCount < 20) {
     const listKey = "GOOGLE:listReviews"
@@ -167,14 +167,28 @@ async function handleSyncReviews(job: Job) {
     const names = reviews.map((r) => r.name)
     const existing = await prisma.review.findMany({
       where: { googleReviewName: { in: names } },
-      select: { googleReviewName: true },
+      select: {
+        googleReviewName: true,
+        starRating: true,
+        googleReplyComment: true,
+        mentions: true,
+      },
     })
-    const existingSet = new Set(existing.map((e) => e.googleReviewName))
+    const existingByName = new Map(existing.map((item) => [item.googleReviewName, item]))
 
     for (const r of reviews) {
       const star = starRatingToInt(r.starRating)
       const comment = r.comment ?? null
+      const remoteReplyComment = r.reviewReply?.comment ?? null
       const { mentions } = extractMentionsAndHighlights(comment, mentionKeywords)
+      const existingReview = existingByName.get(r.name)
+      const isNew = !existingReview
+      const mentionChanged = (existingReview?.mentions ?? []).join("|") !== mentions.join("|")
+      const replyChanged = (existingReview?.googleReplyComment ?? null) !== remoteReplyComment
+      const ratingChanged = existingReview?.starRating !== star
+      if (isNew || mentionChanged || replyChanged || ratingChanged) {
+        countsStateChanged = true
+      }
 
       const upserted = await prisma.review.upsert({
         where: { googleReviewName: r.name },
@@ -211,9 +225,6 @@ async function handleSyncReviews(job: Job) {
           mentions,
         },
       })
-      touchedReviews = true
-
-      const isNew = !existingSet.has(r.name)
       const isUnanswered = !r.reviewReply?.comment
       if (isNew && isUnanswered && autoDraftEnabled && autoDraftRatings.has(star)) {
         autoDraftCandidates.push({
@@ -243,7 +254,7 @@ async function handleSyncReviews(job: Job) {
     data: { lastReviewsSyncAt: new Date() },
   })
 
-  if (touchedReviews) {
+  if (countsStateChanged) {
     invalidateReviewCountsCache(job.orgId)
   }
 }
@@ -379,7 +390,7 @@ async function handleProcessReview(job: Job, signal?: AbortSignal) {
         errorMessage: errorMessageFromDspyError(error),
       },
     })
-    throw error
+    throw normalizeDspyErrorToJobError(error)
   }
 
   const status = result.decision
@@ -495,6 +506,36 @@ function errorCodeFromDspyError(error: unknown) {
 function errorMessageFromDspyError(error: unknown) {
   const text = error instanceof Error ? error.message : String(error)
   return text.length <= 2000 ? text : text.slice(0, 2000)
+}
+
+function normalizeDspyErrorToJobError(error: unknown) {
+  // Ensure System Health shows stable, actionable error codes for DSPy failures.
+  // Safety: do not persist raw upstream messages (only bounded meta via RetryableJobError/NonRetryableError).
+  if (!(error instanceof DspyServiceError)) return error
+
+  const meta = {
+    dspyCode: error.code,
+    httpStatus: error.status,
+  }
+
+  if (error.code === "INVALID_REQUEST") {
+    return new NonRetryableError("DSPY_INVALID_REQUEST", "DSPy rejected the request.", meta)
+  }
+
+  if (error.code === "MODEL_SCHEMA_ERROR") {
+    // Contract mismatch between app and DSPy service. Retrying won't fix this until a deploy.
+    return new NonRetryableError("DSPY_SCHEMA_ERROR", "DSPy response schema error.", meta)
+  }
+
+  if (error.code === "MODEL_RATE_LIMIT") {
+    return new RetryableJobError("DSPY_RATE_LIMIT", "DSPy rate limited.", meta)
+  }
+
+  if (error.code === "MODEL_TIMEOUT") {
+    return new RetryableJobError("DSPY_MODEL_TIMEOUT", "DSPy timed out.", meta)
+  }
+
+  return new RetryableJobError("DSPY_INTERNAL", "DSPy internal error.", meta)
 }
 
 function sha256Hash(input: string) {

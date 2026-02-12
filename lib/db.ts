@@ -46,3 +46,8 @@ export const prisma =
   })
 
 if (process.env.NODE_ENV !== "production") globalThis.prisma = prisma
+
+// Warm up the connection pool eagerly to avoid cold-start latency on first query.
+if (typeof globalThis !== "undefined") {
+  void prisma.$connect()
+}

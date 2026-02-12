@@ -2,6 +2,9 @@ export type ApiErrorCode =
   | "UNAUTHORIZED"
   | "FORBIDDEN"
   | "BAD_REQUEST"
+  | "INVALID_STATE"
+  | "WORKER_DISABLED"
+  | "DEDUP_INFLIGHT"
   | "NOT_FOUND"
   | "ALREADY_REPLIED"
   | "NO_DRAFT"
@@ -43,4 +46,3 @@ export class ApiError extends Error {
     this.fields = input.fields
   }
 }
-

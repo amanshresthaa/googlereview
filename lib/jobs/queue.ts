@@ -5,7 +5,9 @@ import type { Job, JobStatus, JobType } from "@prisma/client"
 import { NonRetryableError, RetryableJobError } from "@/lib/jobs/errors"
 import { stableJsonStringify } from "@/lib/api/json"
 
-function maxAttemptsForType(type: JobType) {
+export const JOB_LOCK_STALE_MS = 15 * 60_000
+
+export function maxAttemptsForJobType(type: JobType) {
   if (type === "POST_REPLY") return 3
   if (type === "PROCESS_REVIEW") return 5
   if (type === "SYNC_LOCATIONS" || type === "SYNC_REVIEWS") return 8
@@ -18,6 +20,7 @@ export async function enqueueJob(input: {
   payload: unknown
   runAt?: Date
   dedupKey?: string
+  maxAttemptsOverride?: number
   triggeredByRequestId?: string
   triggeredByUserId?: string
 }) {
@@ -44,7 +47,7 @@ export async function enqueueJob(input: {
         triggeredByUserId: input.triggeredByUserId,
         runAt: input.runAt ?? new Date(),
         status: "PENDING",
-        maxAttempts: maxAttemptsForType(input.type),
+        maxAttempts: input.maxAttemptsOverride ?? maxAttemptsForJobType(input.type),
       },
     })
   } catch (err) {
@@ -72,7 +75,7 @@ export async function claimJobs(input: {
   now?: Date
 }) {
   const now = input.now ?? new Date()
-  const staleBefore = new Date(now.getTime() - 15 * 60_000)
+  const staleBefore = new Date(now.getTime() - JOB_LOCK_STALE_MS)
 
   return prisma.$transaction(async (tx) => {
     const jobs = await tx.$queryRaw<Job[]>`
@@ -100,6 +103,49 @@ export async function claimJobs(input: {
 
     await tx.job.updateMany({
       where: { id: { in: jobs.map((j) => j.id) } },
+      data: { status: "RUNNING", lockedAt: now, lockedBy: input.workerId },
+    })
+
+    return jobs
+  })
+}
+
+export async function claimJobsForOrg(input: {
+  orgId: string
+  limit: number
+  workerId: string
+  now?: Date
+}) {
+  const now = input.now ?? new Date()
+  const staleBefore = new Date(now.getTime() - JOB_LOCK_STALE_MS)
+
+  return prisma.$transaction(async (tx) => {
+    const jobs = await tx.$queryRaw<Job[]>`
+      SELECT *
+      FROM "Job"
+      WHERE "orgId" = ${input.orgId}
+        AND (
+          ("status" IN ('PENDING','RETRYING') AND "runAt" <= ${now} AND "lockedAt" IS NULL)
+          OR
+          ("status" = 'RUNNING' AND "lockedAt" IS NOT NULL AND "lockedAt" <= ${staleBefore})
+        )
+      ORDER BY
+        CASE "type"
+          WHEN 'POST_REPLY' THEN 0
+          WHEN 'PROCESS_REVIEW' THEN 1
+          WHEN 'SYNC_REVIEWS' THEN 2
+          WHEN 'SYNC_LOCATIONS' THEN 2
+          ELSE 9
+        END ASC,
+        "runAt" ASC
+      LIMIT ${input.limit}
+      FOR UPDATE SKIP LOCKED
+    `
+
+    if (jobs.length === 0) return []
+
+    await tx.job.updateMany({
+      where: { id: { in: jobs.map((j) => j.id) }, orgId: input.orgId },
       data: { status: "RUNNING", lockedAt: now, lockedBy: input.workerId },
     })
 

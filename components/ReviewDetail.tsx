@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { formatAge, useReviewDetail } from "@/lib/hooks"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -21,6 +22,7 @@ import {
   Star,
   Sparkles,
   TrendingUp,
+  MessageSquare,
 } from "@/components/icons"
 
 const AVATAR_COLORS = [
@@ -108,31 +110,42 @@ export function ReviewDetail({
 
   if (loading && !review) {
     return (
-      <div className="mx-auto flex h-full w-full max-w-3xl flex-col gap-6 p-6">
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-16 w-16 rounded-full" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-7 w-48 rounded-lg" />
-            <Skeleton className="h-4 w-72 rounded-lg" />
+      <div className="mx-auto flex h-full w-full max-w-4xl flex-col gap-8 p-8">
+        <div className="flex items-center gap-6">
+          <Skeleton className="h-20 w-20 rounded-3xl" />
+          <div className="flex-1 space-y-3">
+            <Skeleton className="h-8 w-64 rounded-xl" />
+            <Skeleton className="h-4 w-full max-w-md rounded-lg" />
           </div>
         </div>
-        <Skeleton className="h-32 w-full rounded-2xl" />
-        <Skeleton className="h-56 w-full rounded-2xl" />
+        <Skeleton className="h-48 w-full rounded-[32px]" />
+        <Skeleton className="h-64 w-full rounded-[32px]" />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-        <div className="grid h-16 w-16 place-items-center rounded-full bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400">
-          <AlertTriangle className="h-7 w-7" />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex h-full flex-col items-center justify-center gap-6 p-10 text-center"
+      >
+        <div className="relative">
+          <motion.div
+            animate={{ opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="absolute inset-0 rounded-full bg-destructive/10 blur-xl"
+          />
+          <div className="relative grid h-20 w-20 place-items-center rounded-3xl border border-destructive/20 bg-background text-destructive shadow-card">
+            <AlertTriangle className="h-10 w-10" />
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-semibold text-foreground">
+        <div className="space-y-2">
+          <h3 className="text-xl font-black tracking-tight text-foreground">
             Unable to load review
-          </p>
-          <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+          </h3>
+          <p className="max-w-xs text-sm font-medium text-muted-foreground leading-relaxed">
             {error}
           </p>
         </div>
@@ -140,11 +153,11 @@ export function ReviewDetail({
           type="button"
           variant="outline"
           onClick={refresh}
-          className="mt-1 rounded-full"
+          className="h-12 rounded-2xl px-8 font-bold border-border/50 shadow-sm"
         >
           Try Again
         </Button>
-      </div>
+      </motion.div>
     )
   }
 
@@ -154,39 +167,42 @@ export function ReviewDetail({
   const sentiment = sentimentConfig(review.starRating)
 
   return (
-    <div className="flex h-full flex-col bg-background">
-      {/* ── Mobile header ─────────────────────────────── */}
-      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-card/95 px-4 py-3 backdrop-blur-sm md:hidden">
+    <div className="flex h-full flex-col bg-background/50">
+      {/* ── Mobile Header ─────────────────────────────── */}
+      <header className="sticky top-0 z-20 flex items-center gap-4 border-b border-border bg-background/80 px-4 py-4 backdrop-blur-xl md:hidden">
         {backHref ? (
           <Link
             href={backHref}
-            className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/50 text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
             aria-label="Back"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-5 w-5" />
           </Link>
         ) : null}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">
-            Review Details
+          <p className="truncate text-sm font-black tracking-tight text-foreground">
+            Review Analysis
           </p>
-          <p className="truncate text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 truncate text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
+            <MapPin className="h-3 w-3 text-primary/60" />
             {review.location.name}
-          </p>
+          </div>
         </div>
       </header>
 
-      <ScrollArea className="h-full">
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 md:p-6 lg:p-8">
-          {/* ── Review header section ─────────────────── */}
-          <section className="overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-muted/50 to-card shadow-sm">
-            <div className="p-5 md:p-8">
-              <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex items-start gap-4">
-                  <Avatar className="h-16 w-16 shrink-0 ring-2 ring-background ring-offset-2 ring-offset-muted">
+      <ScrollArea className="flex-1">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 p-6 md:p-8">
+          {/* ── Review Identity Section ─────────────────── */}
+          <section className="relative overflow-hidden rounded-[32px] border border-border/50 bg-background shadow-sm transition-all hover:shadow-card">
+            <div className="absolute right-0 top-0 h-32 w-32 bg-primary/5 blur-3xl rounded-full -mr-16 -mt-16" />
+            
+            <div className="p-6 md:p-10">
+              <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                  <Avatar className="h-20 w-20 shrink-0 border-4 border-primary/5 shadow-elevated">
                     <AvatarFallback
                       className={cn(
-                        "bg-gradient-to-br text-lg font-bold text-white",
+                        "bg-gradient-to-br text-2xl font-black text-white",
                         avatarColor(review.reviewer.displayName)
                       )}
                     >
@@ -194,48 +210,53 @@ export function ReviewDetail({
                     </AvatarFallback>
                   </Avatar>
 
-                  <div className="min-w-0">
-                    <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-                      {review.reviewer.displayName ?? "Anonymous"}
-                    </h2>
+                  <div className="min-w-0 text-center sm:text-left space-y-3">
+                    <div className="flex flex-col gap-2">
+                      <h2 className="text-3xl font-black tracking-tighter text-foreground md:text-4xl">
+                        {review.reviewer.displayName ?? "Anonymous"}
+                      </h2>
+                      {!review.reviewer.isAnonymous && (
+                        <div className="flex justify-center sm:justify-start">
+                          <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 text-primary px-3 py-1 text-[10px] font-bold uppercase tracking-widest">
+                            Verified Profile
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
 
-                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
-                      <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                    <div className="flex flex-wrap justify-center sm:justify-start items-center gap-x-4 gap-y-2 text-sm font-bold text-muted-foreground/80">
+                      <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-full border border-border/50">
                         <StarRating rating={review.starRating} />
-                        <span className="text-xs tabular-nums">
+                        <span className="text-xs tabular-nums text-foreground">
                           {review.starRating.toFixed(1)}
                         </span>
-                      </span>
+                      </div>
 
-                      <span className="text-border">|</span>
-
-                      <span className="inline-flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
+                      <div className="flex items-center gap-2 px-1">
+                        <Clock className="h-4 w-4 opacity-60" />
                         {formatAge(review.createTime)} ago
-                      </span>
+                      </div>
 
-                      <span className="text-border">|</span>
-
-                      <span className="inline-flex items-center gap-1">
-                        <MapPin className="h-3.5 w-3.5" />
-                        <span className="truncate">
+                      <div className="flex items-center gap-2 px-1">
+                        <MapPin className="h-4 w-4 text-primary/60" />
+                        <span className="truncate max-w-[200px]">
                           {review.location.name}
                         </span>
-                      </span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2.5">
+                <div className="flex shrink-0 items-center justify-center gap-3">
                   <Badge
                     className={cn(
-                      "rounded-full border px-3 py-1 text-xs font-semibold",
+                      "rounded-full border-none px-4 py-2 text-[11px] font-black uppercase tracking-widest shadow-sm",
                       sentiment.className
                     )}
                   >
                     <span
                       className={cn(
-                        "mr-1.5 inline-block h-1.5 w-1.5 rounded-full",
+                        "mr-2 inline-block h-2 w-2 rounded-full",
                         sentiment.dot
                       )}
                     />
@@ -245,118 +266,140 @@ export function ReviewDetail({
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-9 rounded-full text-xs"
+                    className="h-10 rounded-xl px-4 text-xs font-bold border-border/50 bg-background shadow-sm hover:bg-muted/50"
                   >
-                    <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
-                    View on Maps
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Maps
                   </Button>
                 </div>
               </div>
 
-              {/* ── Review content (quoted text) ──────── */}
-              <div className="mt-6 rounded-xl border border-border bg-card p-5 md:p-6">
-                <p className="text-base italic leading-relaxed text-foreground/90 md:text-lg">
-                  &ldquo;
-                  {review.comment || "No written comment provided."}
-                  &rdquo;
-                </p>
+              {/* ── The Review Content ─────────────────── */}
+              <div className="mt-10 relative">
+                <div className="absolute -left-4 -top-4 text-primary/5">
+                  <MessageSquare className="h-24 w-24 fill-current" />
+                </div>
+                <div className="relative rounded-[24px] border border-border/50 bg-muted/20 p-8 md:p-10 shadow-inner">
+                  <p className="text-xl italic leading-relaxed text-foreground/90 font-medium md:text-2xl">
+                    &ldquo;{review.comment || "No written comment provided."}&rdquo;
+                  </p>
+                </div>
               </div>
             </div>
           </section>
 
-          {/* ── Official Response section ─────────────── */}
-          <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-            <div className="space-y-5 p-5 md:p-8">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
-                    <ShieldCheck className="h-5 w-5" />
+          {/* ── Official Response Section ─────────────── */}
+          <section className="overflow-hidden rounded-[32px] border border-border/50 bg-background shadow-sm transition-all hover:shadow-card">
+            <div className="p-6 md:p-10 space-y-8">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-glow-primary">
+                    <ShieldCheck className="h-7 w-7 text-primary-foreground" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-foreground">
-                      Official Response
-                    </p>
-                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Reply as Business Owner
+                    <h3 className="text-xl font-black tracking-tight text-foreground">
+                      Business Response
+                    </h3>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      Official Reply Dashboard
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {review.currentDraft?.updatedAt ? (
-                    <span className="text-[11px] tabular-nums text-muted-foreground">
-                      Updated {formatAge(review.currentDraft.updatedAt)} ago
-                    </span>
-                  ) : null}
-                  {postedReply ? (
-                    <Badge className="rounded-full border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-                      Published
-                    </Badge>
-                  ) : (
-                    <Badge className="rounded-full border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-sky-700 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300">
-                      Ready to Draft
-                    </Badge>
-                  )}
+                <div className="flex flex-col sm:items-end gap-2">
+                  <div className="flex items-center gap-3">
+                    {review.currentDraft?.updatedAt && (
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 tabular-nums">
+                        Last Active {formatAge(review.currentDraft.updatedAt)} ago
+                      </span>
+                    )}
+                    {postedReply ? (
+                      <Badge className="rounded-full bg-emerald-500/10 text-emerald-600 border-none px-4 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm">
+                        <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                        Live on GBP
+                      </Badge>
+                    ) : (
+                      <Badge className="rounded-full bg-primary/10 text-primary border-none px-4 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm">
+                        Drafting In Progress
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {postedReply ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/20">
-                  <p className="text-sm leading-relaxed text-foreground">
+                <div className="relative overflow-hidden rounded-[24px] border border-emerald-500/10 bg-emerald-500/[0.02] p-8 md:p-10 shadow-inner transition-all hover:bg-emerald-500/[0.04]">
+                  <p className="text-lg leading-relaxed text-foreground font-medium">
                     {postedReply}
                   </p>
-                  {review.reply.updateTime ? (
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Posted {formatAge(review.reply.updateTime)} ago
-                    </p>
-                  ) : null}
+                  {review.reply.updateTime && (
+                    <div className="mt-6 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      Published {formatAge(review.reply.updateTime)} ago
+                    </div>
+                  )}
                 </div>
               ) : (
-                <DraftEditor
-                  reviewId={review.id}
-                  review={review}
-                  refresh={refresh}
-                />
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <DraftEditor
+                    reviewId={review.id}
+                    review={review}
+                    refresh={refresh}
+                  />
+                </motion.div>
               )}
             </div>
           </section>
 
-          {/* ── Response Intelligence footer ─────────── */}
-          <section className="rounded-2xl border border-dashed border-sky-300/60 bg-sky-50/40 p-5 dark:border-sky-700/40 dark:bg-sky-950/20 md:p-6">
-            <div className="mb-4 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-sky-600 dark:text-sky-400" />
-              <span className="text-[11px] font-bold uppercase tracking-widest text-sky-700 dark:text-sky-300">
-                Response Intelligence
-              </span>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="flex items-start gap-2.5 rounded-lg bg-white/70 p-3 dark:bg-white/5">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                <div>
-                  <p className="text-xs font-semibold text-foreground">
-                    Sentiment: {sentimentLabel(review.starRating)}
-                  </p>
-                  <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                    {review.starRating >= 4
-                      ? "Reinforce positive experience by thanking the guest and inviting them back."
-                      : review.starRating <= 2
-                        ? "Acknowledge the concern, apologize sincerely, and offer a resolution path."
-                        : "Address specific points mentioned and highlight improvements."}
-                  </p>
+          {/* ── Intelligence Layer ─────────────────── */}
+          <section className="relative overflow-hidden rounded-[32px] border border-primary/20 bg-primary/5 p-8 md:p-10 transition-all hover:bg-primary/[0.08]">
+            <div className="absolute right-0 bottom-0 h-40 w-40 bg-primary/5 blur-3xl rounded-full -mr-20 -mb-20" />
+            
+            <div className="relative space-y-8">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Sparkles className="h-5 w-5" />
                 </div>
+                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-primary">
+                  Response Intelligence
+                </h3>
               </div>
 
-              <div className="flex items-start gap-2.5 rounded-lg bg-white/70 p-3 dark:bg-white/5">
-                <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" />
-                <div>
-                  <p className="text-xs font-semibold text-foreground">
-                    Response Time SEO Tip
-                  </p>
-                  <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                    Replies within 24 hours improve local search ranking and
-                    signal active management to potential customers.
-                  </p>
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="group flex items-start gap-4 rounded-2xl bg-background/60 p-5 shadow-sm transition-all hover:bg-background hover:shadow-card">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 transition-colors group-hover:bg-emerald-500 group-hover:text-white">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black tracking-tight text-foreground">
+                      Sentiment: {sentimentLabel(review.starRating)}
+                    </p>
+                    <p className="mt-2 text-xs font-medium leading-relaxed text-muted-foreground">
+                      {review.starRating >= 4
+                        ? "Guest is delighted. Reinforce their positive experience by using personalized thanks and a subtle invitation to return."
+                        : review.starRating <= 2
+                          ? "Critical feedback detected. Prioritize empathy, apologize for the specific issue, and provide a clear resolution path."
+                          : "A mixed or neutral sentiment. Address any specific points mentioned while maintaining a professional and helpful tone."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="group flex items-start gap-4 rounded-2xl bg-background/60 p-5 shadow-sm transition-all hover:bg-background hover:shadow-card">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black tracking-tight text-foreground">
+                      SEO Optimization Tip
+                    </p>
+                    <p className="mt-2 text-xs font-medium leading-relaxed text-muted-foreground">
+                      Google prioritizes businesses that respond within 24 hours. Fast, keyword-rich responses significantly boost your local search ranking.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -366,3 +409,4 @@ export function ReviewDetail({
     </div>
   )
 }
+

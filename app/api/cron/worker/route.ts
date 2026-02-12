@@ -27,6 +27,7 @@ async function handle(req: Request) {
   try {
     const now = new Date()
     const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60_000)
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60_000)
     await prisma.apiIdempotencyKey.deleteMany({ where: { expiresAt: { lt: now } } })
     await prisma.apiRateLimitWindow.deleteMany({ where: { windowStartUtcMinute: { lt: twoHoursAgo } } })
     await prisma.apiCooldown.deleteMany({ where: { availableAt: { lt: now } } })
@@ -35,6 +36,13 @@ async function handle(req: Request) {
       where: {
         state: "OPEN",
         openUntil: { lt: twoHoursAgo },
+      },
+    })
+    // Retain only ~30 days of terminal job history to keep the jobs table bounded.
+    await prisma.job.deleteMany({
+      where: {
+        status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
+        completedAt: { lt: thirtyDaysAgo },
       },
     })
   } catch {

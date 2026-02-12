@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
-import { X } from "@/components/icons"
+import { Filter } from "@/components/icons"
 
 type QueueOption = {
   value: ReviewFilter
@@ -56,100 +56,124 @@ export function InboxFiltersSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={side}
-        className={cn("p-0", side === "bottom" ? "h-[84vh] rounded-t-2xl" : "h-full w-[360px] sm:max-w-[360px]")}
+        className={cn(
+          "flex flex-col p-0 border-border/50 bg-background/95 backdrop-blur-xl",
+          side === "bottom" ? "h-[80vh] rounded-t-[32px] shadow-google-xl" : "h-full w-full sm:max-w-[400px]"
+        )}
       >
-        <SheetTitle className="sr-only">Inbox filters</SheetTitle>
-        <div className="flex h-full flex-col">
-          <div className="border-b p-4">
-            <h2 className="text-base font-semibold">Advanced Filters</h2>
-            <p className="text-sm text-muted-foreground">Refine the review queue shown in inbox.</p>
+        <SheetTitle className="sr-only">Inbox Filters</SheetTitle>
+        
+        <div className="flex items-center justify-between border-b border-border/50 p-6 md:px-8">
+          <div>
+            <h2 className="text-xl font-black tracking-tight">Filters</h2>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Refine your queue</p>
           </div>
+          {side === "bottom" && (
+            <div className="h-1.5 w-12 rounded-full bg-muted mx-auto absolute top-3 left-1/2 -translate-x-1/2" />
+          )}
+        </div>
 
-          <ScrollArea className="flex-1 p-4">
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Queue</label>
-                <Select value={baseFilter} onValueChange={(value) => onBaseFilterChange(value as ReviewFilter)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Queue" />
+        <ScrollArea className="flex-1 px-6 py-8 md:px-8">
+          <div className="space-y-8">
+            <FilterSection label="Active Queue">
+              <Select value={baseFilter} onValueChange={(value) => onBaseFilterChange(value as ReviewFilter)}>
+                <SelectTrigger className="h-12 rounded-[20px] bg-muted/30 border-none px-5 font-bold focus:ring-0">
+                  <SelectValue placeholder="Select queue" />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl border-border/50">
+                  {queueOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value} disabled={option.disabled} className="rounded-xl py-3 font-bold text-sm">
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FilterSection>
+
+            <FilterSection label="Business Location">
+              <Select value={locationFilter} onValueChange={onLocationFilterChange}>
+                <SelectTrigger className="h-12 rounded-[20px] bg-muted/30 border-none px-5 font-bold focus:ring-0">
+                  <SelectValue placeholder="All locations" />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl border-border/50">
+                  <SelectItem value="all" className="rounded-xl py-3 font-bold text-sm">All Locations</SelectItem>
+                  {locations.map((location) => (
+                    <SelectItem key={location.id} value={location.id} className="rounded-xl py-3 font-bold text-sm">
+                      {location.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FilterSection>
+
+            <FilterSection label="Experience Rating">
+              <Select value={ratingFilter} onValueChange={onRatingFilterChange}>
+                <SelectTrigger className="h-12 rounded-[20px] bg-muted/30 border-none px-5 font-bold focus:ring-0">
+                  <SelectValue placeholder="Any rating" />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl border-border/50">
+                  <SelectItem value="all" className="rounded-xl py-3 font-bold text-sm">Any Rating</SelectItem>
+                  {[5, 4, 3, 2, 1].map((stars) => (
+                    <SelectItem key={stars} value={String(stars)} className="rounded-xl py-3 font-bold text-sm">
+                      {stars} {stars === 1 ? 'Star' : 'Stars'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FilterSection>
+
+            {showMentionFilter && (
+              <FilterSection label="Keyword Detection">
+                <Select value={mentionFilter} onValueChange={onMentionFilterChange}>
+                  <SelectTrigger className="h-12 rounded-[20px] bg-muted/30 border-none px-5 font-bold focus:ring-0">
+                    <SelectValue placeholder="Pick keyword" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {queueOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
-                        {option.label}
+                  <SelectContent className="rounded-2xl border-border/50">
+                    {mentionKeywords.map((keyword) => (
+                      <SelectItem key={keyword} value={keyword} className="rounded-xl py-3 font-bold text-sm">
+                        @{keyword}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </FilterSection>
+            )}
+          </div>
+        </ScrollArea>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Location</label>
-                <Select value={locationFilter} onValueChange={onLocationFilterChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All locations" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All locations</SelectItem>
-                    {locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id}>
-                        {location.displayName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Rating</label>
-                <Select value={ratingFilter} onValueChange={onRatingFilterChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Any rating" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Any rating</SelectItem>
-                    <SelectItem value="5">5 stars</SelectItem>
-                    <SelectItem value="4">4 stars</SelectItem>
-                    <SelectItem value="3">3 stars</SelectItem>
-                    <SelectItem value="2">2 stars</SelectItem>
-                    <SelectItem value="1">1 star</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {showMentionFilter ? (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Mention keyword</label>
-                  <Select value={mentionFilter} onValueChange={onMentionFilterChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Keyword" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mentionKeywords.map((keyword) => (
-                        <SelectItem key={keyword} value={keyword}>
-                          @{keyword}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : null}
-            </div>
-          </ScrollArea>
-
-          <div className="border-t p-4">
-            <div className="flex items-center justify-between gap-2">
-              <Button type="button" variant="ghost" onClick={onClearAll}>
-                <X className="mr-1.5 h-4 w-4" />
-                Clear filters
-              </Button>
-              <Button type="button" onClick={() => onOpenChange(false)}>
-                Done
-              </Button>
-            </div>
+        <div className="border-t border-border/50 bg-background/50 p-6 md:p-8">
+          <div className="flex items-center justify-between gap-4">
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-12 px-6 rounded-2xl font-bold text-muted-foreground hover:bg-muted transition-all"
+              onClick={onClearAll}
+            >
+              Reset All
+            </Button>
+            <Button
+              type="button"
+              className="h-12 flex-1 rounded-2xl bg-primary font-black shadow-glow-primary transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98]"
+              onClick={() => onOpenChange(false)}
+            >
+              Apply Selection
+            </Button>
           </div>
         </div>
       </SheetContent>
     </Sheet>
   )
 }
+
+
+function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2.5">
+      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 px-1">
+        {label}
+      </label>
+      {children}
+    </div>
+  )
+}
+

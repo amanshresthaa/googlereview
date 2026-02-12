@@ -97,6 +97,9 @@ const EditDraftResponse = withOk(z.object({ draftReplyId: z.string(), verifyJobI
 const LocationsSelectResponse = withOk(z.object({ worker: WorkerRun }))
 const SettingsUpdateResponse = withOk(z.object({}))
 
+const JobStatus = z.enum(["PENDING", "RUNNING", "RETRYING", "COMPLETED", "FAILED", "CANCELLED"])
+const JobType = z.enum(["SYNC_LOCATIONS", "SYNC_REVIEWS", "PROCESS_REVIEW", "POST_REPLY"])
+
 const JobSummaryResponse = withOk(
   z.object({
     summary: z.object({
@@ -121,19 +124,79 @@ const JobSummaryResponse = withOk(
   })
 )
 
+const JobListItem = z.object({
+  id: z.string(),
+  type: JobType,
+  status: JobStatus,
+  attempts: z.number().int().nonnegative(),
+  maxAttempts: z.number().int().positive(),
+  runAtIso: z.string(),
+  lockedAtIso: z.string().nullable(),
+  completedAtIso: z.string().nullable(),
+  createdAtIso: z.string(),
+  dedupKey: z.string().nullable(),
+  lastErrorCode: z.string().nullable(),
+  lastError: z.string().nullable(),
+  triggeredByUserId: z.string().nullable(),
+  triggeredByRequestId: z.string().nullable(),
+})
+
+const JobsListResponse = withOk(
+  z.object({
+    jobs: z.array(JobListItem),
+    nextCursor: z.string().nullable(),
+  })
+)
+
+const JobsEnqueueBody = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("SYNC_LOCATIONS") }).strict(),
+  z
+    .object({
+      type: z.literal("SYNC_REVIEWS"),
+      mode: z.enum(["ALL_ENABLED", "ONE_LOCATION"]),
+      locationId: z.string().min(1).optional(),
+    })
+    .strict(),
+])
+
+const JobsEnqueueResponse = withOk(z.object({ jobIds: z.array(z.string()) }))
+
+const JobActionBody = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("RUN_NOW") }).strict(),
+  z.object({ action: z.literal("CANCEL") }).strict(),
+  z.object({ action: z.literal("FORCE_UNLOCK") }).strict(),
+  z.object({ action: z.literal("REQUEUE") }).strict(),
+  z.object({ action: z.literal("RESCHEDULE"), runAtIso: z.string().datetime() }).strict(),
+])
+
 const JobDetailResponse = withOk(
   z.object({
     job: z.object({
       id: z.string(),
-      type: z.string(),
-      status: z.string(),
+      type: JobType,
+      status: JobStatus,
       attempts: z.number().int(),
       maxAttempts: z.number().int(),
       runAtIso: z.string(),
       lockedAtIso: z.string().nullable(),
       completedAtIso: z.string().nullable(),
+      createdAtIso: z.string(),
+      dedupKey: z.string().nullable(),
+      payload: z.record(z.string(), z.unknown()).nullable(),
       lastError: z.string().nullable(),
+      lastErrorCode: z.string().nullable(),
+      lastErrorMeta: z.record(z.string(), z.unknown()).nullable(),
+      triggeredByUserId: z.string().nullable(),
+      triggeredByRequestId: z.string().nullable(),
+      retryAfterSec: z.number().int().nullable().optional(),
     }),
+  })
+)
+
+const JobActionResponse = withOk(
+  z.object({
+    result: z.unknown(),
+    job: JobDetailResponse.shape.job,
   })
 )
 
@@ -246,10 +309,44 @@ registerAuthedGet("/api/jobs/summary", {
   response: JobSummaryResponse,
 })
 
+registerAuthedGet("/api/jobs", {
+  summary: "List jobs for org (paginated).",
+  query: z.object({
+    status: z.array(JobStatus).optional(),
+    type: z.array(JobType).optional(),
+    cursor: z.string().optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    order: z.enum(["RUN_AT_ASC", "COMPLETED_AT_DESC", "CREATED_AT_DESC"]).optional(),
+    q: z.string().optional(),
+    stale: z.enum(["0", "1"]).optional(),
+  }),
+  response: JobsListResponse,
+})
+
+registerAuthedPost("/api/jobs", {
+  summary: "Enqueue jobs (owner-only).",
+  body: JobsEnqueueBody,
+  response: JobsEnqueueResponse,
+})
+
+registerAuthedPost("/api/jobs/actions", {
+  summary: "Bulk job actions (owner-only).",
+  body: z.discriminatedUnion("action", [
+    z.object({ action: z.literal("FORCE_UNLOCK_STALE"), jobIds: z.array(z.string().min(1)).min(1).max(50) }).strict(),
+  ]),
+  response: withOk(z.object({ result: z.unknown() })),
+})
+
 registerAuthedGet("/api/jobs/{id}", {
   summary: "Get job detail.",
   params: z.object({ id: z.string().min(1) }),
   response: JobDetailResponse,
+})
+
+registerAuthedPost("/api/jobs/{id}/actions", {
+  summary: "Job actions (owner-only).",
+  body: JobActionBody,
+  response: JobActionResponse,
 })
 
 registerAuthedPost("/api/settings/update", {

@@ -4,9 +4,18 @@ import { handleAuthedPost } from "@/lib/api/handler"
 import { ApiError } from "@/lib/api/errors"
 import { requireRole } from "@/lib/api/authz"
 import { runProcessReviewFastPath } from "@/lib/jobs/worker"
+import { dspyEnv } from "@/lib/env"
 import { getReviewDetailForOrg } from "@/lib/reviews/detail"
 
 export const runtime = "nodejs"
+
+function computeInteractiveBudgetMs() {
+  // Prefer aligning with DSPy timeout to avoid creating retries from local fast-path budgets.
+  // Cap to keep the endpoint reasonably responsive in production.
+  const e = dspyEnv()
+  const timeoutMs = e.DSPY_HTTP_TIMEOUT_MS ?? 12_000
+  return Math.min(15_000, Math.max(5_000, timeoutMs + 750))
+}
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id: reviewId } = await ctx.params
@@ -42,6 +51,25 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       })
       if (!exists) throw new ApiError({ status: 404, code: "NOT_FOUND", message: "Review not found." })
 
+      const dedupKey = `review:${reviewId}:generate`
+      const inflight = await prisma.job.findFirst({
+        where: {
+          orgId: session.orgId,
+          type: "PROCESS_REVIEW",
+          dedupKey,
+          status: { in: ["PENDING", "RUNNING", "RETRYING"] },
+        },
+        select: { id: true },
+      })
+      if (inflight) {
+        throw new ApiError({
+          status: 409,
+          code: "DEDUP_INFLIGHT",
+          message: "Draft generation is already in progress.",
+          details: { jobId: inflight.id },
+        })
+      }
+
       const job = await enqueueJob({
         orgId: session.orgId,
         type: "PROCESS_REVIEW",
@@ -50,7 +78,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           mode: "MANUAL_REGENERATE",
           budgetOverride: budgetOverride ? { enabled: true, reason: budgetOverrideReason } : { enabled: false },
         },
-        dedupKey: `review:${reviewId}:request:${requestId}`,
+        dedupKey,
+        // Interactive operations should not silently create retry backlogs.
+        // If it fails, user can click regenerate again once the underlying issue is fixed.
+        maxAttemptsOverride: 1,
         triggeredByRequestId: requestId,
         triggeredByUserId: session.user.id,
       })
@@ -69,19 +100,39 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         },
       })
 
-      // Fast-path process: bounded and process-only, and only for this request's job.
       const worker = await runProcessReviewFastPath({
         jobId: job.id,
         orgId: session.orgId,
         workerId: `fastpath:${requestId}`,
-        budgetMs: 2500,
+        budgetMs: computeInteractiveBudgetMs(),
       })
 
-      const review = worker.claimed > 0
-        ? await getReviewDetailForOrg({ reviewId, orgId: session.orgId })
-        : null
+      const updated = await prisma.job.findUnique({
+        where: { id: job.id },
+        select: { status: true, lastError: true, lastErrorCode: true },
+      })
+      if (updated?.status === "FAILED") {
+        throw new ApiError({
+          status: 502,
+          code: "INTERNAL",
+          message: updated.lastErrorCode ?? updated.lastError ?? "Draft generation failed.",
+        })
+      }
 
-      return { body: { jobId: job.id, worker, review } }
+      const reviewSnapshot = await getReviewDetailForOrg({
+        reviewId,
+        orgId: session.orgId,
+      })
+
+      return {
+        status: 200,
+        body: {
+          jobId: job.id,
+          job: { id: job.id, status: job.status },
+          review: reviewSnapshot,
+          worker,
+        },
+      }
     }
   )
 }

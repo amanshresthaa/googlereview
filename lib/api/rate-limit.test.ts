@@ -1,14 +1,21 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { prisma } from "@/lib/db"
 
-vi.mock("@/lib/session", () => ({
-  requireApiSession: vi.fn(),
-}))
+vi.mock("@/lib/session", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/session")>("@/lib/session")
+  return {
+    ...actual,
+    requireApiSession: vi.fn(),
+    requireApiSessionWithTiming: vi.fn(),
+  }
+})
 
-import { requireApiSession } from "@/lib/session"
+import { requireApiSessionWithTiming } from "@/lib/session"
 import { handleAuthedPost } from "@/lib/api/handler"
 
-type MockedRequireApiSession = typeof requireApiSession & { mockResolvedValue: (v: unknown) => void }
+type MockedRequireApiSessionWithTiming = typeof requireApiSessionWithTiming & {
+  mockResolvedValue: (v: unknown) => void
+}
 
 function uuid() {
   return globalThis.crypto?.randomUUID?.() ?? "00000000-0000-4000-8000-000000000000"
@@ -27,10 +34,22 @@ describe("rate limiting", () => {
   it("returns 429 RATE_LIMITED with RateLimit headers once limit exceeded", async () => {
     const orgId = `test-org-${uuid()}`
     const userId = `test-user-${uuid()}`
-    ;(requireApiSession as unknown as MockedRequireApiSession).mockResolvedValue({
-      orgId,
-      role: "OWNER",
-      user: { id: userId },
+    ;(requireApiSessionWithTiming as unknown as MockedRequireApiSessionWithTiming).mockResolvedValue({
+      session: {
+        orgId,
+        role: "OWNER",
+        user: { id: userId },
+        expires: "2099-01-01T00:00:00.000Z",
+      },
+      timing: {
+        getSessionMs: 0,
+        membershipMs: 0,
+        cacheHit: false,
+        inflightHit: false,
+        grantHit: false,
+        totalAuthMs: 0,
+      },
+      membershipGrantValue: null,
     })
 
     try {

@@ -1,12 +1,17 @@
 import { ApiError } from "@/lib/api/errors"
 import { okJson, errJson, jsonResponse, mergeHeaders } from "@/lib/api/response"
 import { newRequestId } from "@/lib/api/json"
-import { requireApiSession } from "@/lib/session"
+import {
+  MEMBERSHIP_GRANT_COOKIE_NAME,
+  requireApiSession,
+  requireApiSessionWithTiming,
+} from "@/lib/session"
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/api/rate-limit"
 import type { RateLimitScope } from "@/lib/api/limits"
 import { beginIdempotency, findReplay, findScopeMismatch, requestHash, storeIdempotencyResponse } from "@/lib/api/idempotency"
 import { requireUuidV4 } from "@/lib/api/validation"
 import { NextResponse } from "next/server"
+import type { ApiSessionTiming } from "@/lib/session"
 
 export type ApiContext = {
   requestId: string
@@ -16,6 +21,7 @@ export type ApiContext = {
 
 export type AuthedApiContext = ApiContext & {
   session: NonNullable<Awaited<ReturnType<typeof requireApiSession>>>
+  authMs: number
 }
 
 type JsonBody = Record<string, unknown>
@@ -24,24 +30,74 @@ export async function handleAuthedGet(
   req: Request,
   handler: (ctx: AuthedApiContext) => Promise<{ status?: number; body: JsonBody; headers?: HeadersInit }>
 ) {
+  const requestStartedAt = Date.now()
   const requestId = newRequestId()
   const url = new URL(req.url)
   const path = url.pathname
 
-  const session = await requireApiSession()
+  const auth = await requireApiSessionWithTiming()
+  const session = auth.session
+  const authMs = auth.timing.totalAuthMs
+  const authTimingSegments = buildAuthTimingSegments(auth.timing)
   if (!session) {
-    return errJson({ requestId, status: 401, code: "UNAUTHORIZED", message: "Unauthorized." })
+    return errJson({
+      requestId,
+      status: 401,
+      code: "UNAUTHORIZED",
+      message: "Unauthorized.",
+      init: {
+        headers: withServerTiming(undefined, [
+          ...authTimingSegments,
+          `api_total;dur=${Date.now() - requestStartedAt}`,
+        ]),
+      },
+    })
   }
 
   try {
-    const result = await handler({ requestId, url, path, session })
+    const handlerStartedAt = Date.now()
+    const result = await handler({ requestId, url, path, session, authMs })
+    const handlerMs = Date.now() - handlerStartedAt
+    const totalMs = Date.now() - requestStartedAt
+    console.info("[api][authed-get][timing]", {
+      path,
+      orgId: session.orgId,
+      userId: session.user.id,
+      authMs,
+      authGetSessionMs: auth.timing.getSessionMs,
+      authMembershipMs: auth.timing.membershipMs,
+      authMembershipCacheHit: auth.timing.cacheHit,
+      authMembershipInflightHit: auth.timing.inflightHit,
+      authMembershipGrantHit: auth.timing.grantHit,
+      handlerMs,
+      totalMs,
+    })
+
+    const timedHeaders = withServerTiming(result.headers, [
+      ...authTimingSegments,
+      `api_handler;dur=${handlerMs}`,
+      `api_total;dur=${totalMs}`,
+    ])
+
     return okJson({
       requestId,
       body: result.body,
-      init: { status: result.status ?? 200, headers: mergeHeaders(result.headers, { "X-Request-Id": requestId }) },
+      init: {
+        status: result.status ?? 200,
+        headers: withMembershipGrant(timedHeaders, auth.membershipGrantValue),
+      },
     })
   } catch (err) {
-    return apiErrorToResponse(err, requestId)
+    const totalMs = Date.now() - requestStartedAt
+    return apiErrorToResponse(
+      err,
+      requestId,
+      withServerTiming(undefined, [
+        ...authTimingSegments,
+        `api_handler;dur=${Math.max(0, totalMs - authMs)}`,
+        `api_total;dur=${totalMs}`,
+      ]),
+    )
   }
 }
 
@@ -60,7 +116,9 @@ export async function handleAuthedPost(
   const url = new URL(req.url)
   const path = url.pathname
 
-  const session = await requireApiSession()
+  const auth = await requireApiSessionWithTiming()
+  const session = auth.session
+  const authMs = auth.timing.totalAuthMs
   const requestId = newRequestId()
   if (!session) {
     return errJson({ requestId, status: 401, code: "UNAUTHORIZED", message: "Unauthorized." })
@@ -164,9 +222,20 @@ export async function handleAuthedPost(
     const rl = await consumeRateLimit({ orgId: session.orgId, userId: session.user.id, scope: input.rateLimitScope })
     rlHeaders = rateLimitHeaders(rl)
 
-    const result = await handler({ requestId, url, path, session, body, rateLimitScope: input.rateLimitScope })
+    const result = await handler({
+      requestId,
+      url,
+      path,
+      session,
+      authMs,
+      body,
+      rateLimitScope: input.rateLimitScope,
+    })
     const okBody = { ...result.body, ok: true, requestId }
-    const headers = mergeHeaders(result.headers, rlHeaders, { "X-Request-Id": requestId })
+    const headers = withMembershipGrant(
+      mergeHeaders(result.headers, rlHeaders, { "X-Request-Id": requestId }),
+      auth.membershipGrantValue,
+    )
     const res = jsonResponse({ status: result.status ?? 200, headers, body: okBody })
 
     if (beganIdem && idempotencyKey && idemHash) {
@@ -233,4 +302,41 @@ function headersFromApiError(err: ApiError) {
   h.set("RateLimit-Reset", String(d.resetEpochSec))
   if (d.retryAfterSec != null) h.set("Retry-After", String(d.retryAfterSec))
   return h
+}
+
+function withServerTiming(headers: HeadersInit | undefined, segments: string[]): Headers {
+  const merged = new Headers(headers)
+  if (segments.length === 0) return merged
+
+  const existing = merged.get("Server-Timing")
+  const normalizedExisting = existing?.trim()
+  const value = normalizedExisting ? `${normalizedExisting}, ${segments.join(", ")}` : segments.join(", ")
+  merged.set("Server-Timing", value)
+  return merged
+}
+
+function buildAuthTimingSegments(timing: ApiSessionTiming): string[] {
+  return [
+    `api_auth;dur=${timing.totalAuthMs}`,
+    `api_auth_session;dur=${timing.getSessionMs}`,
+    `api_auth_membership;dur=${timing.membershipMs}`,
+  ]
+}
+
+function withMembershipGrant(headers: HeadersInit, grantValue: string | null): Headers {
+  const merged = new Headers(headers)
+  if (!grantValue) return merged
+
+  const cookieParts = [
+    `${MEMBERSHIP_GRANT_COOKIE_NAME}=${grantValue}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    "Max-Age=180",
+  ]
+  if (process.env.NODE_ENV === "production") {
+    cookieParts.push("Secure")
+  }
+  merged.append("Set-Cookie", cookieParts.join("; "))
+  return merged
 }

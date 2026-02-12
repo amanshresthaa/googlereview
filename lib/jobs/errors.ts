@@ -8,6 +8,12 @@ export type JobErrorCode =
   | "NOT_FOUND"
   | "FORBIDDEN"
   | "BAD_REQUEST"
+  | "FASTPATH_TIMEOUT"
+  | "DSPY_INVALID_REQUEST"
+  | "DSPY_MODEL_TIMEOUT"
+  | "DSPY_RATE_LIMIT"
+  | "DSPY_SCHEMA_ERROR"
+  | "DSPY_INTERNAL"
   | "UPSTREAM_TIMEOUT"
   | "UPSTREAM_RATE_LIMITED"
   | "UPSTREAM_5XX"
@@ -37,4 +43,3 @@ export class RetryableJobError extends Error {
     this.meta = meta
   }
 }
-

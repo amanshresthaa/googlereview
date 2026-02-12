@@ -8,8 +8,15 @@ import { zodFields } from "@/lib/api/validation"
 import { requireRole } from "@/lib/api/authz"
 import { runProcessReviewFastPath } from "@/lib/jobs/worker"
 import { getReviewDetailForOrg } from "@/lib/reviews/detail"
+import { dspyEnv } from "@/lib/env"
 
 export const runtime = "nodejs"
+
+function computeInteractiveBudgetMs() {
+  const e = dspyEnv()
+  const timeoutMs = e.DSPY_HTTP_TIMEOUT_MS ?? 12_000
+  return Math.min(15_000, Math.max(5_000, timeoutMs + 750))
+}
 
 const bodySchema = z.object({
   text: z.string().min(1).max(10_000),
@@ -124,6 +131,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           budgetOverride: budgetOverride ? { enabled: true, reason: budgetOverrideReason } : { enabled: false },
         },
         dedupKey: `draft:${created.id}:request:${requestId}`,
+        maxAttemptsOverride: 1,
         triggeredByRequestId: requestId,
         triggeredByUserId: session.user.id,
       })
@@ -146,7 +154,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         jobId: verifyJob.id,
         orgId: session.orgId,
         workerId: `fastpath:${requestId}`,
-        budgetMs: 2000,
+        budgetMs: computeInteractiveBudgetMs(),
       })
 
       const reviewSnapshot = await getReviewDetailForOrg({

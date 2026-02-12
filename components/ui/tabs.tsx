@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Tabs as TabsPrimitive } from "radix-ui"
+import * as TabsPrimitive from "@radix-ui/react-tabs"
 import { cn } from "@/lib/utils"
 
 export const Tabs = TabsPrimitive.Root
@@ -44,10 +44,10 @@ export const TabsContent = React.forwardRef<
     ref={ref}
     className={cn(
       "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      className
+      "data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:slide-in-from-bottom-1",
+      className,
     )}
     {...props}
   />
 ))
 TabsContent.displayName = "TabsContent"
-

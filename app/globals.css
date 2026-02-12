@@ -256,125 +256,6 @@
     box-shadow: var(--shadow-google-xl);
   }
 
-  /* Animations */
-  .animate-fade-in {
-    animation: fadeIn 0.4s ease-out both;
-  }
-
-  .animate-fade-in-up {
-    animation: fadeInUp 0.4s ease-out both;
-  }
-
-  .animate-slide-in-right {
-    animation: slideInRight 0.3s ease-out both;
-  }
-
-  .animate-scale-in {
-    animation: scaleIn 0.2s ease-out both;
-  }
-
-  .animate-shimmer {
-    animation: shimmer 2s linear infinite;
-    background-size: 200% 100%;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-
-    to {
-      opacity: 1;
-    }
-  }
-
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(12px);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes slideInRight {
-    from {
-      opacity: 0;
-      transform: translateX(20px);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  @keyframes scaleIn {
-    from {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
-  @keyframes shimmer {
-    from {
-      background-position: 200% 0;
-    }
-
-    to {
-      background-position: -200% 0;
-    }
-  }
-
-  /* Scrollbars */
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: oklch(0.87 0 0) transparent;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: oklch(0.87 0 0);
-    border-radius: 999px;
-  }
-
-  /* Glass surfaces */
-  .glass {
-    backdrop-filter: blur(16px) saturate(180%);
-    -webkit-backdrop-filter: blur(16px) saturate(180%);
-  }
-
-  .glass-sm {
-    backdrop-filter: blur(8px) saturate(150%);
-    -webkit-backdrop-filter: blur(8px) saturate(150%);
-  }
-
-  /* Safe area */
-  .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-
-  .touch-target {
-    min-height: 48px;
-    min-width: 48px;
-  }
-
   /* Gradient text */
   .text-gradient {
     background-clip: text;
@@ -382,17 +263,23 @@
     -webkit-text-fill-color: transparent;
   }
 
-  @keyframes slideUpSheet {
+  /* Radix Accordion: height animation without JS (uses Radix CSS vars). */
+  @keyframes accordion-down {
     from {
-      transform: translateY(100%);
+      height: 0;
     }
     to {
-      transform: translateY(0);
+      height: var(--radix-accordion-content-height);
     }
   }
 
-  .animate-slide-up-sheet {
-    animation: slideUpSheet 0.35s cubic-bezier(0.32, 0.72, 0, 1) both;
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
   }
 }
 
