@@ -241,6 +241,78 @@ export async function applyBulkJobActionForOrg(input: {
     }
   }
 
+  if (action.action === "CANCEL_BACKLOG") {
+    const staleCutoff = staleBefore(now)
+    const limit = action.limit ?? 500
+    const includeStaleRunning = action.includeStaleRunning ?? true
+
+    const staleRunningClause: Prisma.JobWhereInput = { status: "RUNNING", lockedAt: { lte: staleCutoff } }
+
+    const where: Prisma.JobWhereInput = {
+      orgId: input.orgId,
+      OR: [
+        { status: { in: ["PENDING", "RETRYING"] }, lockedAt: null },
+        ...(includeStaleRunning ? [staleRunningClause] : []),
+      ],
+    }
+
+    // We select ids first so we can bound the update and return accurate counts.
+    const candidates = await prisma.job.findMany({
+      where,
+      orderBy: [{ runAt: "asc" }, { id: "asc" }],
+      take: limit,
+      select: { id: true },
+    })
+    const ids = candidates.map((c) => c.id)
+
+    const updated = ids.length
+      ? await prisma.job.updateMany({
+          where: {
+            orgId: input.orgId,
+            id: { in: ids },
+            OR: [
+              { status: { in: ["PENDING", "RETRYING"] }, lockedAt: null },
+              ...(includeStaleRunning ? [staleRunningClause] : []),
+            ],
+          },
+          data: {
+            status: "CANCELLED",
+            completedAt: now,
+            lockedAt: null,
+            lockedBy: null,
+            lastError: "CANCELLED_BY_USER",
+            lastErrorCode: "CANCELLED_BY_USER",
+            lastErrorMetaJson: {
+              cancelledByUserId: input.actorUserId,
+              requestId: input.requestId,
+              bulk: true,
+            } as Prisma.InputJsonValue,
+          },
+        })
+      : { count: 0 }
+
+    await writeAuditLog({
+      orgId: input.orgId,
+      actorUserId: input.actorUserId,
+      action: "JOB_CANCEL_BACKLOG",
+      entityType: "JobBatch",
+      entityId: input.requestId,
+      metadata: {
+        requestedLimit: limit,
+        includeStaleRunning,
+        selectedCount: ids.length,
+        updatedCount: updated.count,
+        requestId: input.requestId,
+      },
+    })
+
+    return {
+      kind: "BULK_UPDATED" as const,
+      requested: limit,
+      eligible: ids.length,
+      updated: updated.count,
+    }
+  }
+
   throw new ApiError({ status: 400, code: "BAD_REQUEST", message: "Unsupported bulk action." })
 }
-

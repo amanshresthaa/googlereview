@@ -49,6 +49,15 @@ export const bulkJobActionSchema = z.discriminatedUnion("action", [
     action: z.literal("FORCE_UNLOCK_STALE"),
     jobIds: z.array(z.string().min(1)).min(1).max(50),
   }),
+  z.object({
+    action: z.literal("CANCEL_BACKLOG"),
+    // Safety valve: we always bound the amount of work per request.
+    // UI can call multiple times if needed.
+    limit: z.number().int().min(1).max(5000).optional(),
+    // Cancels stale RUNNING jobs only (lockedAt older than JOB_LOCK_STALE_MS).
+    // Fresh RUNNING jobs are never cancelled by this action.
+    includeStaleRunning: z.boolean().optional(),
+  }),
 ])
 
 export type BulkJobAction = z.infer<typeof bulkJobActionSchema>

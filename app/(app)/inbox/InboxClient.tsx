@@ -49,28 +49,32 @@ type InboxClientProps = {
 
 export default function InboxClient({ ssrBootstrap }: InboxClientProps) {
   const searchParams = useSearchParams()
-  const initialFilter = parseFilter(searchParams.get("filter"))
-  const initialMention = searchParams.get("mention")?.trim().toLowerCase() ?? ""
-  const derivedInitialTab = initialFilter === "all" ? "all" : "pending"
-  const initialTab = parseInitialTab(searchParams.get("tab"), derivedInitialTab)
-  const initialLocationId = searchParams.get("locationId")?.trim() ?? ""
-  const initialRating = parseInitialRating(searchParams.get("rating"))
-  const initialEffectiveFilter =
-    initialFilter === "mentions" && initialMention.length === 0 ? "all" : initialFilter
-  const initialRemoteFilter = resolveRemoteFilter(initialEffectiveFilter, initialTab)
-  const initialRemoteStatus =
-    initialTab === "pending" ? "pending" : initialTab === "replied" ? "replied" : "all"
-  const initialRemoteMention = initialEffectiveFilter === "mentions" ? initialMention || undefined : undefined
+  
+  // Memoize initial parameters parsing to prevent unnecessary recalculations
+  const initialParams = React.useMemo(() => {
+    const filter = parseFilter(searchParams.get("filter"))
+    const tab = parseInitialTab(searchParams.get("tab"), filter === "all" ? "all" : "pending")
+    const mention = searchParams.get("mention")?.trim().toLowerCase() ?? ""
+    const locationId = searchParams.get("locationId")?.trim() ?? ""
+    const rating = parseInitialRating(searchParams.get("rating"))
+    
+    const effectiveFilter = filter === "mentions" && mention.length === 0 ? "all" : filter
+    const remoteFilter = resolveRemoteFilter(effectiveFilter, tab)
+    const remoteStatus = tab === "pending" ? "pending" : tab === "replied" ? "replied" : "all"
+    const remoteMention = effectiveFilter === "mentions" ? mention || undefined : undefined
+
+    return { filter, tab, mention, locationId, rating, remoteFilter, remoteStatus, remoteMention }
+  }, [searchParams])
 
   const [bootstrap, setBootstrap] = React.useState<InboxBootstrap | null>(ssrBootstrap)
   const [bootstrapLoading, setBootstrapLoading] = React.useState(ssrBootstrap === null)
 
-  const [baseFilter, setBaseFilter] = React.useState<ReviewFilter>(initialFilter)
-  const [mentionFilter, setMentionFilter] = React.useState(initialMention)
+  const [baseFilter, setBaseFilter] = React.useState<ReviewFilter>(initialParams.filter)
+  const [mentionFilter, setMentionFilter] = React.useState(initialParams.mention)
   const [searchQuery, setSearchQuery] = React.useState("")
-  const [locationFilter, setLocationFilter] = React.useState(initialLocationId || "all")
-  const [ratingFilter, setRatingFilter] = React.useState(initialRating)
-  const [activeTab, setActiveTab] = React.useState<"all" | "pending" | "replied">(initialTab)
+  const [locationFilter, setLocationFilter] = React.useState(initialParams.locationId || "all")
+  const [ratingFilter, setRatingFilter] = React.useState(initialParams.rating)
+  const [activeTab, setActiveTab] = React.useState<"all" | "pending" | "replied">(initialParams.tab)
   const [activeReviewId, setActiveReviewId] = React.useState<string | null>(null)
 
   const [showBlitzSheet, setShowBlitzSheet] = React.useState(false)
@@ -92,14 +96,15 @@ export default function InboxClient({ ssrBootstrap }: InboxClientProps) {
     setBootstrapLoading(true)
     void (async () => {
       try {
+        const { remoteFilter, remoteStatus, remoteMention, locationId, rating } = initialParams
         const params = new URLSearchParams({
-          filter: initialRemoteFilter,
-          status: initialRemoteStatus,
+          filter: remoteFilter,
+          status: remoteStatus,
           includeCounts: "1",
         })
-        if (initialRemoteMention) params.set("mention", initialRemoteMention)
-        if (initialLocationId) params.set("locationId", initialLocationId)
-        if (initialRating !== "all") params.set("rating", initialRating)
+        if (remoteMention) params.set("mention", remoteMention)
+        if (locationId) params.set("locationId", locationId)
+        if (rating !== "all") params.set("rating", rating)
 
         const data = await apiCall<InboxBootstrap>(`/api/inbox/bootstrap?${params.toString()}`, "GET")
         setBootstrap(data)
@@ -109,7 +114,7 @@ export default function InboxClient({ ssrBootstrap }: InboxClientProps) {
         setBootstrapLoading(false)
       }
     })()
-  }, [ssrBootstrap, initialLocationId, initialRating, initialRemoteFilter, initialRemoteMention, initialRemoteStatus])
+  }, [ssrBootstrap, initialParams])
 
   React.useEffect(() => {
     if (isDesktop) {
@@ -171,6 +176,11 @@ export default function InboxClient({ ssrBootstrap }: InboxClientProps) {
     updateRow,
     refresh,
   })
+
+  // Grouped mutation handlers
+  const mutations = React.useMemo(() => ({
+    generateDraft, saveDraft, verifyDraft, publishReply
+  }), [generateDraft, saveDraft, verifyDraft, publishReply])
 
   React.useEffect(() => {
     if (!error) return
@@ -329,10 +339,10 @@ export default function InboxClient({ ssrBootstrap }: InboxClientProps) {
   const detailContent = activeRow ? (
     <DetailPanel
       row={activeRow}
-      onGenerate={generateDraft}
-      onSave={saveDraft}
-      onVerify={verifyDraft}
-      onPublish={publishReply}
+      onGenerate={mutations.generateDraft}
+      onSave={mutations.saveDraft}
+      onVerify={mutations.verifyDraft}
+      onPublish={mutations.publishReply}
     />
   ) : (
     <EmptyState

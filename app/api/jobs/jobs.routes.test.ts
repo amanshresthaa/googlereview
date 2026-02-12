@@ -437,4 +437,109 @@ describe("/api/jobs/actions", () => {
 
     await cleanup(orgId, userId)
   })
+
+  it(
+    "CANCEL_BACKLOG cancels eligible backlog jobs (and stale RUNNING) and writes audit log",
+    async () => {
+      const orgId = `test-org-${uuid()}`
+      const userId = `test-user-${uuid()}`
+      mockSession({ orgId, userId, role: "OWNER" })
+      await ensureOrg(orgId)
+
+    const pending = await prisma.job.create({
+      data: {
+        orgId,
+        type: "SYNC_REVIEWS",
+        status: "PENDING",
+        payload: {},
+        runAt: new Date(Date.now() + 60_000),
+      },
+      select: { id: true },
+    })
+
+    const retrying = await prisma.job.create({
+      data: {
+        orgId,
+        type: "SYNC_LOCATIONS",
+        status: "RETRYING",
+        payload: {},
+        runAt: new Date(Date.now() + 120_000),
+      },
+      select: { id: true },
+    })
+
+    const staleRunning = await prisma.job.create({
+      data: {
+        orgId,
+        type: "SYNC_LOCATIONS",
+        status: "RUNNING",
+        payload: {},
+        lockedAt: new Date(Date.now() - 20 * 60_000),
+        lockedBy: "test-worker",
+      },
+      select: { id: true },
+    })
+
+    const freshRunning = await prisma.job.create({
+      data: {
+        orgId,
+        type: "SYNC_LOCATIONS",
+        status: "RUNNING",
+        payload: {},
+        lockedAt: new Date(Date.now() - 2 * 60_000),
+        lockedBy: "test-worker",
+      },
+      select: { id: true },
+    })
+
+    const otherOrgId = `test-org-${uuid()}`
+    await ensureOrg(otherOrgId)
+    const otherOrgPending = await prisma.job.create({
+      data: {
+        orgId: otherOrgId,
+        type: "SYNC_LOCATIONS",
+        status: "PENDING",
+        payload: {},
+      },
+      select: { id: true },
+    })
+
+    const res = await jobsBulkActionsPost(
+      new Request("http://localhost/api/jobs/actions", {
+        method: "POST",
+        headers: { "content-type": "application/json", "Idempotency-Key": uuid() },
+        body: JSON.stringify({ action: "CANCEL_BACKLOG", limit: 100, includeStaleRunning: true }),
+      }),
+    )
+    expect(res.status).toBe(200)
+    const json = (await res.json()) as { ok: boolean; requestId: string; result?: { updated?: number } }
+    expect(json.ok).toBe(true)
+
+    const pendingAfter = await prisma.job.findUnique({ where: { id: pending.id }, select: { status: true, completedAt: true } })
+    const retryingAfter = await prisma.job.findUnique({ where: { id: retrying.id }, select: { status: true, completedAt: true } })
+    const staleAfter = await prisma.job.findUnique({ where: { id: staleRunning.id }, select: { status: true, completedAt: true, lockedAt: true } })
+    const freshAfter = await prisma.job.findUnique({ where: { id: freshRunning.id }, select: { status: true } })
+    const otherOrgAfter = await prisma.job.findUnique({ where: { id: otherOrgPending.id }, select: { status: true } })
+
+    expect(pendingAfter?.status).toBe("CANCELLED")
+    expect(Boolean(pendingAfter?.completedAt)).toBe(true)
+    expect(retryingAfter?.status).toBe("CANCELLED")
+    expect(Boolean(retryingAfter?.completedAt)).toBe(true)
+    expect(staleAfter?.status).toBe("CANCELLED")
+    expect(Boolean(staleAfter?.completedAt)).toBe(true)
+    expect(staleAfter?.lockedAt).toBe(null)
+    expect(freshAfter?.status).toBe("RUNNING")
+    expect(otherOrgAfter?.status).toBe("PENDING")
+
+    const audit = await prisma.auditLog.findFirst({
+      where: { orgId, action: "JOB_CANCEL_BACKLOG", entityType: "JobBatch", entityId: json.requestId },
+      select: { id: true },
+    })
+    expect(Boolean(audit?.id)).toBe(true)
+
+      await cleanup(otherOrgId, userId)
+      await cleanup(orgId, userId)
+    },
+    20_000,
+  )
 })

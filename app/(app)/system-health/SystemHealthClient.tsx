@@ -327,6 +327,41 @@ export function SystemHealthClient(props: {
     }
   }
 
+  const clearBacklog = async () => {
+    if (!isOwner) return
+    const ok = window.confirm(
+      "Clear backlog? This will cancel eligible PENDING/RETRYING jobs and stale RUNNING jobs (locked > 15m) for your org. This does not delete history.",
+    )
+    if (!ok) return
+
+    setLoading(true)
+    setError(null)
+    try {
+      // Keep requests bounded; loop until the server reports no more eligible work.
+      let totalUpdated = 0
+      for (let i = 0; i < 30; i++) {
+        const res = await fetchJson<{ result?: { updated?: number } }>(`/api/jobs/actions`, {
+          method: "POST",
+          headers: withIdempotencyHeader({ "content-type": "application/json" }),
+          body: JSON.stringify({ action: "CANCEL_BACKLOG", limit: 500, includeStaleRunning: true }),
+        })
+        const updated = Number(res.result?.updated ?? 0)
+        totalUpdated += updated
+        if (updated === 0) break
+      }
+      toast.success(totalUpdated > 0 ? `Cancelled ${totalUpdated} backlog job(s).` : "No eligible backlog jobs to cancel.")
+      await refreshAll()
+      setActiveTab("backlog")
+      setNowIso(new Date().toISOString())
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Clear backlog failed"
+      toast.error(message)
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const enqueue = async (body: unknown) => {
     setEnqueueLoading(true)
     setError(null)
@@ -479,7 +514,23 @@ export function SystemHealthClient(props: {
             />
           </div>
 
-          <TabsContent value="backlog" className="mt-3">
+            <TabsContent value="backlog" className="mt-3">
+            {isOwner ? (
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-xs text-muted-foreground">
+                  Owner tools: clear backlog safely (cancel queued jobs, keep history).
+                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="rounded-lg"
+                  onClick={() => void clearBacklog()}
+                  disabled={loading || enqueueLoading || workerLoading}
+                >
+                  Clear backlog
+                </Button>
+              </div>
+            ) : null}
             {staleModeActive ? (
               <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-xs text-muted-foreground">
