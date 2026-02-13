@@ -16,6 +16,8 @@ import {
 } from "@/lib/google/gbp"
 import { extractMentionsAndHighlights } from "@/lib/reviews/mentions"
 import { invalidateReviewCountsCache } from "@/lib/reviews/query"
+import { buildLocalReplyPolicyViolations, mergeVerifierViolations } from "@/lib/reviews/reply-guardrails"
+import { buildVerifierResultEnvelope, type VerifierDecisionSource } from "@/lib/reviews/verifier-envelope"
 import { enqueueJob } from "@/lib/jobs/queue"
 import { evidenceSnapshotSchema } from "@/lib/ai/draft"
 import { DspyServiceError, type DspyProcessMode, processReviewWithDspy } from "@/lib/ai/dspy-client"
@@ -393,18 +395,53 @@ async function handleProcessReview(job: Job, signal?: AbortSignal) {
     throw normalizeDspyErrorToJobError(error)
   }
 
-  const status = result.decision
-  const verifierPayload = {
+  const localPolicyViolations = buildLocalReplyPolicyViolations({ text: result.draftText })
+
+  const combinedViolations = mergeVerifierViolations(result.verifier.violations, localPolicyViolations)
+  const finalViolations = mergeVerifierViolations(
+    combinedViolations,
+    result.decision === "BLOCKED_BY_VERIFIER" && combinedViolations.length === 0
+      ? [{ code: "VERIFIER_BLOCKED", message: "Draft was blocked by verifier. Please adjust and retry." }]
+      : undefined,
+  )
+
+  const status: "READY" | "BLOCKED_BY_VERIFIER" =
+    result.decision === "BLOCKED_BY_VERIFIER" || finalViolations.length > 0 ? "BLOCKED_BY_VERIFIER" : "READY"
+  const dspyOutput = {
+    ...result,
+    appVerifier: {
+      localViolations: localPolicyViolations,
+      finalViolations,
+      finalDecision: status,
+    },
+  }
+  const verifierPayloadBody = {
+    issues: finalViolations.map((violation) => violation.message),
     dspy: {
       decision: status,
-      verifier: result.verifier,
+      verifier: {
+        pass: finalViolations.length === 0,
+        violations: finalViolations,
+        suggestedRewrite: result.verifier.suggestedRewrite ?? null,
+      },
       seoQuality: result.seoQuality,
       generation: result.generation,
       models: result.models,
       trace: result.trace,
       latencyMs: result.latencyMs,
     },
+    policy: {
+      localViolations: localPolicyViolations,
+    },
   }
+  const decisionSource: VerifierDecisionSource =
+    localPolicyViolations.length > 0 && result.decision !== "BLOCKED_BY_VERIFIER"
+      ? "LOCAL_DETERMINISTIC_POLICY"
+      : "DSPY_VERIFIER"
+  const verifierPayload = buildVerifierResultEnvelope({
+    decisionSource,
+    payload: verifierPayloadBody,
+  })
 
   if (isVerifyExisting) {
     if (!targetDraftId) return
@@ -435,7 +472,7 @@ async function handleProcessReview(job: Job, signal?: AbortSignal) {
           attemptCount: result.generation.attemptCount,
           latencyMs: result.latencyMs,
           inputHash,
-          outputJson: result as never,
+          outputJson: dspyOutput as never,
         },
       })
     })
@@ -488,7 +525,7 @@ async function handleProcessReview(job: Job, signal?: AbortSignal) {
         attemptCount: result.generation.attemptCount,
         latencyMs: result.latencyMs,
         inputHash,
-        outputJson: result as never,
+        outputJson: dspyOutput as never,
       },
     })
   })
@@ -569,6 +606,26 @@ async function handlePostReply(job: Job) {
   const trimmed = draft.text.trim()
   if (trimmed.length > MAX_GOOGLE_REPLY_CHARS) {
     throw new NonRetryableError("BAD_REQUEST", "Reply too long for Google.")
+  }
+
+  const publishViolations = buildLocalReplyPolicyViolations({ text: trimmed })
+  if (publishViolations.length > 0) {
+    const verifierPayload = buildVerifierResultEnvelope({
+      decisionSource: "LOCAL_DETERMINISTIC_POLICY",
+      payload: {
+        issues: publishViolations.map((violation) => violation.message),
+        policy: { localViolations: publishViolations },
+      },
+    })
+
+    await prisma.draftReply.update({
+      where: { id: draft.id },
+      data: {
+        status: "BLOCKED_BY_VERIFIER",
+        verifierResultJson: verifierPayload as never,
+      },
+    })
+    throw new NonRetryableError("DRAFT_NOT_READY", publishViolations[0]!.message)
   }
 
   await consumeDailyBudgetOrThrow({ orgId: job.orgId, scope: "POST_REPLY" })

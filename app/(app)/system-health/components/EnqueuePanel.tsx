@@ -33,22 +33,24 @@ export function EnqueuePanel(props: {
   const [locationId, setLocationId] = React.useState<string>("")
 
   return (
-    <Card className="rounded-xl p-4 shadow-card">
+    <Card className="rounded-[24px] p-6 shadow-sm border-border/50 bg-background">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <div className="text-xs font-semibold">Enqueue Jobs</div>
-          <div className="mt-1 text-[11px] text-muted-foreground">
+          <div className="text-base font-bold text-foreground">Enqueue Jobs</div>
+          <div className="mt-1 text-xs text-muted-foreground font-medium">
             Owner-only operations. In-flight jobs are de-duplicated by dedupKey.
           </div>
         </div>
-        <Plus className="size-4 text-muted-foreground" />
+        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+           <Plus className="size-4 text-muted-foreground" />
+        </div>
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
         <OwnerGate enabled={props.isOwner} reason="Only OWNER can enqueue jobs.">
           <Button
             type="button"
-            className="rounded-lg"
+            className="rounded-xl h-11 font-bold shadow-sm"
             onClick={props.onSyncLocations}
             disabled={!props.isOwner || props.loading}
           >
@@ -60,7 +62,7 @@ export function EnqueuePanel(props: {
           <Button
             type="button"
             variant="secondary"
-            className="rounded-lg"
+            className="rounded-xl h-11 font-bold shadow-sm"
             onClick={props.onSyncReviewsAll}
             disabled={!props.isOwner || props.loading}
           >
@@ -69,12 +71,12 @@ export function EnqueuePanel(props: {
         </OwnerGate>
       </div>
 
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Select value={locationId} onValueChange={setLocationId}>
-          <SelectTrigger className="rounded-lg sm:w-[320px]">
+          <SelectTrigger className="rounded-xl h-11 sm:w-[320px] font-medium shadow-sm">
             <SelectValue placeholder="Sync one location (optional)" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-xl">
             {props.enabledLocations.length ? (
               props.enabledLocations.map((loc) => (
                 <SelectItem key={loc.id} value={loc.id}>
@@ -93,7 +95,7 @@ export function EnqueuePanel(props: {
           <Button
             type="button"
             variant="secondary"
-            className={cn("rounded-lg", "sm:whitespace-nowrap")}
+            className={cn("rounded-xl h-11 font-bold shadow-sm", "sm:whitespace-nowrap")}
             onClick={() => {
               if (!locationId) return
               props.onSyncReviewsOne(locationId)

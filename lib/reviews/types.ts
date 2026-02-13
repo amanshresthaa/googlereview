@@ -1,3 +1,10 @@
+export type DraftStatus =
+  | "NEEDS_APPROVAL"
+  | "BLOCKED_BY_VERIFIER"
+  | "READY"
+  | "POSTED"
+  | "POST_FAILED"
+
 export type ReviewListRow = {
   id: string
   starRating: number
@@ -12,11 +19,11 @@ export type ReviewListRow = {
   currentDraft: {
     id: string
     text: string
-    status: string
+    status: DraftStatus
     version: number
     updatedAtIso: string
   } | null
-  draftStatus: string | null
+  draftStatus: DraftStatus | null
   mentions: string[]
 }
 
@@ -32,4 +39,3 @@ export type ReviewListPage = {
   nextCursor: string | null
   counts?: ReviewListCounts
 }
-

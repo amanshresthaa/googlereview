@@ -1,4 +1,5 @@
 import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
+import { extractClientErrorMessage } from "@/lib/api/client-error"
 
 import type { ReviewDetail } from "@/lib/hooks"
 
@@ -115,7 +116,12 @@ export async function apiCall<T>(url: string, method: string, body?: unknown): P
 
   const data = await response.json().catch(() => null)
   if (!response.ok) {
-    throw new Error(data?.error ?? response.statusText)
+    throw new Error(
+      extractClientErrorMessage({
+        body: data,
+        statusText: response.statusText,
+      }),
+    )
   }
 
   return data as T

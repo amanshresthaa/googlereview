@@ -1,4 +1,5 @@
 import type { ReviewDetail, ReviewFilter, ReviewRow } from "@/lib/hooks"
+import { getFirstVerifierIssueMessage } from "@/lib/reviews/verifier-result"
 
 export function parseFilter(input: string | null): ReviewFilter {
   const value = (input ?? "").toLowerCase()
@@ -80,11 +81,6 @@ export function applyDetailSnapshot(
 }
 
 export function getVerifierBlockedMessage(detail: ReviewDetail | null) {
-  const violations = (
-    (detail?.currentDraft?.verifierResultJson as {
-      dspy?: { verifier?: { violations?: Array<{ message?: string }> } }
-    } | null)?.dspy?.verifier?.violations ?? []
-  )
-  const firstMessage = violations.find((item) => typeof item?.message === "string")?.message
-  return firstMessage?.trim() || "Draft was blocked by verifier. Please adjust and retry."
+  const firstMessage = getFirstVerifierIssueMessage(detail?.currentDraft?.verifierResultJson ?? null)
+  return firstMessage ?? "Draft was blocked by verifier. Please adjust and retry."
 }

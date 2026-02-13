@@ -34,6 +34,8 @@ export const verifierViolationSchema = z.object({
   snippet: z.string().optional(),
 })
 
+export type VerifierViolation = z.infer<typeof verifierViolationSchema>
+
 export const llmVerifierResultSchema = z.object({
   pass: z.boolean(),
   violations: z.array(verifierViolationSchema),
@@ -42,7 +44,7 @@ export const llmVerifierResultSchema = z.object({
 
 export type LlmVerifierResult = {
   pass: boolean
-  violations: Array<z.infer<typeof verifierViolationSchema>>
+  violations: VerifierViolation[]
   suggestedRewrite?: string
 }
 

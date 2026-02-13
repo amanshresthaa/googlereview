@@ -1,4 +1,4 @@
-import type { ReviewListCounts, ReviewListRow } from "@/lib/reviews/types"
+import type { DraftStatus, ReviewListCounts, ReviewListRow } from "@/lib/reviews/types"
 
 export type ReviewFilter = "unanswered" | "urgent" | "five_star" | "mentions" | "all"
 export type ReviewStatusFilter = "pending" | "replied" | "all"
@@ -19,7 +19,7 @@ export type ReviewDetail = {
   currentDraft: {
     id: string
     text: string
-    status: string
+    status: DraftStatus
     version: number
     verifierResultJson: unknown | null
     updatedAt?: string
@@ -27,7 +27,7 @@ export type ReviewDetail = {
   drafts: Array<{
     id: string
     text: string
-    status: string
+    status: DraftStatus
     version: number
     updatedAt?: string
   }>

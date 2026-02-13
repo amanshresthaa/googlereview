@@ -104,13 +104,13 @@ export function JobTable(props: {
   const nowMs = safeDate(props.nowIso)?.getTime() ?? 0
 
   return (
-    <Card className="rounded-xl p-0 overflow-hidden shadow-card">
+    <Card className="rounded-[24px] p-0 overflow-hidden shadow-sm border-border/50 bg-background">
       <div className="overflow-auto">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="border-border/50 bg-muted/20 hover:bg-muted/30">
               {columns.map((c) => (
-                <TableHead key={c} className="whitespace-nowrap">{c}</TableHead>
+                <TableHead key={c} className="whitespace-nowrap font-bold text-xs uppercase tracking-wide text-muted-foreground py-3">{c}</TableHead>
               ))}
             </TableRow>
           </TableHeader>
@@ -129,35 +129,35 @@ export function JobTable(props: {
                 const errorLabel = job.lastErrorCode ?? job.lastError ?? null
 
                 return (
-                  <TableRow key={job.id} className="hover:bg-muted/20">
-                    <TableCell className="whitespace-nowrap font-mono text-[11px]">{job.type}</TableCell>
+                  <TableRow key={job.id} className="hover:bg-muted/10 border-border/50 transition-colors">
+                    <TableCell className="whitespace-nowrap font-mono text-[11px] font-medium">{job.type}</TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <Badge variant="secondary" className="rounded-md">{job.status}</Badge>
+                      <Badge variant="secondary" className="rounded-lg text-[10px] font-bold px-2 py-0.5">{job.status}</Badge>
                     </TableCell>
                     {props.kind === "backlog" ? (
                       <>
-                        <TableCell className="whitespace-nowrap tabular-nums">{age}</TableCell>
-                        <TableCell className="whitespace-nowrap font-mono text-[11px]">{runAt ? runAt.toISOString() : "—"}</TableCell>
-                        <TableCell className={cn("whitespace-nowrap font-mono text-[11px]", isLockedStale(job.lockedAtIso, nowMs) && "text-destructive")}>
+                        <TableCell className="whitespace-nowrap tabular-nums text-sm font-medium">{age}</TableCell>
+                        <TableCell className="whitespace-nowrap font-mono text-[11px] text-muted-foreground">{runAt ? runAt.toISOString() : "—"}</TableCell>
+                        <TableCell className={cn("whitespace-nowrap font-mono text-[11px]", isLockedStale(job.lockedAtIso, nowMs) ? "text-destructive font-bold" : "text-muted-foreground")}>
                           {lockedAt ? lockedAt.toISOString() : "—"}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap tabular-nums">
+                        <TableCell className="whitespace-nowrap tabular-nums text-sm">
                           {job.attempts} / {job.maxAttempts}
                         </TableCell>
-                        <TableCell className={cn("max-w-[240px] truncate", errorLabel && "text-destructive")}>
+                        <TableCell className={cn("max-w-[240px] truncate text-xs", errorLabel && "text-destructive font-medium")}>
                           {errorLabel ?? "—"}
                         </TableCell>
                       </>
                     ) : (
                       <>
-                        <TableCell className="whitespace-nowrap font-mono text-[11px]">
+                        <TableCell className="whitespace-nowrap font-mono text-[11px] text-muted-foreground">
                           {completedAt ? completedAt.toISOString() : "—"}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap tabular-nums">{duration}</TableCell>
-                        <TableCell className="whitespace-nowrap tabular-nums">
+                        <TableCell className="whitespace-nowrap tabular-nums text-sm font-medium">{duration}</TableCell>
+                        <TableCell className="whitespace-nowrap tabular-nums text-sm">
                           {job.attempts} / {job.maxAttempts}
                         </TableCell>
-                        <TableCell className={cn("max-w-[240px] truncate", errorLabel && job.status !== "COMPLETED" && "text-destructive")}>
+                        <TableCell className={cn("max-w-[240px] truncate text-xs", errorLabel && job.status !== "COMPLETED" && "text-destructive font-medium")}>
                           {errorLabel ?? "—"}
                         </TableCell>
                       </>
@@ -165,11 +165,11 @@ export function JobTable(props: {
                     <TableCell className="whitespace-nowrap text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="rounded-lg" disabled={props.loading}>
+                          <Button variant="ghost" size="icon" className="rounded-xl h-8 w-8 text-muted-foreground hover:bg-muted" disabled={props.loading}>
                             <MoreHorizontal className="size-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" className="rounded-xl">
                           <DropdownMenuItem onClick={() => props.onViewDetails(job.id)}>View details</DropdownMenuItem>
                           <DropdownMenuSeparator />
 
@@ -194,6 +194,7 @@ export function JobTable(props: {
                                   if (!ok) return
                                   props.onAction(job.id, { action: "CANCEL" })
                                 }}
+                                className="text-destructive focus:text-destructive"
                               >
                                 Cancel
                               </DropdownMenuItem>
@@ -204,6 +205,7 @@ export function JobTable(props: {
                                   if (!ok) return
                                   props.onAction(job.id, { action: "FORCE_UNLOCK" })
                                 }}
+                                className="text-destructive focus:text-destructive"
                               >
                                 Force unlock
                               </DropdownMenuItem>
@@ -228,8 +230,8 @@ export function JobTable(props: {
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="py-10 text-center text-sm text-muted-foreground">
-                  No jobs found.
+                <TableCell colSpan={columns.length} className="py-12 text-center text-sm text-muted-foreground">
+                  No jobs found matching your filters.
                 </TableCell>
               </TableRow>
             )}

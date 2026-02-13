@@ -2,6 +2,8 @@
 
 import * as React from "react"
 
+import { extractClientErrorMessage } from "@/lib/api/client-error"
+
 import type { ReviewDetail } from "./types"
 
 type UseReviewDetailResult = {
@@ -38,19 +40,25 @@ export function useReviewDetail(reviewId: string | null): UseReviewDetailResult 
       }
 
       if (res.status === 404) {
-        setError("Review not found or not accessible")
+        const body = await res.json().catch(() => null)
+        setError(
+          extractClientErrorMessage({
+            body,
+            statusText: res.statusText,
+            fallback: "Review not found or not accessible",
+          }),
+        )
         return
       }
 
       if (!res.ok) {
-        let msg = res.statusText
-        try {
-          const body = await res.json()
-          msg = body.error || msg
-        } catch {
-          // use statusText
-        }
-        setError(msg)
+        const body = await res.json().catch(() => null)
+        setError(
+          extractClientErrorMessage({
+            body,
+            statusText: res.statusText,
+          }),
+        )
         return
       }
 

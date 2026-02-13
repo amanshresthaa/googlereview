@@ -3,9 +3,11 @@
 import * as React from "react"
 import { motion } from "framer-motion"
 import { toast } from "sonner"
+import { useReviewMutations } from "@/app/(app)/inbox/hooks/useReviewMutations"
 import { cn } from "@/lib/utils"
-import { type ReviewDetail } from "@/lib/hooks"
-import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
+import { type ReviewDetail, type ReviewRow } from "@/lib/hooks"
+import type { DraftStatus } from "@/lib/reviews/types"
+import { getFirstVerifierIssueMessage } from "@/lib/reviews/verifier-result"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -20,6 +22,59 @@ import {
   Sparkles,
   Trash2,
 } from "@/components/icons"
+
+const DRAFT_STATUS_VALUES: DraftStatus[] = [
+  "NEEDS_APPROVAL",
+  "BLOCKED_BY_VERIFIER",
+  "READY",
+  "POSTED",
+  "POST_FAILED",
+]
+
+function toDraftStatus(status: string): DraftStatus {
+  if (DRAFT_STATUS_VALUES.includes(status as DraftStatus)) {
+    return status as DraftStatus
+  }
+  return "NEEDS_APPROVAL"
+}
+
+function mapDetailToReviewRow(review: ReviewDetail): ReviewRow {
+  const draftStatus = review.currentDraft ? toDraftStatus(review.currentDraft.status) : null
+  const draftUpdatedAt = review.currentDraft?.updatedAt ?? review.updateTime
+
+  return {
+    id: review.id,
+    starRating: review.starRating,
+    snippet: (review.comment ?? "").slice(0, 120),
+    comment: review.comment ?? "",
+    reviewer: {
+      displayName: review.reviewer.displayName,
+      isAnonymous: review.reviewer.isAnonymous,
+    },
+    location: {
+      id: review.location.id,
+      displayName: review.location.name,
+    },
+    createTimeIso: review.createTime,
+    unanswered: review.reply.comment == null,
+    status: review.reply.comment == null ? "pending" : "replied",
+    reply: {
+      comment: review.reply.comment,
+      updateTimeIso: review.reply.updateTime,
+    },
+    currentDraft: review.currentDraft
+      ? {
+          id: review.currentDraft.id,
+          text: review.currentDraft.text,
+          status: draftStatus ?? "NEEDS_APPROVAL",
+          version: review.currentDraft.version,
+          updatedAtIso: draftUpdatedAt,
+        }
+      : null,
+    draftStatus,
+    mentions: review.mentions,
+  }
+}
 
 type Props = {
   reviewId: string
@@ -41,46 +96,64 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
   const hasText = text.trim().length > 0
   const isReplied = Boolean(review.reply.comment)
   const isBlocked = draft?.status === "BLOCKED_BY_VERIFIER"
-  const verifierJson = draft?.verifierResultJson as null | { issues?: string[] }
-  const verifierIssue = verifierJson?.issues?.[0] ?? null
+  const verifierIssue = getFirstVerifierIssueMessage(draft?.verifierResultJson ?? null)
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length
+  const [draftRow, setDraftRow] = React.useState<ReviewRow>(() => mapDetailToReviewRow(review))
 
-  const apiCall = async (url: string, method: string, body?: unknown) => {
-    const upper = method.toUpperCase()
-    const mutating = upper === "POST" || upper === "PUT" || upper === "PATCH" || upper === "DELETE"
-    const baseHeaders = body ? { "content-type": "application/json" } : undefined
-    const headers = mutating ? withIdempotencyHeader(baseHeaders) : baseHeaders
-    const res = await fetch(url, {
-      method: upper,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    })
-    if (res.status === 401) {
-      window.location.href = "/signin"
-      return null
-    }
-    const data = await res.json().catch(() => null)
-    if (!res.ok) throw new Error(data?.error ?? res.statusText)
-    return data
-  }
+  React.useEffect(() => {
+    setDraftRow(mapDetailToReviewRow(review))
+  }, [review])
 
-  const run = async (
+  const rows = React.useMemo(() => [draftRow], [draftRow])
+  const updateRow = React.useCallback((id: string, updater: (row: ReviewRow) => ReviewRow) => {
+    setDraftRow((current) => (current.id === id ? updater(current) : current))
+  }, [])
+
+  const { generateDraft, saveDraft, verifyDraft, publishReply } = useReviewMutations({
+    rows,
+    updateRow,
+    refresh,
+  })
+
+  const run = React.useCallback(async (
     nextBusy: "generate" | "save" | "verify" | "publish",
     fn: () => Promise<void>,
-    successMessage: string,
   ) => {
     setBusy(nextBusy)
     try {
       await fn()
-      toast.success(successMessage)
       window.dispatchEvent(new CustomEvent("reviews:mutated", { detail: { reviewId } }))
-      refresh()
+      await Promise.resolve(refresh())
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error))
     } finally {
       setBusy(false)
     }
-  }
+  }, [refresh, reviewId])
+
+  const handleGenerate = React.useCallback(() => {
+    return run("generate", async () => {
+      await generateDraft(reviewId)
+    })
+  }, [generateDraft, reviewId, run])
+
+  const handleVerify = React.useCallback(() => {
+    return run("verify", async () => {
+      await verifyDraft(reviewId)
+    })
+  }, [reviewId, run, verifyDraft])
+
+  const handleSave = React.useCallback(() => {
+    return run("save", async () => {
+      await saveDraft(reviewId, text)
+    })
+  }, [reviewId, run, saveDraft, text])
+
+  const handlePublish = React.useCallback(() => {
+    return run("publish", async () => {
+      await publishReply(reviewId, text, draftRow)
+    })
+  }, [draftRow, publishReply, reviewId, run, text])
 
   const copyText = () => {
     if (!hasText) return
@@ -108,9 +181,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
         </div>
         <Button
           type="button"
-          onClick={() =>
-            run("generate", () => apiCall(`/api/reviews/${reviewId}/drafts/generate`, "POST"), "Draft generated")
-          }
+          onClick={handleGenerate}
           disabled={Boolean(busy)}
           className="mt-8 h-12 rounded-2xl bg-primary px-8 font-black shadow-glow-primary hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98]"
         >
@@ -233,24 +304,18 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
           <Button
             type="button"
             size="sm"
-            onClick={() =>
-              run(
-                "generate",
-                () => apiCall(`/api/reviews/${reviewId}/drafts/generate`, "POST"),
-                draft ? "Draft regenerated" : "Draft generated",
-              )
-            }
+            onClick={handleGenerate}
             disabled={Boolean(busy)}
             className="h-10 rounded-xl bg-primary/10 px-5 text-xs font-bold text-primary shadow-none hover:bg-primary hover:text-primary-foreground transition-all"
           >
-                      {busy === "generate" ? (
-                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
-                          <RefreshCw className="mr-1.5 h-4 w-4" />
-                        </motion.div>
-                      ) : (
-                        <Sparkles className="mr-2 h-4 w-4" />
-                      )}
-            
+            {busy === "generate" ? (
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                <RefreshCw className="mr-1.5 h-4 w-4" />
+              </motion.div>
+            ) : (
+              <Sparkles className="mr-2 h-4 w-4" />
+            )}
+
             {draft?.text ? "Regenerate AI" : "Generate AI"}
           </Button>
           <Button
@@ -270,9 +335,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() =>
-              run("verify", () => apiCall(`/api/reviews/${reviewId}/drafts/verify`, "POST"), "Draft verified")
-            }
+            onClick={handleVerify}
             disabled={!hasText || Boolean(busy)}
             className="h-10 rounded-xl border-border/50 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50"
           >
@@ -289,9 +352,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() =>
-              run("save", () => apiCall(`/api/reviews/${reviewId}/drafts/edit`, "POST", { text }), "Draft saved")
-            }
+            onClick={handleSave}
             disabled={!isDirty || Boolean(busy) || !hasText}
             className="h-10 rounded-xl border-border/50 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50"
           >
@@ -307,9 +368,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
           <Button
             type="button"
             size="sm"
-            onClick={() =>
-              run("publish", () => apiCall(`/api/reviews/${reviewId}/reply/post`, "POST"), "Reply posted successfully")
-            }
+            onClick={handlePublish}
             disabled={!hasText || Boolean(busy)}
             className="h-10 rounded-xl bg-primary px-8 text-xs font-black text-primary-foreground shadow-glow-primary transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98]"
           >
@@ -332,4 +391,3 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
     </div>
   )
 }
-

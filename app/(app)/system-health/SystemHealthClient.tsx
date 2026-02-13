@@ -6,13 +6,14 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowRight, RefreshCw, Zap } from "@/components/icons"
+import { ArrowRight, BarChart, RefreshCw, Zap } from "@/components/icons"
 import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
 import { cn } from "@/lib/utils"
 import { EnqueuePanel, type EnabledLocation } from "@/app/(app)/system-health/components/EnqueuePanel"
 import { JobDetailSheet } from "@/app/(app)/system-health/components/JobDetailSheet"
 import { JobFilters, type FilterOption } from "@/app/(app)/system-health/components/JobFilters"
 import { JobTable, type JobListItem } from "@/app/(app)/system-health/components/JobTable"
+import { motion } from "framer-motion"
 
 type Summary = {
   pending: number
@@ -405,80 +406,81 @@ export function SystemHealthClient(props: {
   const staleModeActive = staleOnly && backlogStatuses.size === 1 && backlogStatuses.has("RUNNING")
 
   return (
-    <div className="h-full w-full overflow-auto">
-      <div className="mx-auto w-full max-w-6xl p-4 lg:p-6 space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="text-lg font-bold">System Health</div>
-            <div className="text-xs text-muted-foreground">
-              Backlog, completed history, and owner-only job controls.
-            </div>
+    <div className="mx-auto max-w-5xl p-6 md:p-10 space-y-10">
+      {/* Header */}
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-5">
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm"
+          >
+            <BarChart className="size-7 text-primary" />
+          </motion.div>
+          <div className="space-y-1">
+            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">
+              System Health
+            </h1>
+            <p className="text-sm text-muted-foreground font-semibold uppercase tracking-widest text-[10px]">
+              Background job processing status
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            {isOwner ? (
-              <Button
-                type="button"
-                variant="secondary"
-              className="rounded-lg"
+        </div>
+        <div className="flex items-center gap-2">
+          {isOwner ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="rounded-xl h-11 px-5 font-bold shadow-sm"
               onClick={() => void runWorkerNow(1)}
               disabled={workerLoading || loading || enqueueLoading || props.workerDisabled}
               title={props.workerDisabled ? "Worker execution is disabled (DISABLE_CRON=true)." : "Claims and runs up to 1 eligible job."}
             >
-                <ArrowRight className="size-4" />
-                <span className="ml-2">Run worker</span>
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="secondary"
-              className="rounded-lg"
-              onClick={applyStuckPreset}
-              disabled={loading || enqueueLoading || workerLoading}
-            >
-              <Zap className="size-4" />
-              <span className="ml-2">Stuck</span>
+              <ArrowRight className="size-4" />
+              <span className="ml-2">Run worker</span>
             </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              className="rounded-lg"
-              onClick={() => void refreshAll()}
-              disabled={loading || enqueueLoading || workerLoading}
-            >
-              <RefreshCw className={cn("size-4", (loading || enqueueLoading) && "animate-spin")} />
-              <span className="ml-2">Refresh</span>
-            </Button>
-          </div>
+          ) : null}
+          <Button
+            type="button"
+            variant="secondary"
+            className="rounded-xl h-11 px-5 font-bold shadow-sm"
+            onClick={applyStuckPreset}
+            disabled={loading || enqueueLoading || workerLoading}
+          >
+            <Zap className="size-4" />
+            <span className="ml-2">Stuck</span>
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="rounded-xl h-11 px-5 font-bold shadow-sm"
+            onClick={() => void refreshAll()}
+            disabled={loading || enqueueLoading || workerLoading}
+          >
+            <RefreshCw className={cn("size-4", (loading || enqueueLoading) && "animate-spin")} />
+            <span className="ml-2">Refresh</span>
+          </Button>
         </div>
+      </div>
 
-        <Card className="rounded-xl p-4 shadow-card">
-          <div className="flex flex-col gap-1">
-            <div className="text-xs font-semibold">How Jobs Run</div>
-            <div className="text-[11px] text-muted-foreground">
-              Jobs execute only when the worker runs. In production this is typically driven by Vercel Cron calling
-              <span className="font-mono"> /api/cron/worker</span>. In local development, cron will not run automatically,
-              so use <span className="font-semibold">Run worker</span> to drain the queue.
-            </div>
-            {props.workerDisabled ? (
-              <div className="mt-1 text-[11px] text-destructive">
-                Worker is disabled for this deployment (<span className="font-mono">DISABLE_CRON=true</span>).
-              </div>
-            ) : null}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard label="Backlog" value={summary.backlog} tone={summary.backlog > 0 ? "warn" : "ok"} />
+        <MetricCard label="Running" value={summary.running} tone={summary.running > 0 ? "info" : "ok"} />
+        <MetricCard label="Failed (24h)" value={summary.failed24h} tone={summary.failed24h > 0 ? "bad" : "ok"} />
+        <Card className="rounded-[24px] p-6 border-border/50 bg-background shadow-sm">
+          <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Role</div>
+          <div className="mt-2 text-2xl font-black tabular-nums">
+            <Badge variant="secondary" className="rounded-lg px-2.5 py-0.5 text-xs font-bold">{props.role || "—"}</Badge>
           </div>
         </Card>
+      </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard label="Backlog" value={summary.backlog} tone={summary.backlog > 0 ? "warn" : "ok"} />
-          <MetricCard label="Running" value={summary.running} tone={summary.running > 0 ? "info" : "ok"} />
-          <MetricCard label="Failed (24h)" value={summary.failed24h} tone={summary.failed24h > 0 ? "bad" : "ok"} />
-          <Card className="rounded-xl p-4 shadow-card">
-            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Role</div>
-            <div className="mt-1.5 text-2xl font-bold tabular-nums">
-              <Badge variant="secondary" className="rounded-md">{props.role || "—"}</Badge>
-            </div>
-          </Card>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+           <h3 className="text-lg font-bold text-foreground">Enqueue Actions</h3>
+           {props.workerDisabled && (
+             <span className="text-[10px] font-bold text-destructive uppercase tracking-widest bg-destructive/10 px-3 py-1 rounded-full">Worker Disabled</span>
+           )}
         </div>
-
         <EnqueuePanel
           isOwner={isOwner}
           enabledLocations={props.enabledLocations}
@@ -487,60 +489,60 @@ export function SystemHealthClient(props: {
           onSyncReviewsAll={() => void enqueue({ type: "SYNC_REVIEWS", mode: "ALL_ENABLED" })}
           onSyncReviewsOne={(locationId) => void enqueue({ type: "SYNC_REVIEWS", mode: "ONE_LOCATION", locationId })}
         />
+      </div>
 
-        {error ? (
-          <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-            {error}
-          </div>
-        ) : null}
+      {error ? (
+        <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4 text-sm font-medium text-destructive">
+          {error}
+        </div>
+      ) : null}
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "backlog" | "completed")}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <TabsList className="rounded-xl">
-              <TabsTrigger value="backlog" className="rounded-lg">Backlog</TabsTrigger>
-              <TabsTrigger value="completed" className="rounded-lg">Completed</TabsTrigger>
-            </TabsList>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "backlog" | "completed")} className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <TabsList className="h-11 rounded-xl bg-muted/50 p-1">
+            <TabsTrigger value="backlog" className="h-9 rounded-lg px-4 text-xs font-bold uppercase tracking-wide">Backlog</TabsTrigger>
+            <TabsTrigger value="completed" className="h-9 rounded-lg px-4 text-xs font-bold uppercase tracking-wide">Completed</TabsTrigger>
+          </TabsList>
 
-            <JobFilters
-              q={q}
-              onQChange={setQ}
-              statusOptions={activeTab === "backlog" ? STATUS_OPTIONS_BACKLOG : STATUS_OPTIONS_COMPLETED}
-              selectedStatuses={activeTab === "backlog" ? backlogStatuses : completedStatuses}
-              onToggleStatus={(value) => toggleSet(activeTab === "backlog" ? setBacklogStatuses : setCompletedStatuses, value)}
-              typeOptions={TYPE_OPTIONS}
-              selectedTypes={types}
-              onToggleType={(value) => toggleSet(setTypes, value)}
-              onReset={resetFilters}
-            />
-          </div>
+          <JobFilters
+            q={q}
+            onQChange={setQ}
+            statusOptions={activeTab === "backlog" ? STATUS_OPTIONS_BACKLOG : STATUS_OPTIONS_COMPLETED}
+            selectedStatuses={activeTab === "backlog" ? backlogStatuses : completedStatuses}
+            onToggleStatus={(value) => toggleSet(activeTab === "backlog" ? setBacklogStatuses : setCompletedStatuses, value)}
+            typeOptions={TYPE_OPTIONS}
+            selectedTypes={types}
+            onToggleType={(value) => toggleSet(setTypes, value)}
+            onReset={resetFilters}
+          />
+        </div>
 
-            <TabsContent value="backlog" className="mt-3">
-            {isOwner ? (
-              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-xs text-muted-foreground">
-                  Owner tools: clear backlog safely (cancel queued jobs, keep history).
-                </div>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  className="rounded-lg"
-                  onClick={() => void clearBacklog()}
-                  disabled={loading || enqueueLoading || workerLoading}
-                >
-                  Clear backlog
-                </Button>
+          <TabsContent value="backlog" className="mt-0 space-y-4">
+          {isOwner || staleModeActive ? (
+            <div className="flex flex-col gap-3 rounded-2xl bg-muted/20 border border-border/50 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs font-medium text-muted-foreground">
+                {staleModeActive ? "Showing stale RUNNING jobs (locked > 15m)." : "Owner controls for queue management."}
               </div>
-            ) : null}
-            {staleModeActive ? (
-              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-xs text-muted-foreground">
-                  Showing stale RUNNING jobs (locked &gt; 15m). Server-side filtered.
-                </div>
-                {isOwner ? (
+              <div className="flex gap-2">
+                 {isOwner ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="rounded-xl h-9 px-4 font-bold"
+                    onClick={() => void clearBacklog()}
+                    disabled={loading || enqueueLoading || workerLoading}
+                  >
+                    Clear backlog
+                  </Button>
+                ) : null}
+                
+                {isOwner && staleModeActive ? (
                   <Button
                     type="button"
                     variant="secondary"
-                    className="rounded-lg"
+                    size="sm"
+                    className="rounded-xl h-9 px-4 font-bold"
                     onClick={() => {
                       const ids = visibleStaleRunning.map((j) => j.id)
                       if (!ids.length) return
@@ -554,43 +556,44 @@ export function SystemHealthClient(props: {
                   </Button>
                 ) : null}
               </div>
-            ) : null}
-            <JobTable
-              kind="backlog"
-              jobs={backlogJobs}
-              isOwner={isOwner}
-              loading={loading || enqueueLoading}
-              nowIso={nowIso}
-              onViewDetails={viewDetails}
-              onAction={runAction}
-            />
-            <LoadMore
-              show={Boolean(backlogCursor)}
-              onClick={() => void loadMore("backlog")}
-              disabled={loading || enqueueLoading}
-            />
-          </TabsContent>
+            </div>
+          ) : null}
+          
+          <JobTable
+            kind="backlog"
+            jobs={backlogJobs}
+            isOwner={isOwner}
+            loading={loading || enqueueLoading}
+            nowIso={nowIso}
+            onViewDetails={viewDetails}
+            onAction={runAction}
+          />
+          <LoadMore
+            show={Boolean(backlogCursor)}
+            onClick={() => void loadMore("backlog")}
+            disabled={loading || enqueueLoading}
+          />
+        </TabsContent>
 
-          <TabsContent value="completed" className="mt-3">
-            <JobTable
-              kind="completed"
-              jobs={completedJobs}
-              isOwner={isOwner}
-              loading={loading || enqueueLoading}
-              nowIso={nowIso}
-              onViewDetails={viewDetails}
-              onAction={runAction}
-            />
-            <LoadMore
-              show={Boolean(completedCursor)}
-              onClick={() => void loadMore("completed")}
-              disabled={loading || enqueueLoading}
-            />
-          </TabsContent>
-        </Tabs>
+        <TabsContent value="completed" className="mt-0">
+          <JobTable
+            kind="completed"
+            jobs={completedJobs}
+            isOwner={isOwner}
+            loading={loading || enqueueLoading}
+            nowIso={nowIso}
+            onViewDetails={viewDetails}
+            onAction={runAction}
+          />
+          <LoadMore
+            show={Boolean(completedCursor)}
+            onClick={() => void loadMore("completed")}
+            disabled={loading || enqueueLoading}
+          />
+        </TabsContent>
+      </Tabs>
 
-        <JobDetailSheet open={detailOpen} jobId={detailJobId} onOpenChange={(o) => setDetailOpen(o)} />
-      </div>
+      <JobDetailSheet open={detailOpen} jobId={detailJobId} onOpenChange={(o) => setDetailOpen(o)} />
     </div>
   )
 }
@@ -598,14 +601,17 @@ export function SystemHealthClient(props: {
 function MetricCard(props: { label: string; value: number; tone: "ok" | "info" | "warn" | "bad" }) {
   const cls =
     props.tone === "bad"
-      ? "text-destructive"
+      ? "text-destructive bg-destructive/10"
       : props.tone === "warn"
-        ? "text-primary"
-        : "text-foreground"
+        ? "text-amber-600 bg-amber-500/10"
+        : props.tone === "info"
+          ? "text-blue-600 bg-blue-500/10"
+          : "text-foreground bg-muted/30"
+          
   return (
-    <Card className="rounded-xl p-4 shadow-card">
-      <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">{props.label}</div>
-      <div className={cn("mt-1.5 text-2xl font-bold tabular-nums", cls)}>{props.value}</div>
+    <Card className="rounded-[24px] p-6 border-border/50 bg-background shadow-sm flex flex-col justify-between h-32">
+      <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{props.label}</div>
+      <div className={cn("mt-1.5 text-4xl font-black tabular-nums self-start px-3 py-1 rounded-xl", cls)}>{props.value}</div>
     </Card>
   )
 }
@@ -613,9 +619,9 @@ function MetricCard(props: { label: string; value: number; tone: "ok" | "info" |
 function LoadMore(props: { show: boolean; onClick: () => void; disabled: boolean }) {
   if (!props.show) return null
   return (
-    <div className="mt-3 flex justify-center">
-      <Button type="button" variant="secondary" className="rounded-lg" onClick={props.onClick} disabled={props.disabled}>
-        Load more
+    <div className="mt-6 flex justify-center">
+      <Button type="button" variant="secondary" className="rounded-xl h-12 px-8 font-bold shadow-sm" onClick={props.onClick} disabled={props.disabled}>
+        Load more history
       </Button>
     </div>
   )

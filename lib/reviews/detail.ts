@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
+import type { DraftStatus } from "@/lib/reviews/types"
 
 const reviewDetailInclude = {
   location: true,
@@ -31,7 +32,7 @@ export type ReviewDetailPayload = {
   currentDraft: {
     id: string
     text: string
-    status: string
+    status: DraftStatus
     version: number
     verifierResultJson: unknown | null
     updatedAt: string
@@ -39,7 +40,7 @@ export type ReviewDetailPayload = {
   drafts: Array<{
     id: string
     text: string
-    status: string
+    status: DraftStatus
     version: number
     updatedAt: string
   }>
