@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db"
-import type { Job } from "@prisma/client"
+import { Prisma, type Job } from "@prisma/client"
 import { z } from "zod"
 import crypto from "node:crypto"
 import { getAccessTokenForOrg } from "@/lib/google/oauth"
@@ -17,9 +17,26 @@ import {
 import { extractMentionsAndHighlights } from "@/lib/reviews/mentions"
 import { invalidateReviewCountsCache } from "@/lib/reviews/query"
 import { buildLocalReplyPolicyViolations, mergeVerifierViolations } from "@/lib/reviews/reply-guardrails"
+<<<<<<< ours
+<<<<<<< ours
 import { buildVerifierResultEnvelope, type VerifierDecisionSource } from "@/lib/reviews/verifier-envelope"
+=======
+=======
+>>>>>>> theirs
+import {
+  buildVerifierResultEnvelope,
+  readVerifierFreshnessHash,
+  type VerifierDecisionSource,
+} from "@/lib/reviews/verifier-envelope"
+import {
+  buildVerifierEvidenceContext,
+  computeVerifierFreshnessHash,
+} from "@/lib/reviews/verifier-freshness"
+<<<<<<< ours
+>>>>>>> theirs
+=======
+>>>>>>> theirs
 import { enqueueJob } from "@/lib/jobs/queue"
-import { evidenceSnapshotSchema } from "@/lib/ai/draft"
 import { DspyServiceError, type DspyProcessMode, processReviewWithDspy } from "@/lib/ai/dspy-client"
 import { MAX_GOOGLE_REPLY_CHARS } from "@/lib/policy"
 import { NonRetryableError, RetryableJobError } from "@/lib/jobs/errors"
@@ -298,7 +315,7 @@ async function handleProcessReview(job: Job, signal?: AbortSignal) {
     if (!draft) return
 
     if (review.currentDraftReplyId && review.currentDraftReplyId !== draft.id) {
-      return
+      throw new NonRetryableError("DRAFT_STALE", "Draft is stale.")
     }
 
     await enforceCooldownOrThrow({ orgId: job.orgId, scope: "VERIFY_DRAFT", key: draft.id })
@@ -313,36 +330,23 @@ async function handleProcessReview(job: Job, signal?: AbortSignal) {
   })
 
   const settings = await prisma.orgSettings.findUnique({ where: { orgId: job.orgId } })
-  const mentionKeywords = settings?.mentionKeywords ?? []
-  const { mentions, highlights } = extractMentionsAndHighlights(review.comment, mentionKeywords)
+  const evidenceContext = buildVerifierEvidenceContext({
+    review,
+    location: review.location,
+    settings: {
+      mentionKeywords: settings?.mentionKeywords,
+      tonePreset: settings?.tonePreset,
+      toneCustomInstructions: settings?.toneCustomInstructions,
+    },
+  })
+  const evidenceValidated = evidenceContext.evidence
 
-  if (mentions.join("|") !== review.mentions.join("|")) {
+  if (evidenceContext.mentions.join("|") !== review.mentions.join("|")) {
     await prisma.review.update({
       where: { id: review.id },
-      data: { mentions },
+      data: { mentions: evidenceContext.mentions },
     })
   }
-
-  const evidence = {
-    starRating: review.starRating,
-    comment: review.comment ?? null,
-    reviewerDisplayName: review.reviewerDisplayName ?? null,
-    reviewerIsAnonymous: review.reviewerIsAnonymous,
-    locationDisplayName: review.location.displayName,
-    createTime: review.createTime.toISOString(),
-    highlights,
-    mentionKeywords,
-    seoProfile: {
-      primaryKeywords: review.location.seoPrimaryKeywords,
-      secondaryKeywords: review.location.seoSecondaryKeywords,
-      geoTerms: review.location.seoGeoTerms,
-    },
-    tone: {
-      preset: settings?.tonePreset ?? "friendly",
-      customInstructions: settings?.toneCustomInstructions ?? null,
-    },
-  }
-  const evidenceValidated = evidenceSnapshotSchema.parse(evidence)
 
   const upstreamKey = "DSPY:process"
   await breakerPrecheckOrThrow({ orgId: job.orgId, upstreamKey })
@@ -438,14 +442,50 @@ async function handleProcessReview(job: Job, signal?: AbortSignal) {
     localPolicyViolations.length > 0 && result.decision !== "BLOCKED_BY_VERIFIER"
       ? "LOCAL_DETERMINISTIC_POLICY"
       : "DSPY_VERIFIER"
+<<<<<<< ours
+<<<<<<< ours
   const verifierPayload = buildVerifierResultEnvelope({
     decisionSource,
     payload: verifierPayloadBody,
   })
+=======
+  const normalizedDraftText = result.draftText.trim()
+>>>>>>> theirs
+=======
+  const normalizedDraftText = result.draftText.trim()
+>>>>>>> theirs
 
   if (isVerifyExisting) {
     if (!targetDraftId) return
     await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM "Review" WHERE "id" = ${review.id} FOR UPDATE`
+
+      const latestReview = await tx.review.findFirst({
+        where: { id: review.id, orgId: job.orgId },
+        select: { currentDraftReplyId: true },
+      })
+      if (!latestReview || latestReview.currentDraftReplyId !== targetDraftId) {
+        throw new NonRetryableError("DRAFT_STALE", "Draft is stale.")
+      }
+
+      const latestDraft = await tx.draftReply.findFirst({
+        where: { id: targetDraftId, orgId: job.orgId, reviewId: review.id },
+        select: { text: true },
+      })
+      if (!latestDraft) {
+        throw new NonRetryableError("DRAFT_STALE", "Draft is stale.")
+      }
+
+      const freshnessHash = computeVerifierFreshnessHash({
+        evidence: evidenceValidated,
+        draftText: latestDraft.text,
+      })
+      const verifierPayload = buildVerifierResultEnvelope({
+        decisionSource,
+        freshnessHash,
+        payload: verifierPayloadBody,
+      })
+
       await tx.draftReply.update({
         where: { id: targetDraftId },
         data: {
@@ -480,20 +520,26 @@ async function handleProcessReview(job: Job, signal?: AbortSignal) {
     return
   }
 
-  const maxVersion = await prisma.draftReply.aggregate({
-    where: { reviewId: review.id },
-    _max: { version: true },
-  })
-  const nextVersion = (maxVersion._max.version ?? 0) + 1
   const origin = payload.mode === "MANUAL_REGENERATE" ? "REGENERATED" : "AUTO"
 
   await prisma.$transaction(async (tx) => {
+    const nextVersion = await allocateNextDraftVersionTx(tx, review.id)
+    const freshnessHash = computeVerifierFreshnessHash({
+      evidence: evidenceValidated,
+      draftText: normalizedDraftText,
+    })
+    const verifierPayload = buildVerifierResultEnvelope({
+      decisionSource,
+      freshnessHash,
+      payload: verifierPayloadBody,
+    })
+
     const created = await tx.draftReply.create({
       data: {
         orgId: job.orgId,
         reviewId: review.id,
         version: nextVersion,
-        text: result.draftText.trim(),
+        text: normalizedDraftText,
         origin,
         status,
         evidenceSnapshotJson: evidenceValidated as never,
@@ -579,6 +625,29 @@ function sha256Hash(input: string) {
   return crypto.createHash("sha256").update(input).digest("hex")
 }
 
+async function allocateNextDraftVersionTx(tx: Prisma.TransactionClient, reviewId: string) {
+  const lockedReview = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT "id"
+    FROM "Review"
+    WHERE "id" = ${reviewId}
+    FOR UPDATE
+  `
+  if (lockedReview.length === 0) {
+    throw new NonRetryableError("NOT_FOUND", "Review not found.")
+  }
+
+  const nextVersionRows = await tx.$queryRaw<Array<{ nextVersion: number }>>`
+    SELECT COALESCE(MAX("version"), 0) + 1 AS "nextVersion"
+    FROM "DraftReply"
+    WHERE "reviewId" = ${reviewId}
+  `
+  const nextVersion = Number(nextVersionRows[0]?.nextVersion ?? 1)
+  if (!Number.isInteger(nextVersion) || nextVersion < 1) {
+    throw new NonRetryableError("INTERNAL", "Unable to allocate draft version.")
+  }
+  return nextVersion
+}
+
 async function handlePostReply(job: Job) {
   const payload = postReplyPayloadSchema.parse(job.payload)
 
@@ -608,10 +677,78 @@ async function handlePostReply(job: Job) {
     throw new NonRetryableError("BAD_REQUEST", "Reply too long for Google.")
   }
 
+<<<<<<< ours
+<<<<<<< ours
+=======
+=======
+>>>>>>> theirs
+  const settings = await prisma.orgSettings.findUnique({
+    where: { orgId: job.orgId },
+    select: {
+      mentionKeywords: true,
+      tonePreset: true,
+      toneCustomInstructions: true,
+    },
+  })
+  const postEvidenceContext = buildVerifierEvidenceContext({
+    review,
+    location: review.location,
+    settings: {
+      mentionKeywords: settings?.mentionKeywords,
+      tonePreset: settings?.tonePreset,
+      toneCustomInstructions: settings?.toneCustomInstructions,
+    },
+  })
+  const currentFreshnessHash = computeVerifierFreshnessHash({
+    evidence: postEvidenceContext.evidence,
+    draftText: trimmed,
+  })
+  const verifiedFreshnessHash = readVerifierFreshnessHash(draft.verifierResultJson)
+  if (verifiedFreshnessHash !== currentFreshnessHash) {
+    const staleMessage = "Draft verification is stale. Re-verify the draft before posting."
+    const staleViolation = {
+      code: "STALE_VERIFICATION",
+      message: staleMessage,
+    }
+    const staleVerifierPayload = buildVerifierResultEnvelope({
+      decisionSource: "LOCAL_DETERMINISTIC_POLICY",
+      freshnessHash: currentFreshnessHash,
+      payload: {
+        issues: [staleMessage],
+        policy: { localViolations: [staleViolation] },
+      },
+    })
+
+    await prisma.draftReply.update({
+      where: { id: draft.id },
+      data: {
+        status: "BLOCKED_BY_VERIFIER",
+        verifierResultJson: staleVerifierPayload as never,
+      },
+    })
+    throw new NonRetryableError("DRAFT_NOT_READY", staleMessage, {
+      reason: "STALE_VERIFICATION",
+      verifiedFreshnessHash: verifiedFreshnessHash ?? null,
+      currentFreshnessHash,
+    })
+  }
+
+<<<<<<< ours
+>>>>>>> theirs
+=======
+>>>>>>> theirs
   const publishViolations = buildLocalReplyPolicyViolations({ text: trimmed })
   if (publishViolations.length > 0) {
     const verifierPayload = buildVerifierResultEnvelope({
       decisionSource: "LOCAL_DETERMINISTIC_POLICY",
+<<<<<<< ours
+<<<<<<< ours
+=======
+      freshnessHash: currentFreshnessHash,
+>>>>>>> theirs
+=======
+      freshnessHash: currentFreshnessHash,
+>>>>>>> theirs
       payload: {
         issues: publishViolations.map((violation) => violation.message),
         policy: { localViolations: publishViolations },

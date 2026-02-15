@@ -6,7 +6,15 @@ import { toast } from "sonner"
 import { useReviewMutations } from "@/app/(app)/inbox/hooks/useReviewMutations"
 import { cn } from "@/lib/utils"
 import { type ReviewDetail, type ReviewRow } from "@/lib/hooks"
+<<<<<<< ours
+<<<<<<< ours
 import type { DraftStatus } from "@/lib/reviews/types"
+=======
+import { mapReviewDetailToRow } from "@/lib/reviews/detail-to-row"
+>>>>>>> theirs
+=======
+import { mapReviewDetailToRow } from "@/lib/reviews/detail-to-row"
+>>>>>>> theirs
 import { getFirstVerifierIssueMessage } from "@/lib/reviews/verifier-result"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -83,10 +91,48 @@ type Props = {
 }
 
 export function DraftEditor({ reviewId, review, refresh }: Props) {
-  const draft = review.currentDraft
+  const [draftRow, setDraftRow] = React.useState<ReviewRow>(() => mapReviewDetailToRow(review))
+  const draft = draftRow.currentDraft
   const [text, setText] = React.useState(draft?.text ?? "")
   const [busy, setBusy] = React.useState<false | "generate" | "save" | "verify" | "publish">(false)
   const [tone, setTone] = React.useState("professional")
+
+  React.useEffect(() => {
+    const incoming = mapReviewDetailToRow(review)
+    setDraftRow((current) => {
+      if (current.id !== incoming.id) return incoming
+
+      const currentDraftVersion = current.currentDraft?.version ?? 0
+      const incomingDraftVersion = incoming.currentDraft?.version ?? 0
+      if (incomingDraftVersion < currentDraftVersion) return current
+
+      const currentDraftUpdatedAt = current.currentDraft?.updatedAtIso ?? null
+      const incomingDraftUpdatedAt = incoming.currentDraft?.updatedAtIso ?? null
+      if (
+        incomingDraftVersion === currentDraftVersion &&
+        currentDraftUpdatedAt &&
+        incomingDraftUpdatedAt &&
+        incomingDraftUpdatedAt < currentDraftUpdatedAt
+      ) {
+        return current
+      }
+
+      const currentReplyUpdatedAt = current.reply.updateTimeIso ?? null
+      const incomingReplyUpdatedAt = incoming.reply.updateTimeIso ?? null
+      if (current.reply.comment && !incoming.reply.comment) return current
+      if (
+        current.reply.comment &&
+        incoming.reply.comment &&
+        currentReplyUpdatedAt &&
+        incomingReplyUpdatedAt &&
+        incomingReplyUpdatedAt < currentReplyUpdatedAt
+      ) {
+        return current
+      }
+
+      return incoming
+    })
+  }, [review])
 
   React.useEffect(() => {
     setText(draft?.text ?? "")
@@ -94,12 +140,14 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
 
   const isDirty = text !== (draft?.text ?? "")
   const hasText = text.trim().length > 0
-  const isReplied = Boolean(review.reply.comment)
+  const isReplied = Boolean(draftRow.reply.comment)
   const isBlocked = draft?.status === "BLOCKED_BY_VERIFIER"
   const verifierIssue = getFirstVerifierIssueMessage(draft?.verifierResultJson ?? null)
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length
   const [draftRow, setDraftRow] = React.useState<ReviewRow>(() => mapDetailToReviewRow(review))
 
+<<<<<<< ours
+<<<<<<< ours
   React.useEffect(() => {
     setDraftRow(mapDetailToReviewRow(review))
   }, [review])
@@ -109,6 +157,20 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
     setDraftRow((current) => (current.id === id ? updater(current) : current))
   }, [])
 
+=======
+  const rows = React.useMemo(() => [draftRow], [draftRow])
+  const updateRow = React.useCallback((id: string, updater: (row: ReviewRow) => ReviewRow) => {
+    setDraftRow((current) => (current.id === id ? updater(current) : current))
+  }, [])
+
+>>>>>>> theirs
+=======
+  const rows = React.useMemo(() => [draftRow], [draftRow])
+  const updateRow = React.useCallback((id: string, updater: (row: ReviewRow) => ReviewRow) => {
+    setDraftRow((current) => (current.id === id ? updater(current) : current))
+  }, [])
+
+>>>>>>> theirs
   const { generateDraft, saveDraft, verifyDraft, publishReply } = useReviewMutations({
     rows,
     updateRow,

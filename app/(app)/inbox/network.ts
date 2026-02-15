@@ -5,6 +5,9 @@ import type { ReviewDetail } from "@/lib/hooks"
 
 const JOB_POLL_BASE_MS = 900
 const JOB_POLL_MAX_MS = 2600
+const JOB_SSE_MIN_BUDGET_MS = 900
+const JOB_SSE_MAX_BUDGET_MS = 12_000
+const JOB_SSE_CLOSE_GRACE_MS = 1_250
 const JOB_TERMINAL_CACHE_TTL_MS = 15_000
 const JOB_TERMINAL_CACHE_MAX_ENTRIES = 512
 const REVIEW_POLL_INTERVAL_MS = 650
@@ -28,13 +31,30 @@ type JobStatusResponse = {
   job: JobDetail
 }
 
+type JobStreamEvent = {
+  kind: "snapshot" | "transition" | "terminal"
+  job: JobDetail
+  review?: ReviewDetail | null
+}
+
+type JobStreamTimeoutEvent = {
+  kind: "timeout"
+  job: JobDetail | null
+}
+
 type TerminalJobCacheEntry = {
   job: JobDetail
   expiresAt: number
 }
 
+export type JobCompletionResult = {
+  job: JobDetail
+  review: ReviewDetail | null
+}
+
 const terminalJobCache = new Map<string, TerminalJobCacheEntry>()
 const inflightJobDetailRequests = new Map<string, Promise<JobDetail | null>>()
+const JOB_STATUS_VALUES = new Set<JobStatus>(["PENDING", "RUNNING", "RETRYING", "COMPLETED", "FAILED", "CANCELLED"])
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -102,6 +122,55 @@ function resolveJobPollDelayMs(params: {
   return Math.min(remainingMs, Math.max(JOB_POLL_BASE_MS, Math.min(JOB_POLL_MAX_MS, computedDelay)))
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
+function parseJobDetail(value: unknown): JobDetail | null {
+  if (!isRecord(value)) return null
+  const status = value.status
+  if (
+    typeof value.id !== "string" ||
+    typeof value.type !== "string" ||
+    typeof status !== "string" ||
+    !JOB_STATUS_VALUES.has(status as JobStatus)
+  ) {
+    return null
+  }
+  return value as JobDetail
+}
+
+function parseJobStreamEvent(data: string): JobStreamEvent | JobStreamTimeoutEvent | null {
+  try {
+    const raw = JSON.parse(data) as unknown
+    if (!isRecord(raw) || typeof raw.kind !== "string") return null
+
+    if (raw.kind === "timeout") {
+      const job = parseJobDetail(raw.job)
+      return { kind: "timeout", job }
+    }
+
+    if (raw.kind !== "snapshot" && raw.kind !== "transition" && raw.kind !== "terminal") {
+      return null
+    }
+
+    const job = parseJobDetail(raw.job)
+    if (!job) return null
+    const review = raw.review as ReviewDetail | null | undefined
+    return { kind: raw.kind, job, review }
+  } catch {
+    return null
+  }
+}
+
+function resolveSseBudgetMs(timeoutMs: number) {
+  if (timeoutMs <= 0) return 0
+  if (timeoutMs <= JOB_SSE_MIN_BUDGET_MS) return timeoutMs
+
+  const proportional = Math.floor(timeoutMs * 0.6)
+  return Math.min(timeoutMs, Math.max(JOB_SSE_MIN_BUDGET_MS, Math.min(JOB_SSE_MAX_BUDGET_MS, proportional)))
+}
+
 export async function apiCall<T>(url: string, method: string, body?: unknown): Promise<T> {
   const upper = method.toUpperCase()
   const mutating = ["POST", "PUT", "PATCH", "DELETE"].includes(upper)
@@ -163,9 +232,85 @@ export async function fetchJobDetail(jobId: string): Promise<JobDetail | null> {
   }
 }
 
-export async function waitForJobCompletion(jobId: string, timeoutMs: number): Promise<JobDetail | null> {
+async function waitForJobCompletionViaSse(jobId: string, timeoutMs: number): Promise<JobCompletionResult | null> {
+  if (timeoutMs <= 0) return null
+  if (typeof window === "undefined" || typeof EventSource === "undefined") return null
+
+  const streamUrl = `/api/jobs/${encodeURIComponent(jobId)}/events?timeoutMs=${Math.floor(timeoutMs)}`
+
+  return new Promise<JobCompletionResult | null>((resolve) => {
+    const source = new EventSource(streamUrl)
+    let settled = false
+    let guardTimer: ReturnType<typeof globalThis.setTimeout> | null = null
+
+    const finish = (value: JobCompletionResult | null) => {
+      if (settled) return
+      settled = true
+      if (guardTimer != null) {
+        globalThis.clearTimeout(guardTimer)
+      }
+      source.close()
+      resolve(value)
+    }
+
+    const handleMessage = (data: string) => {
+      const parsed = parseJobStreamEvent(data)
+      if (!parsed) return
+
+      if (parsed.kind === "timeout") {
+        finish(null)
+        return
+      }
+
+      if (!isTerminalJobStatus(parsed.job.status)) {
+        return
+      }
+
+      cacheTerminalJob(parsed.job)
+      finish({
+        job: parsed.job,
+        review: parsed.review ?? null,
+      })
+    }
+
+    const onJob = (event: Event) => {
+      const message = event as MessageEvent<string>
+      handleMessage(message.data)
+    }
+
+    const onTimeout = (event: Event) => {
+      const message = event as MessageEvent<string>
+      const parsed = parseJobStreamEvent(message.data)
+      if (parsed?.kind === "timeout") {
+        if (parsed.job) {
+          cacheTerminalJob(parsed.job)
+        }
+        finish(null)
+        return
+      }
+      finish(null)
+    }
+
+    source.onmessage = onJob as (event: MessageEvent<string>) => void
+    source.addEventListener("job", onJob)
+    source.addEventListener("timeout", onTimeout)
+    source.onerror = () => {
+      finish(null)
+    }
+
+    guardTimer = globalThis.setTimeout(() => {
+      finish(null)
+    }, timeoutMs + JOB_SSE_CLOSE_GRACE_MS)
+  })
+}
+
+async function waitForJobCompletionByPolling(jobId: string, timeoutMs: number): Promise<JobCompletionResult | null> {
+  if (timeoutMs <= 0) return null
+
   const cached = getCachedTerminalJob(jobId)
-  if (cached) return cached
+  if (cached) {
+    return { job: cached, review: null }
+  }
 
   const startedAt = Date.now()
   let attempts = 0
@@ -173,7 +318,7 @@ export async function waitForJobCompletion(jobId: string, timeoutMs: number): Pr
   while (Date.now() - startedAt < timeoutMs) {
     const job = await fetchJobDetail(jobId)
     if (job && (job.status === "COMPLETED" || job.status === "FAILED" || job.status === "CANCELLED")) {
-      return job
+      return { job, review: null }
     }
 
     const elapsedMs = Date.now() - startedAt
@@ -185,6 +330,30 @@ export async function waitForJobCompletion(jobId: string, timeoutMs: number): Pr
   }
 
   return null
+}
+
+export async function waitForJobCompletion(jobId: string, timeoutMs: number): Promise<JobCompletionResult | null> {
+  if (timeoutMs <= 0) return null
+
+  const cached = getCachedTerminalJob(jobId)
+  if (cached) {
+    return { job: cached, review: null }
+  }
+
+  const startedAt = Date.now()
+  const sseBudgetMs = resolveSseBudgetMs(timeoutMs)
+  if (sseBudgetMs > 0) {
+    const streamed = await waitForJobCompletionViaSse(jobId, sseBudgetMs)
+    if (streamed) {
+      return streamed
+    }
+  }
+
+  const elapsedMs = Date.now() - startedAt
+  const remainingMs = timeoutMs - elapsedMs
+  if (remainingMs <= 0) return null
+
+  return waitForJobCompletionByPolling(jobId, remainingMs)
 }
 
 export async function waitForReviewState(

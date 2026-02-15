@@ -56,6 +56,7 @@ export function toReviewListRow(review: ReviewListRecord): ReviewListRow {
           status: review.currentDraftReply.status,
           version: review.currentDraftReply.version,
           updatedAtIso: review.currentDraftReply.updatedAt.toISOString(),
+          verifierResultJson: null,
         }
       : null,
     draftStatus: review.currentDraftReply?.status ?? null,

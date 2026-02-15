@@ -61,11 +61,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       })
       if (!review) throw new ApiError({ status: 404, code: "NOT_FOUND", message: "Review not found." })
 
-      const maxVersion = await prisma.draftReply.aggregate({
-        where: { reviewId: review.id },
-        _max: { version: true },
-      })
-      const nextVersion = (maxVersion._max.version ?? 0) + 1
       const settings = await prisma.orgSettings.findUnique({ where: { orgId: session.orgId } })
       const mentionKeywords = settings?.mentionKeywords ?? []
       const { highlights, mentions } = extractMentionsAndHighlights(review.comment, mentionKeywords)
@@ -91,6 +86,23 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       }
 
       const created = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`
+          SELECT "id"
+          FROM "Review"
+          WHERE "id" = ${review.id}
+          FOR UPDATE
+        `
+
+        const nextVersionRows = await tx.$queryRaw<Array<{ nextVersion: number }>>`
+          SELECT COALESCE(MAX("version"), 0) + 1 AS "nextVersion"
+          FROM "DraftReply"
+          WHERE "reviewId" = ${review.id}
+        `
+        const nextVersion = Number(nextVersionRows[0]?.nextVersion ?? 1)
+        if (!Number.isInteger(nextVersion) || nextVersion < 1) {
+          throw new ApiError({ status: 500, code: "INTERNAL", message: "Unable to allocate draft version." })
+        }
+
         await tx.review.update({ where: { id: review.id }, data: { mentions } })
         const draft = await tx.draftReply.create({
           data: {

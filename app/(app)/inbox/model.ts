@@ -1,4 +1,12 @@
 import type { ReviewDetail, ReviewFilter, ReviewRow } from "@/lib/hooks"
+<<<<<<< ours
+<<<<<<< ours
+=======
+import { mapReviewDetailToRow } from "@/lib/reviews/detail-to-row"
+>>>>>>> theirs
+=======
+import { mapReviewDetailToRow } from "@/lib/reviews/detail-to-row"
+>>>>>>> theirs
 import { getFirstVerifierIssueMessage } from "@/lib/reviews/verifier-result"
 
 export function parseFilter(input: string | null): ReviewFilter {
@@ -31,43 +39,7 @@ export function initials(name: string) {
 }
 
 export function mapDetailToRow(existing: ReviewRow, detail: ReviewDetail): ReviewRow {
-  const draftUpdatedAt =
-    typeof (detail.currentDraft as { updatedAt?: string } | null)?.updatedAt === "string"
-      ? ((detail.currentDraft as { updatedAt?: string }).updatedAt as string)
-      : existing.currentDraft?.updatedAtIso ?? new Date().toISOString()
-
-  return {
-    ...existing,
-    starRating: detail.starRating,
-    snippet: (detail.comment ?? "").slice(0, 120),
-    comment: detail.comment ?? "",
-    reviewer: {
-      displayName: detail.reviewer.displayName,
-      isAnonymous: detail.reviewer.isAnonymous,
-    },
-    createTimeIso: detail.createTime,
-    location: {
-      id: detail.location.id,
-      displayName: detail.location.name,
-    },
-    unanswered: detail.reply.comment == null,
-    status: detail.reply.comment == null ? "pending" : "replied",
-    reply: {
-      comment: detail.reply.comment,
-      updateTimeIso: detail.reply.updateTime,
-    },
-    currentDraft: detail.currentDraft
-      ? {
-          id: detail.currentDraft.id,
-          text: detail.currentDraft.text,
-          status: detail.currentDraft.status,
-          version: detail.currentDraft.version,
-          updatedAtIso: draftUpdatedAt,
-        }
-      : null,
-    draftStatus: detail.currentDraft?.status ?? null,
-    mentions: detail.mentions,
-  }
+  return mapReviewDetailToRow(detail, existing)
 }
 
 export function applyDetailSnapshot(
