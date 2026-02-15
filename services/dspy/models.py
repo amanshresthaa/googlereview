@@ -42,6 +42,21 @@ class ProcessReviewMode(str, Enum):
     VERIFY_EXISTING_DRAFT = "VERIFY_EXISTING_DRAFT"
 
 
+class ProcessExecutionOverrides(BaseModel):
+    experimentId: Optional[str] = None
+    programVersion: Optional[str] = None
+    draftModel: Optional[str] = None
+    verifyModel: Optional[str] = None
+
+    @field_validator("experimentId", "programVersion", "draftModel", "verifyModel")
+    @classmethod
+    def normalize_optional_identifier(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        trimmed = value.strip()
+        return trimmed if trimmed else None
+
+
 class ProcessReviewRequest(BaseModel):
     orgId: str = Field(min_length=1)
     reviewId: str = Field(min_length=1)
@@ -50,6 +65,7 @@ class ProcessReviewRequest(BaseModel):
     currentDraftText: Optional[str] = None
     candidateDraftText: Optional[str] = None
     requestId: Optional[str] = None
+    execution: Optional[ProcessExecutionOverrides] = None
 
     @field_validator("currentDraftText", "candidateDraftText")
     @classmethod

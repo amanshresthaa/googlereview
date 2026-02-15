@@ -96,6 +96,23 @@ const SyncReviewsResponse = withOk(z.object({ jobIds: z.array(z.string()), worke
 const EditDraftResponse = withOk(z.object({ draftReplyId: z.string(), verifyJobId: z.string(), worker: WorkerRun }))
 const LocationsSelectResponse = withOk(z.object({ worker: WorkerRun }))
 const SettingsUpdateResponse = withOk(z.object({}))
+const DspyExperimentConfig = z
+  .object({
+    id: z.string().min(1).max(80),
+    trafficPercent: z.number().min(0).max(100),
+    programVersion: z.string().min(1).max(120).optional(),
+    draftModel: z.string().min(1).max(120).optional(),
+    verifyModel: z.string().min(1).max(120).optional(),
+  })
+  .strict()
+const DspyConfig = z
+  .object({
+    programVersion: z.string().min(1).max(120).optional(),
+    draftModel: z.string().min(1).max(120).optional(),
+    verifyModel: z.string().min(1).max(120).optional(),
+    experiments: z.array(DspyExperimentConfig).max(20).optional(),
+  })
+  .strict()
 
 const JobStatus = z.enum(["PENDING", "RUNNING", "RETRYING", "COMPLETED", "FAILED", "CANCELLED"])
 const JobType = z.enum(["SYNC_LOCATIONS", "SYNC_REVIEWS", "PROCESS_REVIEW", "POST_REPLY"])
@@ -358,8 +375,28 @@ registerAuthedPost("/api/settings/update", {
       autoDraftEnabled: z.boolean().optional(),
       autoDraftForRatings: z.array(z.number().int().min(1).max(5)).max(5).optional(),
       bulkApproveEnabledForFiveStar: z.boolean().optional(),
-      aiProvider: z.enum(["OPENAI", "GEMINI"]).optional(),
       mentionKeywords: z.array(z.string().min(1).max(40)).max(50).optional(),
+      dspyConfig: DspyConfig.nullable().optional(),
+    })
+    .strict(),
+  response: SettingsUpdateResponse,
+})
+
+registerAuthedPost("/api/settings/seo-locations", {
+  summary: "Update per-location SEO profiles and optional DSPy overrides.",
+  body: z
+    .object({
+      locations: z
+        .array(
+          z.object({
+            locationId: z.string().min(1),
+            primaryKeywords: z.array(z.string().min(1).max(64)).max(10),
+            secondaryKeywords: z.array(z.string().min(1).max(64)).max(30),
+            geoTerms: z.array(z.string().min(1).max(64)).max(20),
+            dspyConfig: DspyConfig.nullable().optional(),
+          }),
+        )
+        .max(200),
     })
     .strict(),
   response: SettingsUpdateResponse,

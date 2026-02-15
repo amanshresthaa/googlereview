@@ -36,6 +36,7 @@ type JobDetail = {
     errorCode: string | null
     errorMessage: string | null
     programVersion: string | null
+    experimentId: string | null
     draftModel: string | null
     verifyModel: string | null
     draftTraceId: string | null
@@ -228,6 +229,12 @@ export function JobDetailSheet(props: {
                       <div className="flex items-center justify-between gap-2">
                         <span>Program</span>
                         <span className="font-mono">{job.dspyLatest.programVersion}</span>
+                      </div>
+                    ) : null}
+                    {job.dspyLatest.experimentId ? (
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Experiment</span>
+                        <span className="font-mono">{job.dspyLatest.experimentId}</span>
                       </div>
                     ) : null}
                     {(job.dspyLatest.draftModel || job.dspyLatest.verifyModel) ? (

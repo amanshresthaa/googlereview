@@ -139,6 +139,8 @@ model Location {
   seoPrimaryKeywords   String[] @default([])
   seoSecondaryKeywords String[] @default([])
   seoGeoTerms          String[] @default([])
+  // Optional per-location DSPy execution overrides (program/model/experiments).
+  dspyConfigJson       Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -241,9 +243,11 @@ model DspyRun {
   draftTraceId String?
   verifyTraceId String?
   requestId   String?
+  experimentId String?
   attemptCount Int
   latencyMs   Int?
   inputHash   String
+  executionConfigJson Json?
   outputJson  Json?
   errorCode   String?
   errorMessage String?
@@ -259,6 +263,8 @@ model DspyRun {
   @@index([draftReplyId])
   @@index([programVersion, createdAt(sort: Desc)], map: "DspyRun_programVersion_createdAt_idx")
   @@index([mode, createdAt(sort: Desc)], map: "DspyRun_mode_createdAt_idx")
+  @@index([orgId, experimentId, createdAt(sort: Desc)], map: "DspyRun_orgId_experimentId_createdAt_idx")
+  @@index([orgId, reviewId, experimentId, inputHash], map: "DspyRun_orgId_reviewId_experimentId_inputHash_idx")
 }
 
 model AuditLog {
@@ -290,6 +296,8 @@ model OrgSettings {
   bulkApproveEnabledForFiveStar Boolean @default(true)
 
   mentionKeywords String[]
+  // Optional org-level DSPy execution defaults (program/model/experiments).
+  dspyConfigJson Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -1,7 +1,22 @@
 import { unstable_cache } from "next/cache"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 
 const SIDEBAR_CACHE_TTL_SEC = 15
+
+const SETTINGS_SIDEBAR_SETTINGS_SELECT = {
+  tonePreset: true,
+  toneCustomInstructions: true,
+  autoDraftEnabled: true,
+  autoDraftForRatings: true,
+  bulkApproveEnabledForFiveStar: true,
+  mentionKeywords: true,
+  dspyConfigJson: true,
+} satisfies Prisma.OrgSettingsSelect
+
+export type SettingsSidebarSettings = Prisma.OrgSettingsGetPayload<{
+  select: typeof SETTINGS_SIDEBAR_SETTINGS_SELECT
+}>
 
 function sidebarTag(orgId: string) {
   return `org:${orgId}:sidebar`
@@ -48,7 +63,10 @@ export async function getSettingsSidebarData(orgId: string) {
   return forOrg(orgId, "settings", SIDEBAR_CACHE_TTL_SEC, async () => {
     const [org, settings, google, locations] = await Promise.all([
       prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } }),
-      prisma.orgSettings.findUnique({ where: { orgId } }),
+      prisma.orgSettings.findUnique({
+        where: { orgId },
+        select: SETTINGS_SIDEBAR_SETTINGS_SELECT,
+      }),
       prisma.googleConnection.findUnique({
         where: { orgId },
         select: { status: true, googleEmail: true, scopes: true },
@@ -62,6 +80,7 @@ export async function getSettingsSidebarData(orgId: string) {
           seoPrimaryKeywords: true,
           seoSecondaryKeywords: true,
           seoGeoTerms: true,
+          dspyConfigJson: true,
         },
       }),
     ])

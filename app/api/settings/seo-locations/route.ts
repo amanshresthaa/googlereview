@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
+import { Prisma } from "@prisma/client"
 import { handleAuthedPost } from "@/lib/api/handler"
 import { ApiError } from "@/lib/api/errors"
 import { zodFields } from "@/lib/api/validation"
@@ -8,6 +9,7 @@ import { requireRole } from "@/lib/api/authz"
 import { SEO_PROFILE_LIMITS } from "@/lib/policy"
 import { normalizeSeoProfile } from "@/lib/seo/keywords"
 import { sidebarCacheTag } from "@/lib/sidebar-data"
+import { dspyConfigSchema, normalizeDspyConfigInput } from "@/lib/ai/dspy-config"
 
 export const runtime = "nodejs"
 
@@ -21,10 +23,17 @@ const bodySchema = z.object({
         primaryKeywords: keywordArraySchema.max(SEO_PROFILE_LIMITS.PRIMARY_MAX * 2),
         secondaryKeywords: keywordArraySchema.max(SEO_PROFILE_LIMITS.SECONDARY_MAX * 2),
         geoTerms: keywordArraySchema.max(SEO_PROFILE_LIMITS.GEO_MAX * 2),
+        dspyConfig: dspyConfigSchema.nullable().optional(),
       }),
     )
     .max(200),
 })
+
+function toNullableJsonValue(value: unknown | null | undefined) {
+  if (value === undefined) return undefined
+  if (value === null) return Prisma.DbNull
+  return value as Prisma.InputJsonValue
+}
 
 export async function POST(req: Request) {
   return handleAuthedPost(req, { rateLimitScope: "SETTINGS_UPDATE", idempotency: { required: true } }, async ({ session, body }) => {
@@ -65,6 +74,8 @@ export async function POST(req: Request) {
           secondaryKeywords: update.secondaryKeywords,
           geoTerms: update.geoTerms,
         })
+        const dspyConfig =
+          update.dspyConfig === undefined ? undefined : normalizeDspyConfigInput(update.dspyConfig)
 
         await tx.location.update({
           where: { id: update.locationId },
@@ -72,6 +83,7 @@ export async function POST(req: Request) {
             seoPrimaryKeywords: normalized.primaryKeywords,
             seoSecondaryKeywords: normalized.secondaryKeywords,
             seoGeoTerms: normalized.geoTerms,
+            dspyConfigJson: toNullableJsonValue(dspyConfig),
           },
         })
       }
@@ -85,6 +97,7 @@ export async function POST(req: Request) {
           entityId: "bulk",
           metadataJson: {
             locationIds: updates.map((u) => u.locationId),
+            dspyConfigUpdatedCount: updates.filter((u) => u.dspyConfig !== undefined).length,
           } as never,
         },
       })

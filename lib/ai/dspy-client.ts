@@ -76,8 +76,13 @@ export async function processReviewWithDspy(input: {
   currentDraftText?: string
   candidateDraftText?: string
   requestId?: string
+  experimentId?: string
+  programVersion?: string
+  draftModel?: string
+  verifyModel?: string
   signal?: AbortSignal
 }) {
+  const execution = buildExecutionPayload(input)
   const res = await callDspy("api/review/process", {
     orgId: input.orgId,
     reviewId: input.reviewId,
@@ -86,6 +91,7 @@ export async function processReviewWithDspy(input: {
     currentDraftText: input.currentDraftText,
     candidateDraftText: input.candidateDraftText,
     requestId: input.requestId,
+    ...(execution ? { execution } : {}),
   }, { signal: input.signal })
   const parsed = processReviewResponseSchema.safeParse(res)
   if (!parsed.success) {
@@ -96,6 +102,35 @@ export async function processReviewWithDspy(input: {
     )
   }
   return parsed.data
+}
+
+function buildExecutionPayload(input: {
+  experimentId?: string
+  programVersion?: string
+  draftModel?: string
+  verifyModel?: string
+}) {
+  const experimentId = cleanOptionalString(input.experimentId)
+  const programVersion = cleanOptionalString(input.programVersion)
+  const draftModel = cleanOptionalString(input.draftModel)
+  const verifyModel = cleanOptionalString(input.verifyModel)
+
+  if (!experimentId && !programVersion && !draftModel && !verifyModel) {
+    return null
+  }
+
+  return {
+    experimentId,
+    programVersion,
+    draftModel,
+    verifyModel,
+  }
+}
+
+function cleanOptionalString(value: string | undefined) {
+  if (!value) return undefined
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
 }
 
 async function callDspy(path: string, payload: unknown, opts?: { signal?: AbortSignal }) {

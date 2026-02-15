@@ -1,11 +1,13 @@
 import { z } from "zod"
 import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
+import { Prisma } from "@prisma/client"
 import { handleAuthedPost } from "@/lib/api/handler"
 import { ApiError } from "@/lib/api/errors"
 import { zodFields } from "@/lib/api/validation"
 import { requireRole } from "@/lib/api/authz"
 import { sidebarCacheTag } from "@/lib/sidebar-data"
+import { dspyConfigSchema, normalizeDspyConfigInput } from "@/lib/ai/dspy-config"
 
 export const runtime = "nodejs"
 
@@ -17,8 +19,15 @@ const bodySchema = z
     autoDraftForRatings: z.array(z.number().int().min(1).max(5)).max(5).optional(),
     bulkApproveEnabledForFiveStar: z.boolean().optional(),
     mentionKeywords: z.array(z.string().min(1).max(40)).max(50).optional(),
+    dspyConfig: dspyConfigSchema.nullable().optional(),
   })
   .strict()
+
+function toNullableJsonValue(value: unknown | null | undefined) {
+  if (value === undefined) return undefined
+  if (value === null) return Prisma.DbNull
+  return value as Prisma.InputJsonValue
+}
 
 export async function POST(req: Request) {
   return handleAuthedPost(
@@ -36,6 +45,8 @@ export async function POST(req: Request) {
       const data = parsed.data
       const mentionKeywords =
         data.mentionKeywords?.map((k) => k.trim().toLowerCase()).filter(Boolean) ?? undefined
+      const dspyConfig =
+        data.dspyConfig === undefined ? undefined : normalizeDspyConfigInput(data.dspyConfig)
 
       await prisma.$transaction(async (tx) => {
         await tx.orgSettings.upsert({
@@ -48,6 +59,7 @@ export async function POST(req: Request) {
             autoDraftForRatings: data.autoDraftForRatings ?? undefined,
             bulkApproveEnabledForFiveStar: data.bulkApproveEnabledForFiveStar ?? undefined,
             mentionKeywords,
+            dspyConfigJson: toNullableJsonValue(dspyConfig),
           },
           create: {
             orgId: session.orgId,
@@ -57,6 +69,7 @@ export async function POST(req: Request) {
             autoDraftForRatings: data.autoDraftForRatings ?? [1, 2, 3, 4, 5],
             bulkApproveEnabledForFiveStar: data.bulkApproveEnabledForFiveStar ?? true,
             mentionKeywords: mentionKeywords ?? ["cold", "wait", "rude", "dirty", "booking", "wrong order"],
+            dspyConfigJson: toNullableJsonValue(dspyConfig),
           },
         })
 

@@ -21,12 +21,31 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { SeoProfilesEditor, type SeoLocationProfilePayload } from "@/app/(app)/settings/seo-profiles-editor"
+import {
+  SeoProfilesEditor,
+  type SeoLocationDspyConfigPayload,
+  type SeoLocationDspyExperimentPayload,
+  type SeoLocationProfilePayload,
+} from "@/app/(app)/settings/seo-profiles-editor"
+
+type DspyExperimentInput = {
+  id?: string | null
+  trafficPercent?: number | null
+  programVersion?: string | null
+  draftModel?: string | null
+  verifyModel?: string | null
+}
+
+type DspyConfigInput = {
+  programVersion?: string | null
+  draftModel?: string | null
+  verifyModel?: string | null
+  experiments?: DspyExperimentInput[] | null
+}
 
 type SettingsShape = {
   tonePreset: string
@@ -35,6 +54,11 @@ type SettingsShape = {
   autoDraftForRatings: number[]
   bulkApproveEnabledForFiveStar: boolean
   mentionKeywords: string[]
+  dspyConfig: SeoLocationDspyConfigPayload | null
+}
+
+type SettingsInput = Omit<SettingsShape, "dspyConfig"> & {
+  dspyConfig?: DspyConfigInput | null
 }
 
 type Props = {
@@ -46,9 +70,16 @@ type Props = {
     seoPrimaryKeywords: string[]
     seoSecondaryKeywords: string[]
     seoGeoTerms: string[]
+    dspyConfig?: DspyConfigInput | null
   }>
-  settings: SettingsShape
+  settings: SettingsInput
   showBulkApprove?: boolean
+}
+
+type DspyTextField = "programVersion" | "draftModel" | "verifyModel"
+
+type SeoLocationProfileWithDspy = SeoLocationProfilePayload & {
+  dspyConfig?: DspyConfigInput | null
 }
 
 const TONE_PRESETS = ["friendly", "professional", "empathetic", "concise", "upbeat"] as const
@@ -57,6 +88,73 @@ function isValidKeyword(raw: string) {
   const value = raw.trim().toLowerCase()
   if (value.length < 1 || value.length > 32) return null
   return value
+}
+
+function normalizeIdentifier(raw: string | null | undefined) {
+  if (typeof raw !== "string") return undefined
+  const value = raw.trim()
+  return value.length > 0 ? value : undefined
+}
+
+function normalizeExperiment(experiment: DspyExperimentInput): SeoLocationDspyExperimentPayload | null {
+  const id = typeof experiment.id === "string" ? experiment.id.trim() : ""
+  if (!id) return null
+
+  const trafficPercent = Number.isFinite(experiment.trafficPercent)
+    ? Math.max(0, Math.min(100, Math.round((experiment.trafficPercent ?? 0) * 100) / 100))
+    : 0
+
+  const programVersion = normalizeIdentifier(experiment.programVersion)
+  const draftModel = normalizeIdentifier(experiment.draftModel)
+  const verifyModel = normalizeIdentifier(experiment.verifyModel)
+
+  return {
+    id,
+    trafficPercent,
+    ...(programVersion ? { programVersion } : {}),
+    ...(draftModel ? { draftModel } : {}),
+    ...(verifyModel ? { verifyModel } : {}),
+  }
+}
+
+function normalizeDspyConfig(input: DspyConfigInput | null | undefined): SeoLocationDspyConfigPayload | null {
+  if (!input) return null
+
+  const programVersion = normalizeIdentifier(input.programVersion)
+  const draftModel = normalizeIdentifier(input.draftModel)
+  const verifyModel = normalizeIdentifier(input.verifyModel)
+  const experiments = Array.isArray(input.experiments)
+    ? input.experiments
+        .map(normalizeExperiment)
+        .filter((experiment): experiment is SeoLocationDspyExperimentPayload => Boolean(experiment))
+    : []
+
+  if (!programVersion && !draftModel && !verifyModel && experiments.length === 0) {
+    return null
+  }
+
+  return {
+    ...(programVersion ? { programVersion } : {}),
+    ...(draftModel ? { draftModel } : {}),
+    ...(verifyModel ? { verifyModel } : {}),
+    ...(experiments.length > 0 ? { experiments } : {}),
+  }
+}
+
+function hasDspyConfigContent(config: DspyConfigInput | null | undefined) {
+  if (!config) return false
+  if ((config.programVersion ?? "").trim().length > 0) return true
+  if ((config.draftModel ?? "").trim().length > 0) return true
+  if ((config.verifyModel ?? "").trim().length > 0) return true
+  return (config.experiments?.length ?? 0) > 0
+}
+
+function extractSeoProfileDspyConfig(profile: SeoLocationProfilePayload): SeoLocationDspyConfigPayload | null | undefined {
+  if (!Object.prototype.hasOwnProperty.call(profile, "dspyConfig")) {
+    return undefined
+  }
+
+  return normalizeDspyConfig((profile as SeoLocationProfileWithDspy).dspyConfig)
 }
 
 export function SettingsClient({
@@ -70,7 +168,10 @@ export function SettingsClient({
 
   const [saving, setSaving] = React.useState(false)
   const [savingSeo, setSavingSeo] = React.useState(false)
-  const [draft, setDraft] = React.useState<SettingsShape>(settings)
+  const [draft, setDraft] = React.useState<SettingsShape>(() => ({
+    ...settings,
+    dspyConfig: normalizeDspyConfig(settings.dspyConfig),
+  }))
   const [keywordInput, setKeywordInput] = React.useState("")
   const [activeTab, setActiveTab] = React.useState("general")
 
@@ -107,12 +208,16 @@ export function SettingsClient({
         method: "POST",
         headers: withIdempotencyHeader({ "content-type": "application/json" }),
         body: JSON.stringify({
-          locations: profiles.map((profile) => ({
-            locationId: profile.locationId,
-            primaryKeywords: profile.primaryKeywords,
-            secondaryKeywords: profile.secondaryKeywords,
-            geoTerms: profile.geoTerms,
-          })),
+          locations: profiles.map((profile) => {
+            const dspyConfig = extractSeoProfileDspyConfig(profile)
+            return {
+              locationId: profile.locationId,
+              primaryKeywords: profile.primaryKeywords,
+              secondaryKeywords: profile.secondaryKeywords,
+              geoTerms: profile.geoTerms,
+              ...(dspyConfig === undefined ? {} : { dspyConfig }),
+            }
+          }),
         }),
       })
       if (res.status === 401) {
@@ -128,6 +233,21 @@ export function SettingsClient({
       setSavingSeo(false)
       router.refresh()
     }
+  }
+
+  const updateOrgDspyField = (field: DspyTextField, value: string) => {
+    setDraft((previous) => {
+      const nextConfig: SeoLocationDspyConfigPayload = { ...(previous.dspyConfig ?? {}) }
+
+      if (field === "programVersion") nextConfig.programVersion = value
+      if (field === "draftModel") nextConfig.draftModel = value
+      if (field === "verifyModel") nextConfig.verifyModel = value
+
+      return {
+        ...previous,
+        dspyConfig: hasDspyConfigContent(nextConfig) ? nextConfig : null,
+      }
+    })
   }
 
   const addKeyword = () => {
@@ -332,6 +452,50 @@ export function SettingsClient({
                 </div>
               )}
 
+              <div className="space-y-5 rounded-[24px] border border-border/50 bg-muted/20 p-6 shadow-inner">
+                <div className="space-y-1.5">
+                  <Label className="text-base font-bold text-foreground">DSPy Runtime Defaults</Label>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Set organization-level DSPy defaults for drafting and verification. Location SEO profiles can override these values.
+                  </p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
+                      Program Version
+                    </Label>
+                    <Input
+                      value={draft.dspyConfig?.programVersion ?? ""}
+                      onChange={(event) => updateOrgDspyField("programVersion", event.target.value)}
+                      placeholder="e.g. reviews-v3"
+                      className="h-11 rounded-2xl border-border/50 bg-background px-4 font-medium shadow-sm focus:ring-4 focus:ring-primary/5"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
+                      Draft Model
+                    </Label>
+                    <Input
+                      value={draft.dspyConfig?.draftModel ?? ""}
+                      onChange={(event) => updateOrgDspyField("draftModel", event.target.value)}
+                      placeholder="e.g. gpt-4.1-mini"
+                      className="h-11 rounded-2xl border-border/50 bg-background px-4 font-medium shadow-sm focus:ring-4 focus:ring-primary/5"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
+                      Verify Model
+                    </Label>
+                    <Input
+                      value={draft.dspyConfig?.verifyModel ?? ""}
+                      onChange={(event) => updateOrgDspyField("verifyModel", event.target.value)}
+                      placeholder="e.g. gpt-4.1"
+                      className="h-11 rounded-2xl border-border/50 bg-background px-4 font-medium shadow-sm focus:ring-4 focus:ring-primary/5"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex justify-end pt-4 border-t border-border/50">
                 <Button
                   disabled={saving}
@@ -342,6 +506,7 @@ export function SettingsClient({
                       ...(showBulkApprove && {
                         bulkApproveEnabledForFiveStar: draft.bulkApproveEnabledForFiveStar,
                       }),
+                      dspyConfig: normalizeDspyConfig(draft.dspyConfig),
                     })
                   }
                   className="h-12 rounded-2xl px-10 font-black bg-primary shadow-glow-primary hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all min-w-[160px]"
@@ -366,6 +531,7 @@ export function SettingsClient({
               primaryKeywords: location.seoPrimaryKeywords,
               secondaryKeywords: location.seoSecondaryKeywords,
               geoTerms: location.seoGeoTerms,
+              dspyConfig: normalizeDspyConfig(location.dspyConfig),
             }))}
             saving={savingSeo}
             onSave={saveSeoProfiles}

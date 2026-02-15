@@ -63,10 +63,12 @@ async def process_review(
     manager: ProgramManager = Depends(get_program_manager),
 ):
     evidence_json = json.dumps(request.evidence.model_dump(mode="json"), separators=(",", ":"))
+    execution_overrides = request.execution.model_dump(exclude_none=True) if request.execution else None
     result = manager.process_review(
         mode=request.mode.value,
         evidence_json=evidence_json,
         current_draft_text=request.currentDraftText,
         candidate_draft_text=request.candidateDraftText,
+        execution_overrides=execution_overrides,
     )
     return ProcessReviewResponse.model_validate(result)

@@ -38,6 +38,7 @@ import {
   enforceCooldownOrThrow,
   setCooldownAfterSuccess,
 } from "@/lib/jobs/reliability"
+import { parseStoredDspyConfig, resolveDspyExecution } from "@/lib/ai/dspy-config"
 
 export async function handleJob(job: Job, opts?: { signal?: AbortSignal }) {
   // Optional per-invocation signal used for bounded fast-path execution.
@@ -320,6 +321,12 @@ async function handleProcessReview(job: Job, signal?: AbortSignal) {
   })
 
   const settings = await prisma.orgSettings.findUnique({ where: { orgId: job.orgId } })
+  const dspyExecution = resolveDspyExecution({
+    orgId: job.orgId,
+    reviewId: review.id,
+    orgConfig: parseStoredDspyConfig(settings?.dspyConfigJson ?? null),
+    locationConfig: parseStoredDspyConfig(review.location.dspyConfigJson ?? null),
+  })
   const evidenceContext = buildVerifierEvidenceContext({
     review,
     location: review.location,
@@ -349,6 +356,12 @@ async function handleProcessReview(job: Job, signal?: AbortSignal) {
       currentDraftText: currentDraftText ?? null,
       candidateDraftText: candidateDraftText ?? null,
       evidence: evidenceValidated,
+      dspyExecution: {
+        experimentId: dspyExecution.experimentId,
+        programVersion: dspyExecution.effective.programVersion,
+        draftModel: dspyExecution.effective.draftModel,
+        verifyModel: dspyExecution.effective.verifyModel,
+      },
     }),
   )
 
@@ -362,6 +375,10 @@ async function handleProcessReview(job: Job, signal?: AbortSignal) {
       currentDraftText,
       candidateDraftText,
       requestId: job.triggeredByRequestId ?? undefined,
+      experimentId: dspyExecution.experimentId ?? undefined,
+      programVersion: dspyExecution.effective.programVersion ?? undefined,
+      draftModel: dspyExecution.effective.draftModel ?? undefined,
+      verifyModel: dspyExecution.effective.verifyModel ?? undefined,
       signal,
     })
     await breakerRecordSuccess({ orgId: job.orgId, upstreamKey })
@@ -380,8 +397,10 @@ async function handleProcessReview(job: Job, signal?: AbortSignal) {
         draftModel: UNKNOWN_MODEL,
         verifyModel: UNKNOWN_MODEL,
         requestId: job.triggeredByRequestId ?? undefined,
+        experimentId: dspyExecution.experimentId ?? undefined,
         attemptCount: 0,
         inputHash,
+        executionConfigJson: dspyExecution.snapshot as never,
         errorCode: errorCodeFromDspyError(error),
         errorMessage: errorMessageFromDspyError(error),
       },
@@ -488,9 +507,11 @@ async function handleProcessReview(job: Job, signal?: AbortSignal) {
           draftTraceId: result.trace.draftTraceId,
           verifyTraceId: result.trace.verifyTraceId,
           requestId: job.triggeredByRequestId ?? undefined,
+          experimentId: dspyExecution.experimentId ?? undefined,
           attemptCount: result.generation.attemptCount,
           latencyMs: result.latencyMs,
           inputHash,
+          executionConfigJson: dspyExecution.snapshot as never,
           outputJson: dspyOutput as never,
         },
       })
@@ -547,9 +568,11 @@ async function handleProcessReview(job: Job, signal?: AbortSignal) {
         draftTraceId: result.trace.draftTraceId,
         verifyTraceId: result.trace.verifyTraceId,
         requestId: job.triggeredByRequestId ?? undefined,
+        experimentId: dspyExecution.experimentId ?? undefined,
         attemptCount: result.generation.attemptCount,
         latencyMs: result.latencyMs,
         inputHash,
+        executionConfigJson: dspyExecution.snapshot as never,
         outputJson: dspyOutput as never,
       },
     })

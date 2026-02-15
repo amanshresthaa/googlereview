@@ -12,6 +12,7 @@ type DspyLatest = {
   errorCode: string | null
   errorMessage: string | null
   programVersion: string | null
+  experimentId: string | null
   draftModel: string | null
   verifyModel: string | null
   draftTraceId: string | null
@@ -64,6 +65,7 @@ export async function getJobDetailForOrg(input: {
           errorCode: true,
           errorMessage: true,
           programVersion: true,
+          experimentId: true,
           draftModel: true,
           verifyModel: true,
           draftTraceId: true,
@@ -81,6 +83,7 @@ export async function getJobDetailForOrg(input: {
           errorCode: latest.errorCode ?? null,
           errorMessage: truncateText(latest.errorMessage ?? null, 600),
           programVersion: latest.programVersion ?? null,
+          experimentId: latest.experimentId ?? null,
           draftModel: latest.draftModel ?? null,
           verifyModel: latest.verifyModel ?? null,
           draftTraceId: latest.draftTraceId ?? null,

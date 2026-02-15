@@ -140,6 +140,8 @@ class ProgramManager:
 
         self.draft_program = DraftProgram()
         self.verify_program = VerifyProgram()
+        self._draft_lm_cache: dict[str, dspy.LM] = {settings.draft_model: self.draft_lm}
+        self._verify_lm_cache: dict[str, dspy.LM] = {settings.verify_model: self.verify_lm}
 
         _maybe_load_program(self.draft_program, settings.draft_artifact_path)
         _maybe_load_program(self.verify_program, settings.verify_artifact_path)
@@ -157,11 +159,44 @@ class ProgramManager:
         evidence_json: str,
         current_draft_text: str | None = None,
         candidate_draft_text: str | None = None,
+        execution_overrides: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         started = time.perf_counter()
         draft_trace_id: str | None = None
         verify_trace_id = str(uuid.uuid4())
         normalized_mode = mode.upper().strip()
+        program_version = self.program_version
+        draft_model_name = self.settings.draft_model
+        verify_model_name = self.settings.verify_model
+        draft_lm = self.draft_lm
+        verify_lm = self.verify_lm
+
+        if execution_overrides:
+            override_program_version = _normalize_optional_text(execution_overrides.get("programVersion"))
+            if override_program_version:
+                program_version = override_program_version
+
+            override_draft_model = _normalize_optional_text(execution_overrides.get("draftModel"))
+            if override_draft_model:
+                draft_model_name = override_draft_model
+                draft_lm = self._resolve_lm(
+                    cache=self._draft_lm_cache,
+                    model_name=draft_model_name,
+                    temperature=self.settings.draft_temperature,
+                    max_tokens=self.settings.draft_max_tokens,
+                    num_retries=self.settings.num_retries,
+                )
+
+            override_verify_model = _normalize_optional_text(execution_overrides.get("verifyModel"))
+            if override_verify_model:
+                verify_model_name = override_verify_model
+                verify_lm = self._resolve_lm(
+                    cache=self._verify_lm_cache,
+                    model_name=verify_model_name,
+                    temperature=self.settings.verify_temperature,
+                    max_tokens=self.settings.verify_max_tokens,
+                    num_retries=self.settings.num_retries,
+                )
         try:
             evidence = _parse_evidence_json(evidence_json)
             policy = _build_policy(evidence)
@@ -183,7 +218,7 @@ class ProgramManager:
                 draft_text = ""
                 for attempt in range(1, max_attempts + 1):
                     draft_trace_id = str(uuid.uuid4())
-                    with dspy.context(lm=self.draft_lm, adapter=self.adapter):
+                    with dspy.context(lm=draft_lm, adapter=self.adapter):
                         candidate = self.draft_program(
                             evidence_json=evidence_json,
                             seo_brief=seo_brief,
@@ -200,7 +235,7 @@ class ProgramManager:
                 if not draft_text:
                     raise ServiceError("MODEL_SCHEMA_ERROR", "DSPy draft output was empty.", 502)
 
-            with dspy.context(lm=self.verify_lm, adapter=self.adapter):
+            with dspy.context(lm=verify_lm, adapter=self.adapter):
                 result = self.verify_program(
                     evidence_json=evidence_json,
                     draft_text=draft_text,
@@ -216,10 +251,14 @@ class ProgramManager:
                 "verifier": verifier,
                 "seoQuality": seo_quality,
                 "generation": generation,
-                "program": self.program_metadata(),
+                "program": {
+                    "version": program_version,
+                    "draftArtifactVersion": self.draft_artifact_version,
+                    "verifyArtifactVersion": self.verify_artifact_version,
+                },
                 "models": {
-                    "draft": self.settings.draft_model,
-                    "verify": self.settings.verify_model,
+                    "draft": draft_model_name,
+                    "verify": verify_model_name,
                 },
                 "trace": {
                     "draftTraceId": draft_trace_id,
@@ -231,6 +270,29 @@ class ProgramManager:
             if isinstance(exc, ServiceError):
                 raise
             raise _map_model_error(exc) from exc
+
+    def _resolve_lm(
+        self,
+        *,
+        cache: dict[str, dspy.LM],
+        model_name: str,
+        temperature: float,
+        max_tokens: int,
+        num_retries: int,
+    ) -> dspy.LM:
+        existing = cache.get(model_name)
+        if existing is not None:
+            return existing
+
+        model = dspy.LM(
+            model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            cache=True,
+            num_retries=num_retries,
+        )
+        cache[model_name] = model
+        return model
 
 
 def _map_model_error(error: Exception) -> ServiceError:

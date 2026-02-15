@@ -14,11 +14,28 @@ import { SEO_PROFILE_LIMITS } from "@/lib/policy"
 import { cn } from "@/lib/utils"
 
 type KeywordBucket = "primaryKeywords" | "secondaryKeywords" | "geoTerms"
+type DspyOverrideField = "programVersion" | "draftModel" | "verifyModel"
+type DspyExperimentField = "id" | "trafficPercent" | DspyOverrideField
 
 type EditorState = {
   primaryKeywords: string
   secondaryKeywords: string
   geoTerms: string
+}
+
+export type SeoLocationDspyExperimentPayload = {
+  id: string
+  trafficPercent: number
+  programVersion?: string
+  draftModel?: string
+  verifyModel?: string
+}
+
+export type SeoLocationDspyConfigPayload = {
+  programVersion?: string
+  draftModel?: string
+  verifyModel?: string
+  experiments?: SeoLocationDspyExperimentPayload[]
 }
 
 export type SeoLocationProfilePayload = {
@@ -27,6 +44,34 @@ export type SeoLocationProfilePayload = {
   primaryKeywords: string[]
   secondaryKeywords: string[]
   geoTerms: string[]
+  dspyConfig?: SeoLocationDspyConfigPayload | null
+}
+
+type DspyExperimentDraft = {
+  id: string
+  trafficPercent: string
+  programVersion: string
+  draftModel: string
+  verifyModel: string
+}
+
+type DspyConfigDraft = {
+  programVersion: string
+  draftModel: string
+  verifyModel: string
+  experiments: DspyExperimentDraft[]
+}
+
+type EditableSeoLocationProfile = Omit<SeoLocationProfilePayload, "dspyConfig"> & {
+  dspyConfig: DspyConfigDraft
+}
+
+type DspyExperimentErrors = Partial<Record<DspyExperimentField, string>>
+
+type DspyLocationErrors = {
+  general?: string
+  base: Partial<Record<DspyOverrideField, string>>
+  experiments: DspyExperimentErrors[]
 }
 
 type SeoProfilesEditorProps = {
@@ -34,6 +79,12 @@ type SeoProfilesEditorProps = {
   saving: boolean
   onSave: (profiles: SeoLocationProfilePayload[]) => Promise<void>
 }
+
+const DSPY_LIMITS = {
+  identifierMax: 120,
+  experimentIdMax: 80,
+  experimentsMax: 20,
+} as const
 
 const BUCKET_CONFIG: Record<
   KeywordBucket,
@@ -59,6 +110,28 @@ const BUCKET_CONFIG: Record<
   },
 }
 
+const DSPY_OVERRIDE_FIELD_CONFIG: Array<{
+  key: DspyOverrideField
+  label: string
+  placeholder: string
+}> = [
+  {
+    key: "programVersion",
+    label: "Program Version",
+    placeholder: "e.g. v3.2.1",
+  },
+  {
+    key: "draftModel",
+    label: "Draft Model",
+    placeholder: "e.g. gemini-2.5-pro",
+  },
+  {
+    key: "verifyModel",
+    label: "Verify Model",
+    placeholder: "e.g. gemini-2.5-flash",
+  },
+]
+
 function normalizeKeyword(raw: string) {
   const value = raw.trim().toLowerCase()
   if (!value) return null
@@ -74,13 +147,195 @@ function emptyInputState() {
   } satisfies EditorState
 }
 
+function emptyExperimentDraft(): DspyExperimentDraft {
+  return {
+    id: "",
+    trafficPercent: "",
+    programVersion: "",
+    draftModel: "",
+    verifyModel: "",
+  }
+}
+
+function toOptionalIdentifier(value: string) {
+  const normalized = value.trim()
+  return normalized.length > 0 ? normalized : undefined
+}
+
+function parseTrafficPercent(value: string): number | null {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return null
+  return Math.round(parsed * 100) / 100
+}
+
+function hasLocationErrors(error: DspyLocationErrors) {
+  if (error.general) return true
+  if (Object.keys(error.base).length > 0) return true
+  return error.experiments.some((row) => Object.keys(row).length > 0)
+}
+
+function toEditableProfile(profile: SeoLocationProfilePayload): EditableSeoLocationProfile {
+  const dspyConfig = profile.dspyConfig ?? null
+  return {
+    locationId: profile.locationId,
+    displayName: profile.displayName,
+    primaryKeywords: [...profile.primaryKeywords],
+    secondaryKeywords: [...profile.secondaryKeywords],
+    geoTerms: [...profile.geoTerms],
+    dspyConfig: {
+      programVersion: dspyConfig?.programVersion ?? "",
+      draftModel: dspyConfig?.draftModel ?? "",
+      verifyModel: dspyConfig?.verifyModel ?? "",
+      experiments: (dspyConfig?.experiments ?? []).map((experiment) => ({
+        id: experiment.id,
+        trafficPercent: String(experiment.trafficPercent),
+        programVersion: experiment.programVersion ?? "",
+        draftModel: experiment.draftModel ?? "",
+        verifyModel: experiment.verifyModel ?? "",
+      })),
+    },
+  }
+}
+
+function validateAndBuildPayload(
+  profiles: EditableSeoLocationProfile[],
+): { payload: SeoLocationProfilePayload[]; errors: Record<string, DspyLocationErrors> } {
+  const errors: Record<string, DspyLocationErrors> = {}
+
+  const payload: SeoLocationProfilePayload[] = profiles.map((profile) => {
+    const locationErrors: DspyLocationErrors = {
+      base: {},
+      experiments: profile.dspyConfig.experiments.map(() => ({})),
+    }
+
+    const baseConfig: SeoLocationDspyConfigPayload = {}
+
+    for (const field of DSPY_OVERRIDE_FIELD_CONFIG) {
+      const raw = profile.dspyConfig[field.key]
+      const normalized = toOptionalIdentifier(raw)
+      if (normalized && normalized.length > DSPY_LIMITS.identifierMax) {
+        locationErrors.base[field.key] = `Maximum ${DSPY_LIMITS.identifierMax} characters.`
+        continue
+      }
+      if (normalized) {
+        baseConfig[field.key] = normalized
+      }
+    }
+
+    const seenExperimentIds = new Set<string>()
+    const experimentsPayload: SeoLocationDspyExperimentPayload[] = []
+    let totalTrafficPercent = 0
+
+    if (profile.dspyConfig.experiments.length > DSPY_LIMITS.experimentsMax) {
+      locationErrors.general = `Maximum ${DSPY_LIMITS.experimentsMax} experiments per location.`
+    }
+
+    profile.dspyConfig.experiments.forEach((experiment, index) => {
+      const rowErrors = locationErrors.experiments[index] ?? {}
+      const id = experiment.id.trim()
+      if (!id) {
+        rowErrors.id = "Experiment id is required."
+      } else if (id.length > DSPY_LIMITS.experimentIdMax) {
+        rowErrors.id = `Maximum ${DSPY_LIMITS.experimentIdMax} characters.`
+      } else if (seenExperimentIds.has(id)) {
+        rowErrors.id = "Experiment id must be unique."
+      } else {
+        seenExperimentIds.add(id)
+      }
+
+      const trafficRaw = experiment.trafficPercent.trim()
+      if (!trafficRaw) {
+        rowErrors.trafficPercent = "Traffic percent is required."
+      }
+      const trafficPercent = parseTrafficPercent(trafficRaw)
+      if (trafficPercent == null || trafficPercent < 0 || trafficPercent > 100) {
+        rowErrors.trafficPercent = "Enter a number between 0 and 100."
+      }
+
+      const normalizedProgramVersion = toOptionalIdentifier(experiment.programVersion)
+      const normalizedDraftModel = toOptionalIdentifier(experiment.draftModel)
+      const normalizedVerifyModel = toOptionalIdentifier(experiment.verifyModel)
+
+      if (normalizedProgramVersion && normalizedProgramVersion.length > DSPY_LIMITS.identifierMax) {
+        rowErrors.programVersion = `Maximum ${DSPY_LIMITS.identifierMax} characters.`
+      }
+      if (normalizedDraftModel && normalizedDraftModel.length > DSPY_LIMITS.identifierMax) {
+        rowErrors.draftModel = `Maximum ${DSPY_LIMITS.identifierMax} characters.`
+      }
+      if (normalizedVerifyModel && normalizedVerifyModel.length > DSPY_LIMITS.identifierMax) {
+        rowErrors.verifyModel = `Maximum ${DSPY_LIMITS.identifierMax} characters.`
+      }
+
+      locationErrors.experiments[index] = rowErrors
+
+      if (Object.keys(rowErrors).length > 0 || trafficPercent == null) {
+        return
+      }
+
+      totalTrafficPercent += trafficPercent
+      experimentsPayload.push({
+        id,
+        trafficPercent,
+        ...(normalizedProgramVersion ? { programVersion: normalizedProgramVersion } : {}),
+        ...(normalizedDraftModel ? { draftModel: normalizedDraftModel } : {}),
+        ...(normalizedVerifyModel ? { verifyModel: normalizedVerifyModel } : {}),
+      })
+    })
+
+    if (totalTrafficPercent > 100) {
+      locationErrors.general = "Combined experiment traffic must be 100% or less."
+    }
+
+    if (hasLocationErrors(locationErrors)) {
+      errors[profile.locationId] = locationErrors
+    }
+
+    const hasBaseOverrides = Object.keys(baseConfig).length > 0
+    const dspyConfig = hasBaseOverrides || experimentsPayload.length > 0
+      ? {
+          ...baseConfig,
+          ...(experimentsPayload.length > 0 ? { experiments: experimentsPayload } : {}),
+        }
+      : null
+
+    return {
+      locationId: profile.locationId,
+      displayName: profile.displayName,
+      primaryKeywords: profile.primaryKeywords,
+      secondaryKeywords: profile.secondaryKeywords,
+      geoTerms: profile.geoTerms,
+      dspyConfig,
+    }
+  })
+
+  return { payload, errors }
+}
+
 export function SeoProfilesEditor({ initialProfiles, saving, onSave }: SeoProfilesEditorProps) {
-  const [profiles, setProfiles] = React.useState<SeoLocationProfilePayload[]>(initialProfiles)
+  const [profiles, setProfiles] = React.useState<EditableSeoLocationProfile[]>(
+    () => initialProfiles.map(toEditableProfile),
+  )
   const [inputs, setInputs] = React.useState<Record<string, EditorState>>({})
+  const [dspyErrors, setDspyErrors] = React.useState<Record<string, DspyLocationErrors>>({})
 
   React.useEffect(() => {
-    setProfiles(initialProfiles)
+    setProfiles(initialProfiles.map(toEditableProfile))
+    setDspyErrors({})
   }, [initialProfiles])
+
+  const clearLocationErrors = (locationId: string) => {
+    setDspyErrors((previous) => {
+      if (!previous[locationId]) return previous
+      const next = { ...previous }
+      delete next[locationId]
+      return next
+    })
+  }
+
+  const updateProfile = (locationId: string, mutate: (profile: EditableSeoLocationProfile) => EditableSeoLocationProfile) => {
+    setProfiles((previous) => previous.map((profile) => (profile.locationId === locationId ? mutate(profile) : profile)))
+    clearLocationErrors(locationId)
+  }
 
   const setInputValue = (locationId: string, bucket: KeywordBucket, value: string) => {
     setInputs((previous) => ({
@@ -141,6 +396,74 @@ export function SeoProfilesEditor({ initialProfiles, saving, onSave }: SeoProfil
     )
   }
 
+  const setDspyOverrideField = (locationId: string, field: DspyOverrideField, value: string) => {
+    updateProfile(locationId, (profile) => ({
+      ...profile,
+      dspyConfig: {
+        ...profile.dspyConfig,
+        [field]: value,
+      },
+    }))
+  }
+
+  const addDspyExperiment = (locationId: string) => {
+    const current = profiles.find((profile) => profile.locationId === locationId)
+    if (!current) return
+
+    if (current.dspyConfig.experiments.length >= DSPY_LIMITS.experimentsMax) {
+      toast.error(`Maximum ${DSPY_LIMITS.experimentsMax} experiments per location.`)
+      return
+    }
+
+    updateProfile(locationId, (profile) => ({
+      ...profile,
+      dspyConfig: {
+        ...profile.dspyConfig,
+        experiments: [...profile.dspyConfig.experiments, emptyExperimentDraft()],
+      },
+    }))
+  }
+
+  const removeDspyExperiment = (locationId: string, index: number) => {
+    updateProfile(locationId, (profile) => ({
+      ...profile,
+      dspyConfig: {
+        ...profile.dspyConfig,
+        experiments: profile.dspyConfig.experiments.filter((_, itemIndex) => itemIndex !== index),
+      },
+    }))
+  }
+
+  const setDspyExperimentField = (
+    locationId: string,
+    index: number,
+    field: DspyExperimentField,
+    value: string,
+  ) => {
+    updateProfile(locationId, (profile) => ({
+      ...profile,
+      dspyConfig: {
+        ...profile.dspyConfig,
+        experiments: profile.dspyConfig.experiments.map((experiment, itemIndex) => {
+          if (itemIndex !== index) return experiment
+          return { ...experiment, [field]: value }
+        }),
+      },
+    }))
+  }
+
+  const handleSave = () => {
+    const { payload, errors } = validateAndBuildPayload(profiles)
+    if (Object.keys(errors).length > 0) {
+      setDspyErrors(errors)
+      toast.error("Fix DSPy override validation errors before saving.")
+      return
+    }
+
+    setDspyErrors({})
+    void onSave(payload)
+  }
+
   return (
     <Card className="rounded-2xl border-border bg-card shadow-card">
       <CardContent className="p-4 md:p-6 space-y-6">
@@ -164,43 +487,58 @@ export function SeoProfilesEditor({ initialProfiles, saving, onSave }: SeoProfil
           </div>
         ) : (
           <div className="space-y-4">
-            {profiles.map((profile) => (
-              <div key={profile.locationId} className="rounded-2xl border border-border bg-muted/30 p-3 md:p-4 space-y-4">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="h-7 w-7 rounded-lg border border-border bg-card flex items-center justify-center shrink-0">
-                    <MapPin className="size-3.5 text-muted-foreground" />
-                  </div>
-                  <div className="text-sm font-semibold text-foreground truncate">{profile.displayName}</div>
-                </div>
+            {profiles.map((profile) => {
+              const locationErrors = dspyErrors[profile.locationId]
 
-                <KeywordBucketEditor
-                  bucket="primaryKeywords"
-                  values={profile.primaryKeywords}
-                  inputValue={inputs[profile.locationId]?.primaryKeywords ?? ""}
-                  onInputChange={(value) => setInputValue(profile.locationId, "primaryKeywords", value)}
-                  onAdd={() => addKeyword(profile.locationId, "primaryKeywords")}
-                  onRemove={(keyword) => removeKeyword(profile.locationId, "primaryKeywords", keyword)}
-                />
-                <Separator className="bg-border" />
-                <KeywordBucketEditor
-                  bucket="secondaryKeywords"
-                  values={profile.secondaryKeywords}
-                  inputValue={inputs[profile.locationId]?.secondaryKeywords ?? ""}
-                  onInputChange={(value) => setInputValue(profile.locationId, "secondaryKeywords", value)}
-                  onAdd={() => addKeyword(profile.locationId, "secondaryKeywords")}
-                  onRemove={(keyword) => removeKeyword(profile.locationId, "secondaryKeywords", keyword)}
-                />
-                <Separator className="bg-border" />
-                <KeywordBucketEditor
-                  bucket="geoTerms"
-                  values={profile.geoTerms}
-                  inputValue={inputs[profile.locationId]?.geoTerms ?? ""}
-                  onInputChange={(value) => setInputValue(profile.locationId, "geoTerms", value)}
-                  onAdd={() => addKeyword(profile.locationId, "geoTerms")}
-                  onRemove={(keyword) => removeKeyword(profile.locationId, "geoTerms", keyword)}
-                />
-              </div>
-            ))}
+              return (
+                <div key={profile.locationId} className="rounded-2xl border border-border bg-muted/30 p-3 md:p-4 space-y-4">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="h-7 w-7 rounded-lg border border-border bg-card flex items-center justify-center shrink-0">
+                      <MapPin className="size-3.5 text-muted-foreground" />
+                    </div>
+                    <div className="text-sm font-semibold text-foreground truncate">{profile.displayName}</div>
+                  </div>
+
+                  <KeywordBucketEditor
+                    bucket="primaryKeywords"
+                    values={profile.primaryKeywords}
+                    inputValue={inputs[profile.locationId]?.primaryKeywords ?? ""}
+                    onInputChange={(value) => setInputValue(profile.locationId, "primaryKeywords", value)}
+                    onAdd={() => addKeyword(profile.locationId, "primaryKeywords")}
+                    onRemove={(keyword) => removeKeyword(profile.locationId, "primaryKeywords", keyword)}
+                  />
+                  <Separator className="bg-border" />
+                  <KeywordBucketEditor
+                    bucket="secondaryKeywords"
+                    values={profile.secondaryKeywords}
+                    inputValue={inputs[profile.locationId]?.secondaryKeywords ?? ""}
+                    onInputChange={(value) => setInputValue(profile.locationId, "secondaryKeywords", value)}
+                    onAdd={() => addKeyword(profile.locationId, "secondaryKeywords")}
+                    onRemove={(keyword) => removeKeyword(profile.locationId, "secondaryKeywords", keyword)}
+                  />
+                  <Separator className="bg-border" />
+                  <KeywordBucketEditor
+                    bucket="geoTerms"
+                    values={profile.geoTerms}
+                    inputValue={inputs[profile.locationId]?.geoTerms ?? ""}
+                    onInputChange={(value) => setInputValue(profile.locationId, "geoTerms", value)}
+                    onAdd={() => addKeyword(profile.locationId, "geoTerms")}
+                    onRemove={(keyword) => removeKeyword(profile.locationId, "geoTerms", keyword)}
+                  />
+                  <Separator className="bg-border" />
+                  <DspyOverridesEditor
+                    draft={profile.dspyConfig}
+                    errors={locationErrors}
+                    onOverrideChange={(field, value) => setDspyOverrideField(profile.locationId, field, value)}
+                    onAddExperiment={() => addDspyExperiment(profile.locationId)}
+                    onRemoveExperiment={(index) => removeDspyExperiment(profile.locationId, index)}
+                    onExperimentChange={(index, field, value) =>
+                      setDspyExperimentField(profile.locationId, index, field, value)
+                    }
+                  />
+                </div>
+              )
+            })}
           </div>
         )}
 
@@ -210,7 +548,7 @@ export function SeoProfilesEditor({ initialProfiles, saving, onSave }: SeoProfil
             size="sm"
             className="w-full sm:w-auto rounded-xl gap-2 h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-elevated min-w-[120px]"
             disabled={saving || profiles.length === 0}
-            onClick={() => onSave(profiles)}
+            onClick={handleSave}
           >
             {saving ? (
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
@@ -305,6 +643,162 @@ function KeywordBucketEditor({
           ))}
         </div>
       ) : null}
+    </div>
+  )
+}
+
+type DspyOverridesEditorProps = {
+  draft: DspyConfigDraft
+  errors?: DspyLocationErrors
+  onOverrideChange: (field: DspyOverrideField, value: string) => void
+  onAddExperiment: () => void
+  onRemoveExperiment: (index: number) => void
+  onExperimentChange: (index: number, field: DspyExperimentField, value: string) => void
+}
+
+function DspyOverridesEditor({
+  draft,
+  errors,
+  onOverrideChange,
+  onAddExperiment,
+  onRemoveExperiment,
+  onExperimentChange,
+}: DspyOverridesEditorProps) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">DSPy Overrides</Label>
+          <p className="text-xs text-muted-foreground font-medium">
+            Optional model and program overrides scoped to this location.
+          </p>
+        </div>
+        <Badge variant="secondary" className="rounded-md font-mono text-[9px] h-5 px-2 bg-muted text-muted-foreground">
+          {draft.experiments.length}/{DSPY_LIMITS.experimentsMax} exp
+        </Badge>
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-3">
+        {DSPY_OVERRIDE_FIELD_CONFIG.map((field) => (
+          <div key={field.key} className="space-y-1">
+            <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{field.label}</Label>
+            <Input
+              value={draft[field.key]}
+              placeholder={field.placeholder}
+              className={cn("h-8 rounded-lg text-xs border-border", errors?.base[field.key] && "border-destructive")}
+              onChange={(event) => onOverrideChange(field.key, event.target.value)}
+              aria-invalid={Boolean(errors?.base[field.key])}
+            />
+            {errors?.base[field.key] ? (
+              <p className="text-[10px] font-medium text-destructive">{errors.base[field.key]}</p>
+            ) : null}
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Experiments</Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 rounded-lg text-[10px] font-semibold border-border"
+            onClick={onAddExperiment}
+            disabled={draft.experiments.length >= DSPY_LIMITS.experimentsMax}
+          >
+            <Plus className="size-3" />
+            Add
+          </Button>
+        </div>
+
+        {errors?.general ? (
+          <p className="text-[10px] font-medium text-destructive">{errors.general}</p>
+        ) : null}
+
+        {draft.experiments.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border p-3 text-[11px] font-medium text-muted-foreground">
+            No experiments configured.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {draft.experiments.map((experiment, index) => {
+              const rowErrors = errors?.experiments[index]
+
+              return (
+                <div key={`${index}-${experiment.id || "new"}`} className="rounded-xl border border-border/70 bg-background p-2.5 space-y-2">
+                  <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_128px_auto]">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Experiment Id</Label>
+                      <Input
+                        value={experiment.id}
+                        placeholder="e.g. lunch-semantic-a"
+                        className={cn("h-8 rounded-lg text-xs border-border", rowErrors?.id && "border-destructive")}
+                        onChange={(event) => onExperimentChange(index, "id", event.target.value)}
+                        aria-invalid={Boolean(rowErrors?.id)}
+                      />
+                      {rowErrors?.id ? (
+                        <p className="text-[10px] font-medium text-destructive">{rowErrors.id}</p>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Traffic %</Label>
+                      <Input
+                        value={experiment.trafficPercent}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="0"
+                        className={cn("h-8 rounded-lg text-xs border-border", rowErrors?.trafficPercent && "border-destructive")}
+                        onChange={(event) => onExperimentChange(index, "trafficPercent", event.target.value)}
+                        aria-invalid={Boolean(rowErrors?.trafficPercent)}
+                      />
+                      {rowErrors?.trafficPercent ? (
+                        <p className="text-[10px] font-medium text-destructive">{rowErrors.trafficPercent}</p>
+                      ) : null}
+                    </div>
+
+                    <div className="flex items-end justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+                        onClick={() => onRemoveExperiment(index)}
+                        aria-label={`Remove experiment ${index + 1}`}
+                      >
+                        <X className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 md:grid-cols-3">
+                    {DSPY_OVERRIDE_FIELD_CONFIG.map((field) => (
+                      <div key={`${index}-${field.key}`} className="space-y-1">
+                        <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                          {field.label}
+                        </Label>
+                        <Input
+                          value={experiment[field.key]}
+                          placeholder={`Optional ${field.label.toLowerCase()}`}
+                          className={cn("h-8 rounded-lg text-xs border-border", rowErrors?.[field.key] && "border-destructive")}
+                          onChange={(event) => onExperimentChange(index, field.key, event.target.value)}
+                          aria-invalid={Boolean(rowErrors?.[field.key])}
+                        />
+                        {rowErrors?.[field.key] ? (
+                          <p className="text-[10px] font-medium text-destructive">{rowErrors[field.key]}</p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

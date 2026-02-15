@@ -96,6 +96,10 @@ describe("dspy client", () => {
       mode: "MANUAL_REGENERATE",
       evidence,
       currentDraftText: "Thanks for your review.",
+      experimentId: "exp-canary-2026w07",
+      programVersion: "canary-v2",
+      draftModel: "openai/gpt-4.1-mini",
+      verifyModel: "openai/gpt-4.1-mini",
     })
 
     expect(result.draftText).toContain("Thanks")
@@ -114,9 +118,19 @@ describe("dspy client", () => {
     const payload = JSON.parse(String(init?.body)) as {
       mode: string
       currentDraftText?: string
+      execution?: {
+        experimentId?: string
+        programVersion?: string
+        draftModel?: string
+        verifyModel?: string
+      }
     }
     expect(payload.mode).toBe("MANUAL_REGENERATE")
     expect(payload.currentDraftText).toBe("Thanks for your review.")
+    expect(payload.execution?.experimentId).toBe("exp-canary-2026w07")
+    expect(payload.execution?.programVersion).toBe("canary-v2")
+    expect(payload.execution?.draftModel).toBe("openai/gpt-4.1-mini")
+    expect(payload.execution?.verifyModel).toBe("openai/gpt-4.1-mini")
   })
 
   it("accepts verify-existing result payload", async () => {
