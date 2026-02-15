@@ -3,6 +3,7 @@ import { okJson, errJson, jsonResponse, mergeHeaders } from "@/lib/api/response"
 import { newRequestId } from "@/lib/api/json"
 import {
   MEMBERSHIP_GRANT_COOKIE_NAME,
+  MEMBERSHIP_GRANT_TTL_SEC,
   requireApiSession,
   requireApiSessionWithTiming,
 } from "@/lib/session"
@@ -332,7 +333,7 @@ function withMembershipGrant(headers: HeadersInit, grantValue: string | null): H
     "Path=/",
     "HttpOnly",
     "SameSite=Lax",
-    "Max-Age=180",
+    `Max-Age=${MEMBERSHIP_GRANT_TTL_SEC}`,
   ]
   if (process.env.NODE_ENV === "production") {
     cookieParts.push("Secure")

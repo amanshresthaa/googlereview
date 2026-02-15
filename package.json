@@ -11,7 +11,8 @@
     ]
   },
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "bash scripts/dev/run-with-dspy.sh",
+    "dev:web": "next dev --webpack",
     "build": "prisma generate && next build --webpack",
     "start": "next start",
     "lint": "eslint",

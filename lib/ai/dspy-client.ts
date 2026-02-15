@@ -141,6 +141,8 @@ async function callDspy(path: string, payload: unknown, opts?: { signal?: AbortS
         `DSPy service timed out after ${timeoutMs}ms`,
       )
     }
+    const unavailable = asUnavailableServiceError(err, baseUrl)
+    if (unavailable) throw unavailable
     throw new DspyServiceError(
       "INTERNAL_ERROR",
       502,
@@ -150,6 +152,46 @@ async function callDspy(path: string, payload: unknown, opts?: { signal?: AbortS
     clearTimeout(timeout)
     parentSignal?.removeEventListener("abort", onParentAbort)
   }
+}
+
+function asUnavailableServiceError(err: unknown, baseUrl: string): DspyServiceError | null {
+  const code = readNetworkErrorCode(err)
+  if (code && isUnavailableNetworkCode(code)) {
+    return new DspyServiceError(
+      "INTERNAL_ERROR",
+      503,
+      `DSPy service unavailable at ${baseUrl}.`,
+    )
+  }
+
+  if (err instanceof Error && err.message.toLowerCase().includes("fetch failed")) {
+    return new DspyServiceError(
+      "INTERNAL_ERROR",
+      503,
+      `DSPy service unavailable at ${baseUrl}.`,
+    )
+  }
+
+  return null
+}
+
+function readNetworkErrorCode(err: unknown): string | null {
+  if (!(err instanceof Error)) return null
+  const cause = (err as Error & { cause?: unknown }).cause
+  if (!cause || typeof cause !== "object") return null
+  const code = (cause as { code?: unknown }).code
+  return typeof code === "string" && code.trim().length > 0 ? code : null
+}
+
+function isUnavailableNetworkCode(code: string) {
+  return [
+    "ECONNREFUSED",
+    "ECONNRESET",
+    "EHOSTUNREACH",
+    "ENETUNREACH",
+    "ENOTFOUND",
+    "ETIMEDOUT",
+  ].includes(code)
 }
 
 async function parseErrorBody(res: Response): Promise<{ code: DspyErrorCode; message: string }> {

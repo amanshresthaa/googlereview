@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/api/authz"
 import { runProcessReviewFastPath } from "@/lib/jobs/worker"
 import { dspyEnv } from "@/lib/env"
 import { getReviewDetailForOrg } from "@/lib/reviews/detail"
+import { processReviewFailureToApiError } from "@/lib/jobs/process-review-api-error"
 
 export const runtime = "nodejs"
 
@@ -108,13 +109,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
       const updated = await prisma.job.findUnique({
         where: { id: job.id },
-        select: { status: true, lastError: true, lastErrorCode: true },
+        select: { status: true, lastError: true, lastErrorCode: true, lastErrorMetaJson: true },
       })
       if (updated?.status === "FAILED") {
-        throw new ApiError({
-          status: 502,
-          code: "INTERNAL",
-          message: updated.lastErrorCode ?? updated.lastError ?? "Draft verification failed.",
+        throw processReviewFailureToApiError({
+          operation: "verification",
+          lastErrorCode: updated.lastErrorCode,
+          lastError: updated.lastError,
+          lastErrorMetaJson: updated.lastErrorMetaJson,
         })
       }
 

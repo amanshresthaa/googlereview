@@ -266,4 +266,23 @@ describe("dspy client", () => {
       status: 504,
     } satisfies Partial<DspyServiceError>)
   })
+
+  it("maps network-unreachable fetch failures to service unavailable", async () => {
+    const unreachable = new TypeError("fetch failed")
+    ;(unreachable as TypeError & { cause?: unknown }).cause = { code: "ECONNREFUSED" }
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(unreachable)
+
+    await expect(
+      processReviewWithDspy({
+        orgId: "org_1",
+        reviewId: "rev_1",
+        mode: "AUTO",
+        evidence,
+      }),
+    ).rejects.toMatchObject({
+      name: "DspyServiceError",
+      code: "INTERNAL_ERROR",
+      status: 503,
+    } satisfies Partial<DspyServiceError>)
+  })
 })

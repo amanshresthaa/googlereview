@@ -8,11 +8,17 @@ import { z } from "zod"
 
 const E2E_COOKIE_NAME = "__e2e_session"
 export const MEMBERSHIP_GRANT_COOKIE_NAME = "__membership_grant"
-const MEMBERSHIP_CACHE_TTL_MS = 60_000
+export const MEMBERSHIP_CACHE_TTL_MS = 60_000
 const MEMBERSHIP_CACHE_MAX_ENTRIES = 2048
-const MEMBERSHIP_GRANT_TTL_SEC = 180
+export const MEMBERSHIP_GRANT_TTL_SEC = 180
 
 type MembershipCacheEntry = {
+  expiresAt: number
+  role: string
+}
+
+type MembershipGrantInvalidationEntry = {
+  invalidAfterMs: number
   expiresAt: number
 }
 
@@ -25,6 +31,7 @@ type MembershipLookupTiming = {
 
 type MembershipLookupResult = MembershipLookupTiming & {
   exists: boolean
+  role: string | null
   issuedGrantValue: string | null
 }
 
@@ -34,7 +41,8 @@ export type ApiSessionTiming = MembershipLookupTiming & {
 }
 
 const membershipExistsCache = new Map<string, MembershipCacheEntry>()
-const membershipInflight = new Map<string, Promise<boolean>>()
+const membershipInflight = new Map<string, Promise<string | null>>()
+const membershipGrantInvalidations = new Map<string, MembershipGrantInvalidationEntry>()
 
 const e2eSessionSchema = z.object({
   orgId: z.string().min(1),
@@ -71,11 +79,21 @@ function membershipCacheKey(orgId: string, userId: string) {
 type MembershipGrantPayload = {
   orgId: string
   userId: string
+  role: string
+  iatMs: number
   exp: number
 }
 
 function nowEpochSec() {
   return Math.floor(Date.now() / 1000)
+}
+
+function trimOldestEntry<K, V>(map: Map<K, V>, maxEntries: number) {
+  if (map.size <= maxEntries) return
+  const oldest = map.keys().next()
+  if (!oldest.done) {
+    map.delete(oldest.value)
+  }
 }
 
 function membershipGrantSecret() {
@@ -95,17 +113,20 @@ function parseMembershipGrant(raw: string, secret: string): MembershipGrantPaylo
   try {
     const jsonStr = Buffer.from(payloadB64Url, "base64url").toString("utf8")
     const parsed = JSON.parse(jsonStr) as MembershipGrantPayload
-    if (!parsed?.orgId || !parsed?.userId || !Number.isFinite(parsed?.exp)) return null
+    if (!parsed?.orgId || !parsed?.userId || !parsed?.role) return null
+    if (!Number.isFinite(parsed?.iatMs) || !Number.isFinite(parsed?.exp)) return null
     return parsed
   } catch {
     return null
   }
 }
 
-function buildMembershipGrant(orgId: string, userId: string, secret: string): string {
+function buildMembershipGrant(orgId: string, userId: string, role: string, secret: string): string {
   const payload: MembershipGrantPayload = {
     orgId,
     userId,
+    role,
+    iatMs: Date.now(),
     exp: nowEpochSec() + MEMBERSHIP_GRANT_TTL_SEC,
   }
   const payloadB64Url = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url")
@@ -113,46 +134,75 @@ function buildMembershipGrant(orgId: string, userId: string, secret: string): st
   return `${payloadB64Url}.${sigB64Url}`
 }
 
-async function hasValidMembershipGrant(orgId: string, userId: string): Promise<boolean> {
-  const secret = membershipGrantSecret()
-  if (!secret) return false
-  const cookieStore = await cookies()
-  const raw = cookieStore.get(MEMBERSHIP_GRANT_COOKIE_NAME)?.value
-  if (!raw) return false
-  const parsed = parseMembershipGrant(raw, secret)
-  if (!parsed) return false
-  if (parsed.exp < nowEpochSec()) return false
-  return parsed.orgId === orgId && parsed.userId === userId
-}
-
-function hasCachedMembership(key: string): boolean {
-  const cached = membershipExistsCache.get(key)
-  if (!cached) return false
-  if (cached.expiresAt <= Date.now()) {
-    membershipExistsCache.delete(key)
+function shouldRejectGrantByInvalidation(key: string, grantIatMs: number): boolean {
+  const invalidation = membershipGrantInvalidations.get(key)
+  if (!invalidation) return false
+  if (invalidation.expiresAt <= Date.now()) {
+    membershipGrantInvalidations.delete(key)
     return false
   }
-  // Promote as most recently used and extend TTL while actively used.
-  membershipExistsCache.delete(key)
-  membershipExistsCache.set(key, { expiresAt: Date.now() + MEMBERSHIP_CACHE_TTL_MS })
-  return true
+  return grantIatMs <= invalidation.invalidAfterMs
 }
 
-function cacheMembershipExists(key: string): void {
-  membershipExistsCache.set(key, { expiresAt: Date.now() + MEMBERSHIP_CACHE_TTL_MS })
-  if (membershipExistsCache.size <= MEMBERSHIP_CACHE_MAX_ENTRIES) return
-  const oldest = membershipExistsCache.keys().next()
-  if (!oldest.done) {
-    membershipExistsCache.delete(oldest.value)
+async function getValidMembershipGrant(orgId: string, userId: string): Promise<MembershipGrantPayload | null> {
+  const secret = membershipGrantSecret()
+  if (!secret) return null
+  const cookieStore = await cookies()
+  const raw = cookieStore.get(MEMBERSHIP_GRANT_COOKIE_NAME)?.value
+  if (!raw) return null
+  const parsed = parseMembershipGrant(raw, secret)
+  if (!parsed) return null
+  if (parsed.exp <= nowEpochSec()) return null
+  if (parsed.orgId !== orgId || parsed.userId !== userId) return null
+  const key = membershipCacheKey(orgId, userId)
+  if (shouldRejectGrantByInvalidation(key, parsed.iatMs)) return null
+  return parsed
+}
+
+function getCachedMembershipRole(key: string): string | null {
+  const cached = membershipExistsCache.get(key)
+  if (!cached) return null
+  if (cached.expiresAt <= Date.now()) {
+    membershipExistsCache.delete(key)
+    return null
   }
+  // Promote as most recently used without extending original expiry.
+  membershipExistsCache.delete(key)
+  membershipExistsCache.set(key, cached)
+  return cached.role
+}
+
+function cacheMembershipExists(key: string, role: string, expiresAt = Date.now() + MEMBERSHIP_CACHE_TTL_MS): void {
+  if (expiresAt <= Date.now()) return
+  membershipExistsCache.set(key, { expiresAt, role })
+  trimOldestEntry(membershipExistsCache, MEMBERSHIP_CACHE_MAX_ENTRIES)
+}
+
+export function invalidateMembershipAuthCache(orgId: string, userId: string): void {
+  const key = membershipCacheKey(orgId, userId)
+  membershipExistsCache.delete(key)
+  membershipInflight.delete(key)
+  membershipGrantInvalidations.set(key, {
+    invalidAfterMs: Date.now(),
+    expiresAt: Date.now() + MEMBERSHIP_GRANT_TTL_SEC * 1000,
+  })
+  trimOldestEntry(membershipGrantInvalidations, MEMBERSHIP_CACHE_MAX_ENTRIES)
+}
+
+export function invalidateAllMembershipAuthCache(): void {
+  membershipExistsCache.clear()
+  membershipInflight.clear()
+  membershipGrantInvalidations.clear()
 }
 
 async function membershipExistsWithTiming(orgId: string, userId: string): Promise<MembershipLookupResult> {
   const startedAt = Date.now()
   const key = membershipCacheKey(orgId, userId)
-  if (hasCachedMembership(key)) {
+  const cachedRole = getCachedMembershipRole(key)
+  if (cachedRole) {
     return {
       exists: true,
+      role: cachedRole,
       cacheHit: true,
       inflightHit: false,
       grantHit: false,
@@ -161,10 +211,16 @@ async function membershipExistsWithTiming(orgId: string, userId: string): Promis
     }
   }
 
-  if (await hasValidMembershipGrant(orgId, userId)) {
-    cacheMembershipExists(key)
+  const grant = await getValidMembershipGrant(orgId, userId)
+  if (grant) {
+    cacheMembershipExists(
+      key,
+      grant.role,
+      Math.min(Date.now() + MEMBERSHIP_CACHE_TTL_MS, grant.exp * 1000),
+    )
     return {
       exists: true,
+      role: grant.role,
       cacheHit: false,
       inflightHit: false,
       grantHit: true,
@@ -175,9 +231,10 @@ async function membershipExistsWithTiming(orgId: string, userId: string): Promis
 
   const inflight = membershipInflight.get(key)
   if (inflight) {
-    const exists = await inflight
+    const role = await inflight
     return {
-      exists,
+      exists: Boolean(role),
+      role,
       cacheHit: false,
       inflightHit: true,
       grantHit: false,
@@ -189,30 +246,31 @@ async function membershipExistsWithTiming(orgId: string, userId: string): Promis
   const lookup = prisma.membership
     .findUnique({
       where: { orgId_userId: { orgId, userId } },
-      select: { orgId: true },
+      select: { role: true },
     })
     .then((membership) => {
-      const exists = Boolean(membership)
+      const role = membership?.role ?? null
       // Cache only positive membership to keep revocation lag bounded.
-      if (exists) {
-        cacheMembershipExists(key)
+      if (role) {
+        cacheMembershipExists(key, role)
       }
-      return exists
+      return role
     })
     .finally(() => {
       membershipInflight.delete(key)
     })
 
   membershipInflight.set(key, lookup)
-  const exists = await lookup
+  const role = await lookup
   const secret = membershipGrantSecret()
   return {
-    exists,
+    exists: Boolean(role),
+    role,
     cacheHit: false,
     inflightHit: false,
     grantHit: false,
     membershipMs: Date.now() - startedAt,
-    issuedGrantValue: exists && secret ? buildMembershipGrant(orgId, userId, secret) : null,
+    issuedGrantValue: role && secret ? buildMembershipGrant(orgId, userId, role, secret) : null,
   }
 }
 
@@ -282,7 +340,7 @@ export async function requireApiSessionWithTiming(): Promise<{
 
   // Enforce org membership existence on every API request (org isolation).
   const membership = await membershipExistsWithTiming(session.orgId, session.user.id)
-  if (!membership.exists) {
+  if (!membership.exists || !membership.role) {
     return {
       session: null,
       timing: {
@@ -297,8 +355,16 @@ export async function requireApiSessionWithTiming(): Promise<{
     }
   }
 
+  const sessionWithRole =
+    session.role === membership.role
+      ? session
+      : ({
+          ...session,
+          role: membership.role,
+        } satisfies Session)
+
   return {
-    session,
+    session: sessionWithRole,
     timing: {
       getSessionMs,
       membershipMs: membership.membershipMs,
