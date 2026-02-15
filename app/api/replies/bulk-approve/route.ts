@@ -58,7 +58,7 @@ export async function POST(req: Request) {
           orgId: session.orgId,
           type: "POST_REPLY",
           payload: { draftReplyId: r.currentDraftReplyId, actorUserId: session.user.id },
-          dedupKey: `review:${r.id}`,
+          dedupKey: `review:${r.id}:post`,
           triggeredByRequestId: requestId,
           triggeredByUserId: session.user.id,
         })

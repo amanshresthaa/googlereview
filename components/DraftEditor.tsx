@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { useReviewMutations } from "@/app/(app)/inbox/hooks/useReviewMutations"
 import { cn } from "@/lib/utils"
 import { type ReviewDetail, type ReviewRow } from "@/lib/hooks"
-import type { DraftStatus } from "@/lib/reviews/types"
+import { mapReviewDetailToRow } from "@/lib/reviews/detail-to-row"
 import { getFirstVerifierIssueMessage } from "@/lib/reviews/verifier-result"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,59 +23,6 @@ import {
   Trash2,
 } from "@/components/icons"
 
-const DRAFT_STATUS_VALUES: DraftStatus[] = [
-  "NEEDS_APPROVAL",
-  "BLOCKED_BY_VERIFIER",
-  "READY",
-  "POSTED",
-  "POST_FAILED",
-]
-
-function toDraftStatus(status: string): DraftStatus {
-  if (DRAFT_STATUS_VALUES.includes(status as DraftStatus)) {
-    return status as DraftStatus
-  }
-  return "NEEDS_APPROVAL"
-}
-
-function mapDetailToReviewRow(review: ReviewDetail): ReviewRow {
-  const draftStatus = review.currentDraft ? toDraftStatus(review.currentDraft.status) : null
-  const draftUpdatedAt = review.currentDraft?.updatedAt ?? review.updateTime
-
-  return {
-    id: review.id,
-    starRating: review.starRating,
-    snippet: (review.comment ?? "").slice(0, 120),
-    comment: review.comment ?? "",
-    reviewer: {
-      displayName: review.reviewer.displayName,
-      isAnonymous: review.reviewer.isAnonymous,
-    },
-    location: {
-      id: review.location.id,
-      displayName: review.location.name,
-    },
-    createTimeIso: review.createTime,
-    unanswered: review.reply.comment == null,
-    status: review.reply.comment == null ? "pending" : "replied",
-    reply: {
-      comment: review.reply.comment,
-      updateTimeIso: review.reply.updateTime,
-    },
-    currentDraft: review.currentDraft
-      ? {
-          id: review.currentDraft.id,
-          text: review.currentDraft.text,
-          status: draftStatus ?? "NEEDS_APPROVAL",
-          version: review.currentDraft.version,
-          updatedAtIso: draftUpdatedAt,
-        }
-      : null,
-    draftStatus,
-    mentions: review.mentions,
-  }
-}
-
 type Props = {
   reviewId: string
   review: ReviewDetail
@@ -83,10 +30,48 @@ type Props = {
 }
 
 export function DraftEditor({ reviewId, review, refresh }: Props) {
-  const draft = review.currentDraft
+  const [draftRow, setDraftRow] = React.useState<ReviewRow>(() => mapReviewDetailToRow(review))
+  const draft = draftRow.currentDraft
   const [text, setText] = React.useState(draft?.text ?? "")
   const [busy, setBusy] = React.useState<false | "generate" | "save" | "verify" | "publish">(false)
   const [tone, setTone] = React.useState("professional")
+
+  React.useEffect(() => {
+    const incoming = mapReviewDetailToRow(review)
+    setDraftRow((current) => {
+      if (current.id !== incoming.id) return incoming
+
+      const currentDraftVersion = current.currentDraft?.version ?? 0
+      const incomingDraftVersion = incoming.currentDraft?.version ?? 0
+      if (incomingDraftVersion < currentDraftVersion) return current
+
+      const currentDraftUpdatedAt = current.currentDraft?.updatedAtIso ?? null
+      const incomingDraftUpdatedAt = incoming.currentDraft?.updatedAtIso ?? null
+      if (
+        incomingDraftVersion === currentDraftVersion &&
+        currentDraftUpdatedAt &&
+        incomingDraftUpdatedAt &&
+        incomingDraftUpdatedAt < currentDraftUpdatedAt
+      ) {
+        return current
+      }
+
+      const currentReplyUpdatedAt = current.reply.updateTimeIso ?? null
+      const incomingReplyUpdatedAt = incoming.reply.updateTimeIso ?? null
+      if (current.reply.comment && !incoming.reply.comment) return current
+      if (
+        current.reply.comment &&
+        incoming.reply.comment &&
+        currentReplyUpdatedAt &&
+        incomingReplyUpdatedAt &&
+        incomingReplyUpdatedAt < currentReplyUpdatedAt
+      ) {
+        return current
+      }
+
+      return incoming
+    })
+  }, [review])
 
   React.useEffect(() => {
     setText(draft?.text ?? "")
@@ -94,15 +79,10 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
 
   const isDirty = text !== (draft?.text ?? "")
   const hasText = text.trim().length > 0
-  const isReplied = Boolean(review.reply.comment)
+  const isReplied = Boolean(draftRow.reply.comment)
   const isBlocked = draft?.status === "BLOCKED_BY_VERIFIER"
   const verifierIssue = getFirstVerifierIssueMessage(draft?.verifierResultJson ?? null)
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length
-  const [draftRow, setDraftRow] = React.useState<ReviewRow>(() => mapDetailToReviewRow(review))
-
-  React.useEffect(() => {
-    setDraftRow(mapDetailToReviewRow(review))
-  }, [review])
 
   const rows = React.useMemo(() => [draftRow], [draftRow])
   const updateRow = React.useCallback((id: string, updater: (row: ReviewRow) => ReviewRow) => {

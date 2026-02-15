@@ -31,22 +31,47 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
     return detail
   }, [updateRow])
 
+  const syncRowFromSnapshotOrServer = React.useCallback(async (reviewId: string, detail: ReviewDetail | null) => {
+    if (detail) {
+      updateRow(reviewId, (row) => mapDetailToRow(row, detail))
+      return detail
+    }
+    return syncRowFromServer(reviewId)
+  }, [syncRowFromServer, updateRow])
+
+  const resolveTerminalFailureMessage = React.useCallback((params: {
+    status: "FAILED" | "CANCELLED"
+    fallbackMessage: string
+    lastError: string | null
+  }) => {
+    const { status, fallbackMessage, lastError } = params
+    if (lastError) return lastError
+    if (status === "CANCELLED") return "This job was cancelled before completion."
+    return fallbackMessage
+  }, [])
+
   const settleQueuedJob = React.useCallback(async (params: {
     jobId: string
     queuedMessage: string
     successMessage: string
     failureMessage: string
-    onCompleted: () => Promise<void>
+    onCompleted: (reviewSnapshot: ReviewDetail | null) => Promise<void>
   }) => {
     const { jobId, queuedMessage, successMessage, failureMessage, onCompleted } = params
 
     const quickResult = await waitForJobCompletion(jobId, QUICK_JOB_WAIT_MS)
-    if (quickResult?.status === "FAILED") {
-      throw new Error(quickResult.lastError || failureMessage)
+    if (quickResult?.job.status === "FAILED" || quickResult?.job.status === "CANCELLED") {
+      throw new Error(
+        resolveTerminalFailureMessage({
+          status: quickResult.job.status,
+          fallbackMessage: failureMessage,
+          lastError: quickResult.job.lastError,
+        }),
+      )
     }
 
-    if (quickResult?.status === "COMPLETED") {
-      await onCompleted()
+    if (quickResult?.job.status === "COMPLETED") {
+      await onCompleted(quickResult.review ?? null)
       toast.success(successMessage)
       return
     }
@@ -60,12 +85,18 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
         const final = await waitForJobCompletion(jobId, BACKGROUND_JOB_WAIT_MS)
         if (!final) return
 
-        if (final.status === "FAILED") {
-          toast.error(final.lastError || failureMessage)
+        if (final.job.status === "FAILED" || final.job.status === "CANCELLED") {
+          toast.error(
+            resolveTerminalFailureMessage({
+              status: final.job.status,
+              fallbackMessage: failureMessage,
+              lastError: final.job.lastError,
+            }),
+          )
           return
         }
 
-        await onCompleted()
+        await onCompleted(final.review ?? null)
         toast.success(successMessage)
       } catch (error) {
         toast.error(error instanceof Error ? error.message : failureMessage)
@@ -73,7 +104,7 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
         backgroundJobsRef.current.delete(jobId)
       }
     })()
-  }, [])
+  }, [resolveTerminalFailureMessage])
 
   const generateDraft = React.useCallback(async (reviewId: string) => {
     const previousDraftId = rows.find((row) => row.id === reviewId)?.currentDraft?.id ?? null
@@ -91,8 +122,8 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
         queuedMessage: "Draft generation queued",
         successMessage: "Draft regenerated",
         failureMessage: "Draft generation failed.",
-        onCompleted: async () => {
-          await syncRowFromServer(reviewId)
+        onCompleted: async (reviewSnapshot) => {
+          await syncRowFromSnapshotOrServer(reviewId, reviewSnapshot)
         },
       })
       return
@@ -113,7 +144,7 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
     } else {
       toast.success("Draft generation queued")
     }
-  }, [getJobId, rows, settleQueuedJob, syncRowFromServer, updateRow])
+  }, [getJobId, rows, settleQueuedJob, syncRowFromSnapshotOrServer, updateRow])
 
   const saveDraft = React.useCallback(async (reviewId: string, text: string) => {
     const trimmed = text.trim()
@@ -155,8 +186,8 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
         queuedMessage: "Draft verification queued",
         successMessage: "Draft verified",
         failureMessage: "Draft verification failed.",
-        onCompleted: async () => {
-          const detail = await syncRowFromServer(reviewId)
+        onCompleted: async (reviewSnapshot) => {
+          const detail = await syncRowFromSnapshotOrServer(reviewId, reviewSnapshot)
           if (detail?.currentDraft?.status === "BLOCKED_BY_VERIFIER") {
             throw new Error(getVerifierBlockedMessage(detail))
           }
@@ -182,7 +213,7 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
       throw new Error(getVerifierBlockedMessage(verified))
     }
     toast.success("Draft verified")
-  }, [getJobId, settleQueuedJob, syncRowFromServer, updateRow])
+  }, [getJobId, settleQueuedJob, syncRowFromSnapshotOrServer, updateRow])
 
   const publishReply = React.useCallback(async (reviewId: string, text: string, row: ReviewRow) => {
     if (!text.trim()) throw new Error("Draft is empty.")
@@ -228,8 +259,8 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
           queuedMessage: "Draft verification queued",
           successMessage: "Draft verified",
           failureMessage: "Draft verification failed.",
-          onCompleted: async () => {
-            verified = await fetchReviewDetail(reviewId)
+          onCompleted: async (reviewSnapshot) => {
+            verified = await syncRowFromSnapshotOrServer(reviewId, reviewSnapshot)
             if (verified?.currentDraft?.status === "BLOCKED_BY_VERIFIER") {
               throw new Error(getVerifierBlockedMessage(verified))
             }
@@ -272,8 +303,8 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
         queuedMessage: "Reply posting queued",
         successMessage: "Reply published",
         failureMessage: "Reply posting failed.",
-        onCompleted: async () => {
-          const posted = await syncRowFromServer(reviewId)
+        onCompleted: async (reviewSnapshot) => {
+          const posted = await syncRowFromSnapshotOrServer(reviewId, reviewSnapshot)
           if (!posted?.reply.comment) {
             await Promise.resolve(refresh())
             return
@@ -299,7 +330,7 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
     }
 
     void refresh()
-  }, [getJobId, refresh, settleQueuedJob, syncRowFromServer, updateRow])
+  }, [getJobId, refresh, settleQueuedJob, syncRowFromSnapshotOrServer, updateRow])
 
   return {
     generateDraft,

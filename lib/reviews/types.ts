@@ -22,6 +22,7 @@ export type ReviewListRow = {
     status: DraftStatus
     version: number
     updatedAtIso: string
+    verifierResultJson?: unknown | null
   } | null
   draftStatus: DraftStatus | null
   mentions: string[]

@@ -86,5 +86,43 @@ describe("runProcessReviewFastPath budget handling", () => {
 
     await cleanup(orgId)
   })
-})
 
+  it("marks the job failed with FASTPATH_TIMEOUT when maxAttempts is 1", async () => {
+    const orgId = `test-org-${uuid()}`
+    await ensureOrg(orgId)
+
+    const job = await prisma.job.create({
+      data: {
+        orgId,
+        type: "PROCESS_REVIEW",
+        status: "PENDING",
+        payload: { reviewId: "review-2", mode: "AUTO" },
+        runAt: new Date(),
+        maxAttempts: 1,
+      },
+      select: { id: true },
+    })
+
+    const worker = await runProcessReviewFastPath({
+      jobId: job.id,
+      orgId,
+      workerId: `fastpath:${uuid()}`,
+      budgetMs: 5,
+    })
+
+    expect(worker.claimed).toBe(1)
+    expect(worker.results[0]?.ok).toBe(false)
+    expect(worker.results[0]?.error).toBe("FASTPATH_TIMEOUT")
+
+    const after = await prisma.job.findUnique({
+      where: { id: job.id },
+      select: { status: true, lockedAt: true, lockedBy: true, lastErrorCode: true },
+    })
+    expect(after?.status).toBe("FAILED")
+    expect(after?.lockedAt).toBeNull()
+    expect(after?.lockedBy).toBeNull()
+    expect(after?.lastErrorCode).toBe("FASTPATH_TIMEOUT")
+
+    await cleanup(orgId)
+  })
+})
