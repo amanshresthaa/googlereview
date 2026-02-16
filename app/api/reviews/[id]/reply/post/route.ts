@@ -8,6 +8,13 @@ import { after } from "next/server"
 
 export const runtime = "nodejs"
 
+function computeInteractiveBudgetMs() {
+  // Keep publish fast-path aligned with other interactive inbox operations.
+  // A too-small budget can strand jobs in RETRYING when no background worker
+  // is active (common in local dev).
+  return 12_000
+}
+
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id: reviewId } = await ctx.params
   return handleAuthedPost(
@@ -36,7 +43,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       const job = await enqueueJob({
         orgId: session.orgId,
         type: "POST_REPLY",
-        payload: { draftReplyId: review.currentDraftReplyId, actorUserId: session.user.id },
+        payload: {
+          reviewId,
+          draftReplyId: review.currentDraftReplyId,
+          actorUserId: session.user.id,
+        },
         dedupKey: `review:${reviewId}:post`,
         triggeredByRequestId: requestId,
         triggeredByUserId: session.user.id,
@@ -61,7 +72,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             jobId: job.id,
             orgId: session.orgId,
             workerId: `fastpath:${requestId}`,
-            budgetMs: 2500,
+            budgetMs: computeInteractiveBudgetMs(),
           })
         } catch (error) {
           console.warn("[api/reviews][reply/post][fastpath] failed", {

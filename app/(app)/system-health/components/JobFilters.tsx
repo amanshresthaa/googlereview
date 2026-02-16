@@ -43,7 +43,7 @@ export function JobFilters(props: {
 
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-2">
+      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
         <div className="relative w-full sm:w-[340px]">
           <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
           <Input
@@ -56,7 +56,7 @@ export function JobFilters(props: {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary" className="rounded-lg">
+            <Button variant="secondary" className="w-full justify-between rounded-lg sm:w-auto sm:justify-start">
               <Filter className="size-4" />
               <span className="ml-2">Status</span>
               {countSelected(props.selectedStatuses) ? (
@@ -83,7 +83,7 @@ export function JobFilters(props: {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary" className="rounded-lg">
+            <Button variant="secondary" className="w-full justify-between rounded-lg sm:w-auto sm:justify-start">
               <Filter className="size-4" />
               <span className="ml-2">Type</span>
               {countSelected(props.selectedTypes) ? (
@@ -113,7 +113,7 @@ export function JobFilters(props: {
       <Button
         type="button"
         variant="ghost"
-        className={cn("rounded-lg justify-start sm:justify-center", !hasFilters && "opacity-50")}
+        className={cn("w-full rounded-lg justify-start sm:w-auto sm:justify-center", !hasFilters && "opacity-50")}
         onClick={props.onReset}
         disabled={!hasFilters}
       >
@@ -123,4 +123,3 @@ export function JobFilters(props: {
     </div>
   )
 }
-

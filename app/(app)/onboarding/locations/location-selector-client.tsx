@@ -121,7 +121,7 @@ export function LocationSelectorClient({
   }
 
   return (
-    <div className="p-6 md:p-10 space-y-10 max-w-5xl mx-auto">
+    <div className="mx-auto max-w-5xl space-y-8 p-4 sm:p-6 lg:p-10">
       {/* Header */}
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-5">
@@ -161,7 +161,7 @@ export function LocationSelectorClient({
       {/* Selection Control Bar */}
       <div className="sticky top-4 z-20">
         <Card className="rounded-[24px] border-border/50 bg-background/80 backdrop-blur-xl shadow-google-lg overflow-hidden">
-          <CardContent className="p-4 md:p-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+          <CardContent className="flex flex-col gap-4 p-4 md:p-6 sm:flex-row sm:items-center">
             <div className="flex items-center gap-3">
               <motion.div
                 key={selected.size}
@@ -176,17 +176,29 @@ export function LocationSelectorClient({
               </div>
             </div>
             
-            <div className="sm:ml-auto flex items-center gap-3">
-              <Button type="button" size="sm" variant="ghost" className="rounded-xl h-10 px-4 text-xs font-bold text-muted-foreground hover:bg-muted/80" onClick={selectAll}>
-                Select All
-              </Button>
-              <Button type="button" size="sm" variant="ghost" className="rounded-xl h-10 px-4 text-xs font-bold text-muted-foreground hover:bg-muted/80" onClick={deselectAll}>
-                Clear All
-              </Button>
-              <div className="w-px h-6 bg-border/50 mx-1" />
+            <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:gap-3">
               <Button
                 type="button"
-                className="rounded-xl h-10 px-8 text-sm font-black bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow-primary transition-all hover:scale-[1.02] active:scale-[0.98] min-w-[120px]"
+                size="sm"
+                variant="ghost"
+                className="h-10 rounded-xl px-4 text-xs font-bold text-muted-foreground hover:bg-muted/80"
+                onClick={selectAll}
+              >
+                Select All
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-10 rounded-xl px-4 text-xs font-bold text-muted-foreground hover:bg-muted/80"
+                onClick={deselectAll}
+              >
+                Clear All
+              </Button>
+              <div className="mx-1 hidden h-6 w-px bg-border/50 sm:block" />
+              <Button
+                type="button"
+                className="h-10 w-full rounded-xl bg-primary px-6 text-sm font-black text-primary-foreground shadow-glow-primary transition-all hover:scale-[1.02] hover:bg-primary/90 active:scale-[0.98] sm:w-auto sm:min-w-[120px] sm:px-8"
                 onClick={save}
                 disabled={busy}
               >
@@ -203,7 +215,7 @@ export function LocationSelectorClient({
       </div>
 
       {/* Location Grid/List */}
-      <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-1">
+      <div className="grid gap-4 lg:grid-cols-2">
         {visible.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -245,7 +257,7 @@ export function LocationSelectorClient({
                     onClick={() => toggle(l.id, !isEnabled)}
                   >
                     <CardContent className="p-5 md:p-6">
-                      <div className="flex items-center gap-5">
+                      <div className="flex items-start gap-4 sm:items-center sm:gap-5">
                         <div className="relative flex items-center justify-center">
                           <Checkbox
                             checked={isEnabled}

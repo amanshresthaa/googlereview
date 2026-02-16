@@ -34,7 +34,7 @@ export function EnqueuePanel(props: {
 
   return (
     <Card className="rounded-[24px] p-6 shadow-sm border-border/50 bg-background">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="text-base font-bold text-foreground">Enqueue Jobs</div>
           <div className="mt-1 text-xs text-muted-foreground font-medium">
@@ -73,7 +73,7 @@ export function EnqueuePanel(props: {
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Select value={locationId} onValueChange={setLocationId}>
-          <SelectTrigger className="rounded-xl h-11 sm:w-[320px] font-medium shadow-sm">
+          <SelectTrigger className="h-11 w-full rounded-xl font-medium shadow-sm sm:w-[320px]">
             <SelectValue placeholder="Sync one location (optional)" />
           </SelectTrigger>
           <SelectContent className="rounded-xl">
@@ -95,7 +95,7 @@ export function EnqueuePanel(props: {
           <Button
             type="button"
             variant="secondary"
-            className={cn("rounded-xl h-11 font-bold shadow-sm", "sm:whitespace-nowrap")}
+            className={cn("h-11 w-full rounded-xl font-bold shadow-sm sm:w-auto", "sm:whitespace-nowrap")}
             onClick={() => {
               if (!locationId) return
               props.onSyncReviewsOne(locationId)
@@ -109,4 +109,3 @@ export function EnqueuePanel(props: {
     </Card>
   )
 }
-

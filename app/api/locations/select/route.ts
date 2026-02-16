@@ -10,9 +10,11 @@ import { sidebarCacheTag } from "@/lib/sidebar-data"
 
 export const runtime = "nodejs"
 
-const bodySchema = z.object({
-  enabledLocationIds: z.array(z.string().min(1)).max(200),
-})
+const bodySchema = z
+  .object({
+    enabledLocationIds: z.array(z.string().min(1)).max(200),
+  })
+  .strict()
 
 export async function POST(req: Request) {
   return handleAuthedPost(
@@ -27,7 +29,33 @@ export async function POST(req: Request) {
         throw new ApiError({ status: 400, code: "BAD_REQUEST", message: "Invalid request body.", details, fields })
       }
 
-      const enabledIds = parsed.data.enabledLocationIds
+      const normalizedLocationIds = parsed.data.enabledLocationIds.map((id) => id.trim()).filter(Boolean)
+      const enabledIds = Array.from(new Set(normalizedLocationIds))
+      if (enabledIds.length !== normalizedLocationIds.length) {
+        throw new ApiError({
+          status: 400,
+          code: "BAD_REQUEST",
+          message: "Duplicate enabledLocationIds are not allowed.",
+          fields: { enabledLocationIds: ["Each location id can appear only once."] },
+        })
+      }
+
+      if (enabledIds.length > 0) {
+        const existingLocations = await prisma.location.findMany({
+          where: { orgId: session.orgId, id: { in: enabledIds } },
+          select: { id: true },
+        })
+        const existingIds = new Set(existingLocations.map((location) => location.id))
+        const missingLocationIds = enabledIds.filter((id) => !existingIds.has(id))
+        if (missingLocationIds.length > 0) {
+          throw new ApiError({
+            status: 404,
+            code: "NOT_FOUND",
+            message: "One or more locations were not found.",
+            details: { missingLocationIds },
+          })
+        }
+      }
 
       await prisma.$transaction(async (tx) => {
         await tx.location.updateMany({
@@ -49,6 +77,7 @@ export async function POST(req: Request) {
             entityId: session.orgId,
             metadataJson: {
               enabledCount: enabledIds.length,
+              requestedCount: normalizedLocationIds.length,
               enabledLocationIds: enabledIds.slice(0, 20),
             } as never,
           },
@@ -68,7 +97,7 @@ export async function POST(req: Request) {
 
       revalidateTag(sidebarCacheTag(session.orgId), "max")
 
-      return { body: { worker: { claimed: 0, results: [] } } }
+      return { body: { enabledCount: enabledIds.length, worker: { claimed: 0, results: [] } } }
     }
   )
 }

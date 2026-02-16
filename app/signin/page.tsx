@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 
 export default function SignInPage() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 overflow-hidden relative">
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-background p-4">
       {/* Background blobs for depth */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]" />
@@ -76,4 +76,3 @@ export default function SignInPage() {
     </div>
   )
 }
-

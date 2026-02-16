@@ -6,7 +6,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const { token } = await params
 
   return (
-    <div className="min-h-screen grid place-items-center p-4 md:p-6">
+    <div className="grid min-h-[100dvh] place-items-center p-4 md:p-6">
       <Card className="w-full max-w-md rounded-2xl p-5 md:p-8 space-y-5 shadow-floating border-border">
         <h1 className="text-lg md:text-xl font-bold tracking-tight">Invite Link</h1>
         <p className="text-sm text-muted-foreground leading-relaxed font-medium">

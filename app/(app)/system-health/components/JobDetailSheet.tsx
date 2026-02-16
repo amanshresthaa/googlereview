@@ -144,7 +144,7 @@ export function JobDetailSheet(props: {
                 <Badge variant="secondary" className="rounded-md">{job.status}</Badge>
               </div>
 
-              <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+              <div className="mt-3 grid gap-2 text-[11px] text-muted-foreground sm:grid-cols-2">
                 <div>
                   <div className="font-semibold text-foreground/80">Attempts</div>
                   <div className="tabular-nums">{job.attempts} / {job.maxAttempts}</div>

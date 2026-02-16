@@ -273,7 +273,7 @@ export function SettingsClient({
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-10 p-6 md:p-10">
+    <div className="mx-auto max-w-4xl space-y-10 p-4 sm:p-6 lg:p-10">
       <div className="flex items-center gap-5">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 shadow-sm transition-transform hover:scale-105">
           <Settings className="size-7 text-primary" />
@@ -285,7 +285,7 @@ export function SettingsClient({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-        <TabsList className="inline-flex h-12 items-center justify-start rounded-2xl bg-muted/30 border border-border/50 p-1.5 gap-1 overflow-x-auto max-w-full">
+        <TabsList className="inline-flex h-12 w-full max-w-full items-center justify-start gap-1 overflow-x-auto rounded-2xl border border-border/50 bg-muted/30 p-1.5 sm:w-auto">
           {[
             { value: "general", label: "General", icon: Globe },
             { value: "automation", label: "Automation", icon: Zap },
@@ -295,7 +295,7 @@ export function SettingsClient({
             <TabsTrigger 
               key={tab.value}
               value={tab.value} 
-              className="h-9 rounded-xl px-5 text-xs font-black uppercase tracking-wider transition-all data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm"
+              className="h-9 shrink-0 rounded-xl px-5 text-xs font-black uppercase tracking-wider transition-all data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm"
             >
               <tab.icon className="mr-2 h-4 w-4" />
               {tab.label}
@@ -386,7 +386,7 @@ export function SettingsClient({
               </CardTitle>
             </CardHeader>
             <CardContent className="p-8 space-y-10">
-              <div className="flex items-center justify-between gap-6 p-6 rounded-[24px] bg-primary/[0.02] border border-primary/10 shadow-inner">
+              <div className="flex flex-col gap-6 rounded-[24px] border border-primary/10 bg-primary/[0.02] p-6 shadow-inner sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1.5">
                   <Label className="text-base font-bold text-foreground">AI Autopilot Drafting</Label>
                   <p className="text-sm font-medium text-muted-foreground">Generate intelligent responses automatically as new reviews arrive.</p>
@@ -437,7 +437,7 @@ export function SettingsClient({
               </div>
 
               {showBulkApprove && (
-                <div className="flex items-center justify-between gap-6 p-6 rounded-[24px] bg-emerald-500/[0.02] border border-emerald-500/10 shadow-inner">
+                <div className="flex flex-col gap-6 rounded-[24px] border border-emerald-500/10 bg-emerald-500/[0.02] p-6 shadow-inner sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1.5">
                     <Label className="text-base font-bold text-foreground">Instant Bulk Publishing</Label>
                     <p className="text-sm font-medium text-muted-foreground">Enable one-click batch posting for verified 5-star responses.</p>
@@ -496,7 +496,7 @@ export function SettingsClient({
                 </div>
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-border/50">
+              <div className="flex justify-end border-t border-border/50 pt-4">
                 <Button
                   disabled={saving}
                   onClick={() =>
@@ -509,7 +509,7 @@ export function SettingsClient({
                       dspyConfig: normalizeDspyConfig(draft.dspyConfig),
                     })
                   }
-                  className="h-12 rounded-2xl px-10 font-black bg-primary shadow-glow-primary hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all min-w-[160px]"
+                  className="h-12 w-full rounded-2xl bg-primary px-10 font-black shadow-glow-primary transition-all hover:scale-[1.02] hover:bg-primary/90 active:scale-[0.98] sm:w-auto sm:min-w-[160px]"
                 >
                   {saving ? (
                     <Loader2 className="h-5 w-5 mr-2 animate-spin" />
@@ -553,7 +553,7 @@ export function SettingsClient({
                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 px-1">
                   Active Intelligence Model
                 </Label>
-                <div className="flex items-center gap-4 rounded-[20px] border border-border/50 bg-primary/[0.02] p-5 shadow-inner">
+                <div className="flex flex-col items-start gap-4 rounded-[20px] border border-border/50 bg-primary/[0.02] p-5 shadow-inner sm:flex-row sm:items-center">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-glow-primary">
                     <Sparkles className="h-5 w-5 text-primary-foreground" />
                   </div>
@@ -609,7 +609,7 @@ export function SettingsClient({
               </div>
 
               <div className="space-y-5">
-                <div className="flex items-center justify-between px-1">
+                <div className="flex flex-col gap-2 px-1 sm:flex-row sm:items-center sm:justify-between">
                   <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
                     Keyword Triggers
                   </Label>
@@ -618,7 +618,7 @@ export function SettingsClient({
                   </Badge>
                 </div>
                 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <div className="relative flex-1">
                     <Input
                       className="h-12 rounded-2xl border-border/50 bg-background px-5 font-bold shadow-sm focus:ring-4 focus:ring-primary/5 transition-all"
@@ -636,7 +636,7 @@ export function SettingsClient({
                   <Button
                     type="button"
                     onClick={addKeyword}
-                    className="h-12 rounded-2xl px-8 font-black bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 transition-all"
+                    className="h-12 w-full rounded-2xl bg-secondary px-8 font-black text-secondary-foreground shadow-sm transition-all hover:bg-secondary/80 sm:w-auto"
                   >
                     Register
                   </Button>
@@ -652,20 +652,22 @@ export function SettingsClient({
                       >
                         <span className="text-primary/60">#</span>
                         {keyword}
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="icon"
                           onClick={() => removeKeyword(keyword)}
-                          className="ml-1 rounded-full p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
+                          className="ml-1 h-5 w-5 rounded-full p-0 text-muted-foreground transition-all hover:bg-destructive/10 hover:text-destructive"
                         >
                           <X className="h-3 w-3" />
-                        </button>
+                        </Button>
                       </Badge>
                     ))}
                   </div>
                 )}
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-border/50">
+              <div className="flex justify-end border-t border-border/50 pt-4">
                 <Button
                   disabled={saving}
                   onClick={() =>
@@ -675,7 +677,7 @@ export function SettingsClient({
                       mentionKeywords: draft.mentionKeywords,
                     })
                   }
-                  className="h-12 rounded-2xl px-10 font-black bg-primary shadow-glow-primary hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all min-w-[160px]"
+                  className="h-12 w-full rounded-2xl bg-primary px-10 font-black shadow-glow-primary transition-all hover:scale-[1.02] hover:bg-primary/90 active:scale-[0.98] sm:w-auto sm:min-w-[160px]"
                 >
                   {saving ? (
                     <Loader2 className="h-5 w-5 mr-2 animate-spin" />

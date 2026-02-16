@@ -14,9 +14,14 @@ type UseReviewMutationsInput = {
   rows: ReviewRow[]
   updateRow: (id: string, updater: (row: ReviewRow) => ReviewRow) => void
   refresh: () => Promise<void> | void
+  onQueuedJob?: (event: {
+    jobId: string
+    reviewId: string
+    operation: "generate" | "verify" | "publish"
+  }) => void
 }
 
-export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutationsInput) {
+export function useReviewMutations({ rows, updateRow, refresh, onQueuedJob }: UseReviewMutationsInput) {
   const backgroundJobsRef = React.useRef<Set<string>>(new Set())
 
   const getJobId = React.useCallback((result: ReviewMutationResponse) => {
@@ -45,6 +50,9 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
     lastError: string | null
   }) => {
     const { status, fallbackMessage, lastError } = params
+    if (lastError === "DRAFT_STALE" || lastError?.includes('"code":"DRAFT_STALE"')) {
+      return "Draft changed while posting. Publish again to send the latest draft."
+    }
     if (lastError) return lastError
     if (status === "CANCELLED") return "This job was cancelled before completion."
     return fallbackMessage
@@ -52,12 +60,14 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
 
   const settleQueuedJob = React.useCallback(async (params: {
     jobId: string
+    reviewId: string
+    operation: "generate" | "verify" | "publish"
     queuedMessage: string
     successMessage: string
     failureMessage: string
     onCompleted: (reviewSnapshot: ReviewDetail | null) => Promise<void>
   }) => {
-    const { jobId, queuedMessage, successMessage, failureMessage, onCompleted } = params
+    const { jobId, reviewId, operation, queuedMessage, successMessage, failureMessage, onCompleted } = params
 
     const quickResult = await waitForJobCompletion(jobId, QUICK_JOB_WAIT_MS)
     if (quickResult?.job.status === "FAILED" || quickResult?.job.status === "CANCELLED") {
@@ -77,6 +87,7 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
     }
 
     toast.success(queuedMessage)
+    onQueuedJob?.({ jobId, reviewId, operation })
     if (backgroundJobsRef.current.has(jobId)) return
     backgroundJobsRef.current.add(jobId)
 
@@ -104,7 +115,7 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
         backgroundJobsRef.current.delete(jobId)
       }
     })()
-  }, [resolveTerminalFailureMessage])
+  }, [onQueuedJob, resolveTerminalFailureMessage])
 
   const generateDraft = React.useCallback(async (reviewId: string) => {
     const previousDraftId = rows.find((row) => row.id === reviewId)?.currentDraft?.id ?? null
@@ -119,6 +130,8 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
     if (jobId) {
       await settleQueuedJob({
         jobId,
+        reviewId,
+        operation: "generate",
         queuedMessage: "Draft generation queued",
         successMessage: "Draft regenerated",
         failureMessage: "Draft generation failed.",
@@ -146,13 +159,14 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
     }
   }, [getJobId, rows, settleQueuedJob, syncRowFromSnapshotOrServer, updateRow])
 
-  const saveDraft = React.useCallback(async (reviewId: string, text: string) => {
+  const saveDraft = React.useCallback(async (reviewId: string, text: string, options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false
     const trimmed = text.trim()
     if (!trimmed) throw new Error("Draft is empty.")
 
     const result = await apiCall<ReviewMutationResponse>(`/api/reviews/${reviewId}/drafts/edit`, "POST", { text: trimmed })
     if (applyDetailSnapshot(reviewId, result.review, updateRow)) {
-      toast.success("Draft saved")
+      if (!silent) toast.success("Draft saved")
       return
     }
 
@@ -165,7 +179,7 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
 
     if (changed) {
       updateRow(reviewId, (row) => mapDetailToRow(row, changed))
-      toast.success("Draft saved")
+      if (!silent) toast.success("Draft saved")
     }
   }, [updateRow])
 
@@ -183,6 +197,8 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
     if (jobId) {
       await settleQueuedJob({
         jobId,
+        reviewId,
+        operation: "verify",
         queuedMessage: "Draft verification queued",
         successMessage: "Draft verified",
         failureMessage: "Draft verification failed.",
@@ -256,6 +272,8 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
       if (!verified && verifyJobId) {
         await settleQueuedJob({
           jobId: verifyJobId,
+          reviewId,
+          operation: "verify",
           queuedMessage: "Draft verification queued",
           successMessage: "Draft verified",
           failureMessage: "Draft verification failed.",
@@ -300,6 +318,8 @@ export function useReviewMutations({ rows, updateRow, refresh }: UseReviewMutati
     if (postJobId) {
       await settleQueuedJob({
         jobId: postJobId,
+        reviewId,
+        operation: "publish",
         queuedMessage: "Reply posting queued",
         successMessage: "Reply published",
         failureMessage: "Reply posting failed.",

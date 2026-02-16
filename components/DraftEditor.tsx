@@ -243,7 +243,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
           className="min-h-[260px] resize-none border-0 bg-transparent p-6 text-base font-medium leading-relaxed text-foreground placeholder:text-transparent focus-visible:ring-0"
         />
 
-        <div className="flex items-center justify-between border-t border-border/50 bg-muted/20 px-6 py-3">
+        <div className="flex flex-col gap-2 border-t border-border/50 bg-muted/20 px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             {isBlocked ? (
               <span className="inline-flex items-center gap-2 text-xs font-bold text-destructive">
@@ -262,15 +262,17 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
             )}
           </div>
           <div className="flex items-center gap-4">
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={copyText}
               disabled={!hasText}
-              className="flex items-center gap-2 text-xs font-bold text-muted-foreground transition-all hover:text-primary disabled:opacity-30"
+              className="h-auto gap-2 px-0 text-xs font-bold text-muted-foreground transition-all hover:bg-transparent hover:text-primary disabled:opacity-30"
             >
               <Copy className="h-4 w-4" />
               Copy
-            </button>
+            </Button>
             <div className="h-4 w-px bg-border/50" />
             <span className="text-xs font-bold tabular-nums text-muted-foreground/60">
               {wordCount} Words
@@ -279,14 +281,14 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[24px] bg-muted/30 border border-border/50 p-4">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[24px] border border-border/50 bg-muted/30 p-4">
+        <div className="flex w-full items-center gap-2 sm:w-auto">
           <Button
             type="button"
             size="sm"
             onClick={handleGenerate}
             disabled={Boolean(busy)}
-            className="h-10 rounded-xl bg-primary/10 px-5 text-xs font-bold text-primary shadow-none hover:bg-primary hover:text-primary-foreground transition-all"
+            className="h-10 flex-1 rounded-xl bg-primary/10 px-5 text-xs font-bold text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground sm:flex-none"
           >
             {busy === "generate" ? (
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
@@ -304,20 +306,20 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
             size="sm"
             onClick={clearText}
             disabled={!hasText || Boolean(busy)}
-            className="h-10 w-10 rounded-xl text-destructive hover:bg-destructive/10 transition-all"
+            className="h-10 w-10 rounded-xl text-destructive transition-all hover:bg-destructive/10"
           >
             <Trash2 className="h-5 w-5" />
           </Button>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={handleVerify}
             disabled={!hasText || Boolean(busy)}
-            className="h-10 rounded-xl border-border/50 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50"
+            className="h-10 w-full rounded-xl border-border/50 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50 sm:w-auto"
           >
             {busy === "verify" ? (
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
@@ -334,7 +336,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
             size="sm"
             onClick={handleSave}
             disabled={!isDirty || Boolean(busy) || !hasText}
-            className="h-10 rounded-xl border-border/50 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50"
+            className="h-10 w-full rounded-xl border-border/50 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50 sm:w-auto"
           >
             {busy === "save" ? (
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
@@ -350,7 +352,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
             size="sm"
             onClick={handlePublish}
             disabled={!hasText || Boolean(busy)}
-            className="h-10 rounded-xl bg-primary px-8 text-xs font-black text-primary-foreground shadow-glow-primary transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98]"
+            className="h-10 w-full rounded-xl bg-primary px-8 text-xs font-black text-primary-foreground shadow-glow-primary transition-all hover:scale-[1.02] hover:bg-primary/90 active:scale-[0.98] sm:w-auto"
           >
             {busy === "publish" ? (
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>

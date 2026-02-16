@@ -1,7 +1,8 @@
-import { getSession } from "@/lib/session"
-import { fetchInboxBootstrap } from "@/lib/reviews/bootstrap"
-import { parseFilter, resolveRemoteFilter } from "./model"
 import InboxClient from "./InboxClient"
+import { parseFilter, resolveRemoteFilter } from "./model"
+import { fetchInboxBootstrap } from "@/lib/reviews/bootstrap"
+import { getSession } from "@/lib/session"
+
 import type { InboxBootstrap } from "./types"
 
 export default async function InboxPage({
@@ -25,15 +26,12 @@ export default async function InboxPage({
       const filter = parseFilter(rawFilter)
       const derivedTab = filter === "all" ? "all" : "pending"
       const tab =
-        rawTab === "all" || rawTab === "pending" || rawTab === "replied" ? rawTab : derivedTab
+        rawTab === "pending" || rawTab === "replied" || rawTab === "all" ? rawTab : derivedTab
 
-      const effectiveFilter =
-        filter === "mentions" && rawMention.length === 0 ? "all" : filter
+      const effectiveFilter = filter === "mentions" && rawMention.length === 0 ? "all" : filter
       const remoteFilter = resolveRemoteFilter(effectiveFilter, tab)
-      const remoteStatus =
-        tab === "pending" ? "pending" : tab === "replied" ? "replied" : "all"
-      const remoteMention =
-        effectiveFilter === "mentions" ? rawMention || undefined : undefined
+      const remoteStatus = tab
+      const remoteMention = effectiveFilter === "mentions" ? rawMention || undefined : undefined
 
       const ratingNum = rawRating ? Number(rawRating) : undefined
       const validRating =
@@ -44,7 +42,7 @@ export default async function InboxPage({
       ssrBootstrap = await fetchInboxBootstrap({
         orgId: session.orgId,
         filter: remoteFilter,
-        status: remoteStatus as "pending" | "replied" | "all",
+        status: remoteStatus,
         mention: remoteMention,
         locationId: rawLocationId || undefined,
         rating: validRating,

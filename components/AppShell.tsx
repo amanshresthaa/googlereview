@@ -209,7 +209,7 @@ export function AppShell({
   return (
     <SearchProvider>
       <TooltipProvider delayDuration={300}>
-        <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
+        <div className="flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden bg-background text-foreground">
           <aside
             className={cn(
               "hidden shrink-0 flex-col border-r border-border bg-card transition-[width] duration-300 lg:flex",
@@ -381,17 +381,6 @@ export function AppShell({
               </div>
 
               <div className="flex items-center gap-2 md:gap-3">
-                {pathname.startsWith("/inbox") && unanswered > 0 ? (
-                  <Button
-                    type="button"
-                    onClick={() => window.dispatchEvent(new Event("replyai:open-blitz"))}
-                    className="hidden items-center gap-2 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground shadow-glow-primary hover:bg-primary/90 md:flex"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Quick Reply
-                  </Button>
-                ) : null}
-
                 <Button
                   type="button"
                   variant="ghost"

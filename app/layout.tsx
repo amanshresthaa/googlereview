@@ -29,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       dir="ltr"
       className={cn(notoSans.variable, "font-sans")}
     >
-      <body className="min-h-screen bg-background text-foreground">
+      <body className="min-h-[100dvh] bg-background text-foreground">
         <Providers>{children}</Providers>
       </body>
     </html>

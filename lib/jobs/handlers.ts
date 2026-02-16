@@ -76,6 +76,7 @@ const processReviewPayloadSchema = z
   .passthrough()
 const postReplyPayloadSchema = z.object({
   draftReplyId: z.string().min(1),
+  reviewId: z.string().min(1).optional(),
   actorUserId: z.string().min(1).optional(),
 }).passthrough()
 const MAX_AUTO_DRAFTS_PER_SYNC = 5
@@ -653,25 +654,41 @@ async function allocateNextDraftVersionTx(tx: Prisma.TransactionClient, reviewId
 async function handlePostReply(job: Job) {
   const payload = postReplyPayloadSchema.parse(job.payload)
 
-  const draft = await prisma.draftReply.findFirst({
+  const fallback = await prisma.draftReply.findFirst({
     where: { id: payload.draftReplyId, orgId: job.orgId },
-    include: { review: { include: { location: true } } },
+    select: { reviewId: true },
   })
-  if (!draft) return
+  const reviewId = payload.reviewId ?? fallback?.reviewId ?? null
+  if (!reviewId) return
 
-  const review = draft.review
-  // Post reply must post current: if this draft isn't current anymore, fail non-retryable.
-  if (review.currentDraftReplyId && review.currentDraftReplyId !== draft.id) {
-    throw new NonRetryableError("DRAFT_STALE", "Draft is stale.")
-  }
+  const review = await prisma.review.findFirst({
+    where: { id: reviewId, orgId: job.orgId },
+    include: {
+      location: true,
+      currentDraftReply: {
+        select: {
+          id: true,
+          status: true,
+          text: true,
+          verifierResultJson: true,
+        },
+      },
+    },
+  })
+  if (!review) return
+
+  const draft = review.currentDraftReply
   if (review.googleReplyComment) {
-    await prisma.draftReply.update({
-      where: { id: draft.id },
-      data: { status: "POSTED" },
-    })
+    if (draft) {
+      await prisma.draftReply.update({
+        where: { id: draft.id },
+        data: { status: "POSTED" },
+      })
+    }
     return
   }
 
+  if (!draft) throw new NonRetryableError("NO_DRAFT", "No draft.")
   if (draft.status !== "READY") throw new NonRetryableError("DRAFT_NOT_READY", "Draft is not READY.")
 
   const trimmed = draft.text.trim()

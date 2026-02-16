@@ -43,13 +43,14 @@ export function redactPayload(type: JobType, payload: unknown): Record<string, u
     return Object.keys(out).length ? out : null
   }
   if (type === "POST_REPLY") {
+    const reviewId = typeof obj.reviewId === "string" ? obj.reviewId : null
     const draftReplyId = typeof obj.draftReplyId === "string" ? obj.draftReplyId : null
     const actorUserId = typeof obj.actorUserId === "string" ? obj.actorUserId : null
     const out: Record<string, unknown> = {}
+    if (reviewId) out.reviewId = reviewId
     if (draftReplyId) out.draftReplyId = draftReplyId
     if (actorUserId) out.actorUserId = actorUserId
     return Object.keys(out).length ? out : null
   }
   return null
 }
-

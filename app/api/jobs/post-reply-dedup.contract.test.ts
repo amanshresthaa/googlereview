@@ -103,8 +103,22 @@ describe("post reply dedup contract", () => {
       bulkApproveEnabledForFiveStar: true,
     })
     mockFns.reviewFindMany.mockResolvedValue([
-      { id: "rev-1", currentDraftReplyId: "draft-1", currentDraftReply: { status: "READY" } },
-      { id: "rev-2", currentDraftReplyId: "draft-2", currentDraftReply: { status: "READY" } },
+      {
+        id: "rev-1",
+        starRating: 5,
+        googleReplyComment: null,
+        currentDraftReplyId: "draft-1",
+        currentDraftReply: { status: "READY" },
+        location: { enabled: true },
+      },
+      {
+        id: "rev-2",
+        starRating: 5,
+        googleReplyComment: null,
+        currentDraftReplyId: "draft-2",
+        currentDraftReply: { status: "READY" },
+        location: { enabled: true },
+      },
     ])
     mockFns.enqueueJob.mockImplementation(async (input: { dedupKey: string }) => ({
       id: `job:${input.dedupKey}`,

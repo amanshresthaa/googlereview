@@ -406,7 +406,7 @@ export function SystemHealthClient(props: {
   const staleModeActive = staleOnly && backlogStatuses.size === 1 && backlogStatuses.has("RUNNING")
 
   return (
-    <div className="mx-auto max-w-5xl p-6 md:p-10 space-y-10">
+    <div className="mx-auto max-w-5xl space-y-8 p-4 sm:p-6 lg:p-10">
       {/* Header */}
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-5">
@@ -425,12 +425,12 @@ export function SystemHealthClient(props: {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           {isOwner ? (
             <Button
               type="button"
               variant="secondary"
-              className="rounded-xl h-11 px-5 font-bold shadow-sm"
+              className="h-11 w-full rounded-xl px-5 font-bold shadow-sm sm:w-auto"
               onClick={() => void runWorkerNow(1)}
               disabled={workerLoading || loading || enqueueLoading || props.workerDisabled}
               title={props.workerDisabled ? "Worker execution is disabled (DISABLE_CRON=true)." : "Claims and runs up to 1 eligible job."}
@@ -442,7 +442,7 @@ export function SystemHealthClient(props: {
           <Button
             type="button"
             variant="secondary"
-            className="rounded-xl h-11 px-5 font-bold shadow-sm"
+            className="h-11 w-full rounded-xl px-5 font-bold shadow-sm sm:w-auto"
             onClick={applyStuckPreset}
             disabled={loading || enqueueLoading || workerLoading}
           >
@@ -452,7 +452,7 @@ export function SystemHealthClient(props: {
           <Button
             type="button"
             variant="secondary"
-            className="rounded-xl h-11 px-5 font-bold shadow-sm"
+            className="h-11 w-full rounded-xl px-5 font-bold shadow-sm sm:w-auto"
             onClick={() => void refreshAll()}
             disabled={loading || enqueueLoading || workerLoading}
           >
@@ -478,7 +478,7 @@ export function SystemHealthClient(props: {
         <div className="flex items-center justify-between">
            <h3 className="text-lg font-bold text-foreground">Enqueue Actions</h3>
            {props.workerDisabled && (
-             <span className="text-[10px] font-bold text-destructive uppercase tracking-widest bg-destructive/10 px-3 py-1 rounded-full">Worker Disabled</span>
+             <span className="rounded-full bg-destructive/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-destructive">Worker Disabled</span>
            )}
         </div>
         <EnqueuePanel
@@ -499,7 +499,7 @@ export function SystemHealthClient(props: {
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "backlog" | "completed")} className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList className="h-11 rounded-xl bg-muted/50 p-1">
+          <TabsList className="h-11 w-full rounded-xl bg-muted/50 p-1 sm:w-auto">
             <TabsTrigger value="backlog" className="h-9 rounded-lg px-4 text-xs font-bold uppercase tracking-wide">Backlog</TabsTrigger>
             <TabsTrigger value="completed" className="h-9 rounded-lg px-4 text-xs font-bold uppercase tracking-wide">Completed</TabsTrigger>
           </TabsList>
@@ -523,13 +523,13 @@ export function SystemHealthClient(props: {
               <div className="text-xs font-medium text-muted-foreground">
                 {staleModeActive ? "Showing stale RUNNING jobs (locked > 15m)." : "Owner controls for queue management."}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                  {isOwner ? (
                   <Button
                     type="button"
                     variant="destructive"
                     size="sm"
-                    className="rounded-xl h-9 px-4 font-bold"
+                    className="h-9 w-full rounded-xl px-4 font-bold sm:w-auto"
                     onClick={() => void clearBacklog()}
                     disabled={loading || enqueueLoading || workerLoading}
                   >
@@ -542,7 +542,7 @@ export function SystemHealthClient(props: {
                     type="button"
                     variant="secondary"
                     size="sm"
-                    className="rounded-xl h-9 px-4 font-bold"
+                    className="h-9 w-full rounded-xl px-4 font-bold sm:w-auto"
                     onClick={() => {
                       const ids = visibleStaleRunning.map((j) => j.id)
                       if (!ids.length) return

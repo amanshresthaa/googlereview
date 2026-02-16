@@ -1,110 +1,126 @@
-import * as React from "react"
-import { motion } from "framer-motion"
+"use client"
 
-import { EmptyState } from "./EmptyState"
-import { ReviewCardItem } from "./ReviewCardItem"
+import * as React from "react"
+import { motion, AnimatePresence } from "framer-motion"
+
+import { EmptyState } from "@/components/ErrorStates"
+import { ReviewCard } from "@/components/ReviewCard"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { SkeletonList } from "@/components/ui/progress"
 import { InboxIcon, RefreshCw } from "@/components/icons"
+import { INBOX_THEME_CLASSES } from "@/lib/design-system/inbox-theme"
 
 import type { ReviewRow } from "@/lib/hooks"
 
 type InboxReviewListProps = {
-  loading: boolean
-  bootstrapLoading: boolean
   rows: ReviewRow[]
   activeReviewId: string | null
-  selectionMode: boolean
-  selectedIds: string[]
-  quickApproveLoadingId: string | null
+  loading: boolean
+  error: string | null
   hasMore: boolean
   loadingMore: boolean
+  showQuickApprove: boolean
+  quickApproveLoadingId: string | null
   onOpenReview: (reviewId: string) => void
-  onCheckedChange: (reviewId: string, checked: boolean) => void
   onQuickApprove: (reviewId: string) => void
   onLoadMore: () => void
+  onRetry: () => void
 }
 
 export function InboxReviewList({
-  loading,
-  bootstrapLoading,
   rows,
   activeReviewId,
-  selectionMode,
-  selectedIds,
-  quickApproveLoadingId,
+  loading,
+  error,
   hasMore,
   loadingMore,
+  showQuickApprove,
+  quickApproveLoadingId,
   onOpenReview,
-  onCheckedChange,
   onQuickApprove,
   onLoadMore,
+  onRetry,
 }: InboxReviewListProps) {
-  const showInitialLoading = loading && rows.length === 0
+  const showLoading = loading && rows.length === 0
 
   return (
-    <section className="h-full overflow-hidden">
+    <section className={INBOX_THEME_CLASSES.feedListSection}>
       <ScrollArea className="h-full">
-        {showInitialLoading || bootstrapLoading ? (
-          <EmptyState icon={RefreshCw} title="Loading reviews" description="Fetching your latest inbox data..." />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            icon={InboxIcon}
-            title="All caught up!"
-            description="No reviews found for the current filters. Try adjusting them or check back later."
-          />
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4 }}
-            className="flex flex-col gap-3 p-4 pb-32 md:pb-8"
-          >
-            {rows.map((review) => (
-              <ReviewCardItem
-                key={review.id}
-                row={review}
-                selected={review.id === activeReviewId && !selectionMode}
-                checked={selectedIds.includes(review.id)}
-                showCheckbox={selectionMode}
-                quickApproveLoading={quickApproveLoadingId === review.id}
-                onOpen={onOpenReview}
-                onCheckedChange={onCheckedChange}
-                onQuickApprove={onQuickApprove}
-              />
-            ))}
+        <div className={INBOX_THEME_CLASSES.feedListInner}>
+          {showLoading ? <SkeletonList count={4} /> : null}
 
-            {hasMore && (
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="w-full h-12 rounded-[20px] border-border/50 bg-background shadow-sm hover:bg-muted/50 font-bold transition-all mt-2" 
-                onClick={onLoadMore} 
+          {!showLoading && error ? (
+            <EmptyState
+              title="Unable to load reviews"
+              description={error}
+              action={{ label: "Retry", onClick: onRetry }}
+            />
+          ) : null}
+
+          {!showLoading && !error && rows.length === 0 ? (
+            <EmptyState
+              icon={InboxIcon}
+              title="All caught up"
+              description="No conversations match the current queue and filters."
+              action={{ label: "Refresh", onClick: onRetry }}
+            />
+          ) : null}
+
+          <AnimatePresence mode="popLayout">
+            {!showLoading && !error
+              ? rows.map((row, index) => (
+                  <motion.div
+                    key={row.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{
+                      delay: Math.min(index, 10) * 0.03,
+                      duration: 0.25,
+                      ease: "easeOut",
+                    }}
+                    className="mb-0.5"
+                  >
+                    <ReviewCard
+                      reviewId={row.id}
+                      row={row}
+                      showCheckbox={false}
+                      checked={false}
+                      onCheckedChange={() => {}}
+                      onOpen={onOpenReview}
+                      selected={row.id === activeReviewId}
+                      showQuickApprove={showQuickApprove}
+                      onQuickApprove={onQuickApprove}
+                      quickApproveLoading={quickApproveLoadingId === row.id}
+                    />
+                  </motion.div>
+                ))
+              : null}
+          </AnimatePresence>
+
+          {!showLoading && !error && hasMore ? (
+            <div className="px-2 py-3">
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-9 w-full rounded-xl text-xs font-semibold text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
+                onClick={onLoadMore}
                 disabled={loadingMore}
               >
                 {loadingMore ? (
                   <>
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    >
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                    </motion.div>
-                    Syncing more...
+                    <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    Loading…
                   </>
                 ) : (
-                  <>
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Load More Reviews
-                  </>
+                  "Load more"
                 )}
               </Button>
-            )}
-          </motion.div>
-        )}
+            </div>
+          ) : null}
+        </div>
       </ScrollArea>
     </section>
   )
 }
-
-

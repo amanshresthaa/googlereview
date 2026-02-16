@@ -171,13 +171,11 @@ export function ReviewDetail({
       {/* ── Mobile Header ─────────────────────────────── */}
       <header className="sticky top-0 z-20 flex items-center gap-4 border-b border-border bg-background/80 px-4 py-4 backdrop-blur-xl md:hidden">
         {backHref ? (
-          <Link
-            href={backHref}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/50 text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+          <Button asChild variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground">
+            <Link href={backHref} aria-label="Back">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
         ) : null}
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-black tracking-tight text-foreground">
@@ -409,4 +407,3 @@ export function ReviewDetail({
     </div>
   )
 }
-

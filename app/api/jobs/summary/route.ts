@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db"
 import type { JobType } from "@prisma/client"
 import { handleAuthedGet } from "@/lib/api/handler"
+import { ApiError } from "@/lib/api/errors"
 
 export const runtime = "nodejs"
 
@@ -8,6 +9,8 @@ const JOB_TYPES: JobType[] = ["SYNC_LOCATIONS", "SYNC_REVIEWS", "PROCESS_REVIEW"
 
 const SUMMARY_CACHE_TTL_MS = 10_000
 const DETAIL_CACHE_TTL_MS = 30_000
+const STALE_IF_ERROR_MAX_AGE_MS = 5 * 60_000
+const ERROR_BACKOFF_MS = 15_000
 
 type SummaryAggRow = {
   type: JobType
@@ -80,12 +83,89 @@ type JobsSummaryBody = {
 }
 
 type CacheEntry = {
+  storedAt: number
   expiresAt: number
   body: JobsSummaryBody
 }
 
 const summaryCache = new Map<string, CacheEntry>()
 const summaryInflight = new Map<string, Promise<JobsSummaryBody>>()
+const summaryFailureAt = new Map<string, number>()
+
+function getFreshSummary(cacheKey: string, now = Date.now()): JobsSummaryBody | null {
+  const cached = summaryCache.get(cacheKey)
+  if (!cached) return null
+  if (cached.expiresAt <= now) return null
+  return cached.body
+}
+
+function getStaleSummary(cacheKey: string, now = Date.now()): JobsSummaryBody | null {
+  const cached = summaryCache.get(cacheKey)
+  if (!cached) return null
+  if (now - cached.storedAt > STALE_IF_ERROR_MAX_AGE_MS) return null
+  return cached.body
+}
+
+function inFailureBackoff(cacheKey: string, now = Date.now()): boolean {
+  const failedAt = summaryFailureAt.get(cacheKey)
+  if (!failedAt) return false
+  if (now - failedAt >= ERROR_BACKOFF_MS) return false
+  return true
+}
+
+function cacheSummary(cacheKey: string, ttlMs: number, body: JobsSummaryBody, now = Date.now()) {
+  summaryCache.set(cacheKey, {
+    storedAt: now,
+    expiresAt: now + ttlMs,
+    body,
+  })
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  return String(error)
+}
+
+function isLikelyTransientDbFailure(error: unknown): boolean {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase()
+    if (
+      message.includes("can't reach database") ||
+      message.includes("timeout") ||
+      message.includes("connection") ||
+      message.includes("econnreset") ||
+      message.includes("econnrefused") ||
+      message.includes("etimedout")
+    ) {
+      return true
+    }
+  }
+
+  if (error && typeof error === "object") {
+    const code = (error as { code?: unknown }).code
+    if (code === "P1001" || code === "ETIMEDOUT" || code === "ECONNREFUSED" || code === "ECONNRESET") {
+      return true
+    }
+  }
+
+  return false
+}
+
+function toSummaryApiError(error: unknown): ApiError {
+  if (isLikelyTransientDbFailure(error)) {
+    return new ApiError({
+      status: 503,
+      code: "INTERNAL",
+      message: "Job summary is temporarily unavailable.",
+    })
+  }
+
+  return new ApiError({
+    status: 500,
+    code: "INTERNAL",
+    message: "Failed to load job summary.",
+  })
+}
 
 export async function GET(req: Request) {
   return handleAuthedGet(req, async ({ session }) => {
@@ -93,15 +173,31 @@ export async function GET(req: Request) {
     const detail = url.searchParams.get("detail") === "1"
     const cacheKey = `${session.orgId}:${detail ? "detail" : "widget"}`
     const ttlMs = detail ? DETAIL_CACHE_TTL_MS : SUMMARY_CACHE_TTL_MS
+    const now = Date.now()
 
-    const cached = summaryCache.get(cacheKey)
-    if (cached && cached.expiresAt > Date.now()) {
-      return { body: cached.body }
+    const cached = getFreshSummary(cacheKey, now)
+    if (cached) {
+      return { body: cached }
+    }
+
+    if (inFailureBackoff(cacheKey, now)) {
+      const stale = getStaleSummary(cacheKey, now)
+      if (stale) {
+        return { body: stale, headers: { "X-Data-Stale": "1" } }
+      }
     }
 
     const inflight = summaryInflight.get(cacheKey)
     if (inflight) {
-      return { body: await inflight }
+      try {
+        return { body: await inflight }
+      } catch (error) {
+        const stale = getStaleSummary(cacheKey)
+        if (stale) {
+          return { body: stale, headers: { "X-Data-Stale": "1" } }
+        }
+        throw toSummaryApiError(error)
+      }
     }
 
     const compute = (async (): Promise<JobsSummaryBody> => {
@@ -141,7 +237,7 @@ export async function GET(req: Request) {
         return { summary: { byType, recentFailures: [] } }
       }
 
-      const [recentFailures, aiQualityRows, aiProgramVersionRows, aiModeCounts] = await Promise.all([
+      const [recentFailuresResult, aiQualityRowsResult, aiProgramVersionRowsResult, aiModeCountsResult] = await Promise.allSettled([
         prisma.job.findMany({
           where: { orgId: session.orgId, status: "FAILED", completedAt: { gte: since } },
           orderBy: { completedAt: "desc" },
@@ -204,6 +300,40 @@ export async function GET(req: Request) {
         }),
       ])
 
+      if (recentFailuresResult.status === "rejected") {
+        console.warn("[api/jobs/summary] detail recent failures query failed", {
+          orgId: session.orgId,
+          message: errorMessage(recentFailuresResult.reason),
+        })
+      }
+      if (aiQualityRowsResult.status === "rejected") {
+        console.warn("[api/jobs/summary] detail ai quality query failed", {
+          orgId: session.orgId,
+          message: errorMessage(aiQualityRowsResult.reason),
+        })
+      }
+      if (aiProgramVersionRowsResult.status === "rejected") {
+        console.warn("[api/jobs/summary] detail ai program versions query failed", {
+          orgId: session.orgId,
+          message: errorMessage(aiProgramVersionRowsResult.reason),
+        })
+      }
+      if (aiModeCountsResult.status === "rejected") {
+        console.warn("[api/jobs/summary] detail ai mode distribution query failed", {
+          orgId: session.orgId,
+          message: errorMessage(aiModeCountsResult.reason),
+        })
+      }
+
+      const recentFailures =
+        recentFailuresResult.status === "fulfilled" ? recentFailuresResult.value : []
+      const aiQualityRows =
+        aiQualityRowsResult.status === "fulfilled" ? aiQualityRowsResult.value : []
+      const aiProgramVersionRows =
+        aiProgramVersionRowsResult.status === "fulfilled" ? aiProgramVersionRowsResult.value : []
+      const aiModeCounts =
+        aiModeCountsResult.status === "fulfilled" ? aiModeCountsResult.value : []
+
       const aiQuality = aiQualityRows[0] ?? {
         runs: 0,
         blocked: 0,
@@ -260,8 +390,23 @@ export async function GET(req: Request) {
     summaryInflight.set(cacheKey, compute)
     try {
       const body = await compute
-      summaryCache.set(cacheKey, { expiresAt: Date.now() + ttlMs, body })
+      cacheSummary(cacheKey, ttlMs, body)
+      summaryFailureAt.delete(cacheKey)
       return { body }
+    } catch (error) {
+      summaryFailureAt.set(cacheKey, Date.now())
+      console.warn("[api/jobs/summary] summary compute failed", {
+        orgId: session.orgId,
+        detail,
+        message: errorMessage(error),
+      })
+
+      const stale = getStaleSummary(cacheKey)
+      if (stale) {
+        return { body: stale, headers: { "X-Data-Stale": "1" } }
+      }
+
+      throw toSummaryApiError(error)
     } finally {
       summaryInflight.delete(cacheKey)
     }

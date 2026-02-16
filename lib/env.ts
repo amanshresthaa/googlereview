@@ -16,6 +16,10 @@ const serverSchema = z.object({
   DATABASE_URL: z.string().min(1),
   // Used by Prisma CLI for migrations in environments where DATABASE_URL points to a pooler.
   DIRECT_DATABASE_URL: optionalNonEmptyString,
+  DB_POOL_MAX: z.coerce.number().int().min(1).max(50).optional(),
+  DB_POOL_CONNECT_TIMEOUT_MS: z.coerce.number().int().min(500).max(60_000).optional(),
+  DB_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(300_000).optional(),
+  DB_POOL_QUERY_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).optional(),
 
   NEXTAUTH_SECRET: z.string().min(1),
   NEXTAUTH_URL: optionalUrlString,
