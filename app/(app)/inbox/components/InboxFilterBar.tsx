@@ -11,12 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Filter, RefreshCw, Send, X } from "@/components/icons"
-import { INBOX_THEME_CLASSES } from "@/lib/design-system/inbox-theme"
+import { Filter, RefreshCw, Send, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-import type { LocationOption } from "../types"
 import type { ReviewFilter } from "@/lib/hooks"
+import type { LocationOption } from "../types"
 
 type InboxFilterBarProps = {
   filter: ReviewFilter
@@ -36,6 +35,8 @@ type InboxFilterBarProps = {
   bulkApproveLoading: boolean
   bulkApproveEnabled: boolean
 }
+
+const ICON_STROKE = 2.6
 
 const FILTER_OPTIONS: Array<{ value: ReviewFilter; label: string }> = [
   { value: "unanswered", label: "Pending" },
@@ -75,71 +76,71 @@ export function InboxFilterBar({
   const [expanded, setExpanded] = React.useState(false)
 
   return (
-    <section className="border-t border-slate-200/70 px-3 pb-2 pt-2">
+    <section className="border-t border-white/45 bg-white/22 px-3 pb-3 pt-2.5 backdrop-blur-xl md:px-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setExpanded((prev) => !prev)}
             className={cn(
-              "inline-flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-colors duration-200",
+              "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[11px] font-black uppercase tracking-[0.14em] transition-all duration-300 active:scale-95",
               expanded
-                ? "bg-[#007aff]/10 text-[#007aff]"
-                : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                ? "border-[#007AFF]/35 bg-[#007AFF]/12 text-[#007AFF]"
+                : "border-white/60 bg-white/60 text-slate-600 hover:bg-white",
             )}
           >
-            <Filter className="h-3.5 w-3.5" />
+            <Filter className="h-3.5 w-3.5" strokeWidth={ICON_STROKE} />
             Filters
           </button>
 
-          {!expanded && activeFiltersCount > 0 && (
-            <span className="inline-flex h-5 items-center gap-1 rounded-md bg-slate-100 px-2 text-[10px] font-bold text-slate-600">
+          {!expanded && activeFiltersCount > 0 ? (
+            <span className="inline-flex h-8 items-center gap-1 rounded-full border border-white/60 bg-white/60 px-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">
               {activeFiltersCount} active
               <button
                 type="button"
                 onClick={onReset}
-                className="ml-0.5 rounded-full p-0.5 text-slate-400 transition-colors hover:text-slate-700"
+                className="rounded-full p-0.5 text-slate-500 transition-colors hover:text-slate-700"
                 aria-label="Reset filters"
               >
-                <X className="h-2.5 w-2.5" />
+                  <X className="h-3 w-3" strokeWidth={ICON_STROKE} />
               </button>
             </span>
-          )}
+          ) : null}
         </div>
 
         <Button
           type="button"
           size="sm"
           className={cn(
-            "h-8 rounded-xl px-4 text-xs font-bold transition-all duration-200",
+            "h-9 rounded-full px-4 text-[11px] font-black uppercase tracking-[0.14em] transition-all duration-300",
             bulkApproveCount > 0 && bulkApproveEnabled && !bulkApproveLoading
-              ? "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
-              : "bg-slate-900 text-white hover:bg-slate-800"
+              ? "bg-black/90 text-white hover:bg-black"
+              : "bg-white/80 text-slate-700 hover:bg-white",
           )}
           onClick={onBulkApprove}
           disabled={bulkApproveLoading || !bulkApproveEnabled || bulkApproveCount === 0}
         >
           {bulkApproveLoading ? (
-            <RefreshCw className="mr-1.5 h-3 w-3 animate-spin" />
+            <RefreshCw className="mr-1.5 h-3 w-3 animate-spin" strokeWidth={ICON_STROKE} />
           ) : (
-            <Send className="mr-1.5 h-3 w-3" />
+            <Send className="mr-1.5 h-3 w-3" strokeWidth={ICON_STROKE} />
           )}
           Approve {bulkApproveCount}
         </Button>
       </div>
 
       <AnimatePresence initial={false}>
-        {expanded && (
+        {expanded ? (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-2 scrollbar-none">
+            <div className="mt-2.5 flex items-center gap-2 overflow-x-auto pb-1">
               <Select value={filter} onValueChange={(value) => onFilterChange(value as ReviewFilter)}>
-                <SelectTrigger className="h-8 w-auto min-w-[100px] shrink-0 rounded-lg border-slate-200 bg-white text-xs font-semibold">
+                <SelectTrigger className="h-9 min-w-[110px] rounded-full border-white/60 bg-white/70 px-3 text-xs font-semibold">
                   <SelectValue placeholder="Queue" />
                 </SelectTrigger>
                 <SelectContent>
@@ -157,7 +158,7 @@ export function InboxFilterBar({
 
               {filter === "mentions" ? (
                 <Select value={mentionFilter || ""} onValueChange={onMentionFilterChange}>
-                  <SelectTrigger className="h-8 w-auto min-w-[100px] shrink-0 rounded-lg border-slate-200 bg-white text-xs font-semibold">
+                  <SelectTrigger className="h-9 min-w-[115px] rounded-full border-white/60 bg-white/70 px-3 text-xs font-semibold">
                     <SelectValue placeholder="Keyword" />
                   </SelectTrigger>
                   <SelectContent>
@@ -170,7 +171,7 @@ export function InboxFilterBar({
                 </Select>
               ) : (
                 <Select value={locationFilter} onValueChange={onLocationFilterChange}>
-                  <SelectTrigger className="h-8 w-auto min-w-[100px] shrink-0 rounded-lg border-slate-200 bg-white text-xs font-semibold">
+                  <SelectTrigger className="h-9 min-w-[125px] rounded-full border-white/60 bg-white/70 px-3 text-xs font-semibold">
                     <SelectValue placeholder="Location" />
                   </SelectTrigger>
                   <SelectContent>
@@ -185,7 +186,7 @@ export function InboxFilterBar({
               )}
 
               <Select value={ratingFilter} onValueChange={onRatingFilterChange}>
-                <SelectTrigger className="h-8 w-auto min-w-[90px] shrink-0 rounded-lg border-slate-200 bg-white text-xs font-semibold">
+                <SelectTrigger className="h-9 min-w-[98px] rounded-full border-white/60 bg-white/70 px-3 text-xs font-semibold">
                   <SelectValue placeholder="Rating" />
                 </SelectTrigger>
                 <SelectContent>
@@ -197,18 +198,18 @@ export function InboxFilterBar({
                 </SelectContent>
               </Select>
 
-              {activeFiltersCount > 0 && (
+              {activeFiltersCount > 0 ? (
                 <button
                   type="button"
                   onClick={onReset}
-                  className="shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                  className="shrink-0 rounded-full border border-white/60 bg-white/65 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.13em] text-slate-600 transition-all duration-300 hover:bg-white"
                 >
                   Reset
                 </button>
-              )}
+              ) : null}
             </div>
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
     </section>
   )

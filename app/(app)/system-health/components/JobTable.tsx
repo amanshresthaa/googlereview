@@ -104,13 +104,13 @@ export function JobTable(props: {
   const nowMs = safeDate(props.nowIso)?.getTime() ?? 0
 
   return (
-    <Card className="rounded-[24px] p-0 overflow-hidden shadow-sm border-border/50 bg-background">
+    <Card className="app-surface-shell overflow-hidden rounded-[24px] border-border/55 bg-card/90 p-0 shadow-sm">
       <div className="overflow-auto">
         <Table>
           <TableHeader>
-            <TableRow className="border-border/50 bg-muted/20 hover:bg-muted/30">
+            <TableRow className="border-border/55 bg-muted/30 hover:bg-muted/35">
               {columns.map((c) => (
-                <TableHead key={c} className="whitespace-nowrap font-bold text-xs uppercase tracking-wide text-muted-foreground py-3">{c}</TableHead>
+                <TableHead key={c} className="whitespace-nowrap py-3 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground">{c}</TableHead>
               ))}
             </TableRow>
           </TableHeader>
@@ -130,15 +130,15 @@ export function JobTable(props: {
 
                 return (
                   <TableRow key={job.id} className="hover:bg-muted/10 border-border/50 transition-colors">
-                    <TableCell className="whitespace-nowrap font-mono text-[11px] font-medium">{job.type}</TableCell>
+                    <TableCell className="whitespace-nowrap font-mono text-xs font-medium">{job.type}</TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <Badge variant="secondary" className="rounded-lg text-[10px] font-bold px-2 py-0.5">{job.status}</Badge>
+                      <Badge variant="secondary" className="rounded-lg bg-muted/55 px-2 py-0.5 text-[10px] font-black">{job.status}</Badge>
                     </TableCell>
                     {props.kind === "backlog" ? (
                       <>
-                        <TableCell className="whitespace-nowrap tabular-nums text-sm font-medium">{age}</TableCell>
-                        <TableCell className="whitespace-nowrap font-mono text-[11px] text-muted-foreground">{runAt ? runAt.toISOString() : "—"}</TableCell>
-                        <TableCell className={cn("whitespace-nowrap font-mono text-[11px]", isLockedStale(job.lockedAtIso, nowMs) ? "text-destructive font-bold" : "text-muted-foreground")}>
+                        <TableCell className="whitespace-nowrap tabular-nums text-sm font-semibold">{age}</TableCell>
+                        <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">{runAt ? runAt.toISOString() : "—"}</TableCell>
+                        <TableCell className={cn("whitespace-nowrap font-mono text-xs", isLockedStale(job.lockedAtIso, nowMs) ? "text-destructive font-bold" : "text-muted-foreground")}>
                           {lockedAt ? lockedAt.toISOString() : "—"}
                         </TableCell>
                         <TableCell className="whitespace-nowrap tabular-nums text-sm">
@@ -150,7 +150,7 @@ export function JobTable(props: {
                       </>
                     ) : (
                       <>
-                        <TableCell className="whitespace-nowrap font-mono text-[11px] text-muted-foreground">
+                        <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
                           {completedAt ? completedAt.toISOString() : "—"}
                         </TableCell>
                         <TableCell className="whitespace-nowrap tabular-nums text-sm font-medium">{duration}</TableCell>
@@ -165,11 +165,11 @@ export function JobTable(props: {
                     <TableCell className="whitespace-nowrap text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="rounded-xl h-8 w-8 text-muted-foreground hover:bg-muted" disabled={props.loading}>
+                          <Button variant="ghost" size="icon" className="app-action-secondary h-8 w-8 rounded-xl text-muted-foreground hover:bg-muted" disabled={props.loading}>
                             <MoreHorizontal className="size-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-xl">
+                        <DropdownMenuContent align="end" className="rounded-xl border-border/60 bg-card/95">
                           <DropdownMenuItem onClick={() => props.onViewDetails(job.id)}>View details</DropdownMenuItem>
                           <DropdownMenuSeparator />
 
@@ -240,7 +240,7 @@ export function JobTable(props: {
       </div>
 
       <Dialog open={rescheduleOpen} onOpenChange={setRescheduleOpen}>
-        <DialogContent>
+          <DialogContent className="rounded-2xl border-border/60 bg-card/95">
           <DialogHeader>
             <DialogTitle>Reschedule Job</DialogTitle>
             <DialogDescription className="text-xs">
@@ -253,7 +253,7 @@ export function JobTable(props: {
               type="datetime-local"
               value={rescheduleLocal}
               onChange={(e) => setRescheduleLocal(e.target.value)}
-              className="rounded-lg"
+              className="rounded-xl border-border/55"
             />
             {rescheduleJob ? (
               <div className="text-[11px] text-muted-foreground font-mono">
@@ -262,11 +262,11 @@ export function JobTable(props: {
             ) : null}
           </div>
           <DialogFooter>
-            <Button variant="secondary" className="rounded-lg" onClick={() => setRescheduleOpen(false)}>
+            <Button variant="secondary" className="app-action-secondary rounded-xl" onClick={() => setRescheduleOpen(false)}>
               Cancel
             </Button>
             <Button
-              className="rounded-lg"
+              className="app-action-primary rounded-xl"
               onClick={() => {
                 if (!rescheduleJob) return
                 if (!rescheduleLocal) return

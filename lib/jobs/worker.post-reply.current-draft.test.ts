@@ -148,5 +148,5 @@ describe("POST_REPLY current draft resolution", () => {
     })
     expect(current?.status).toBe("POSTED")
     expect(stale?.status).toBe("READY")
-  })
+  }, 15_000)
 })

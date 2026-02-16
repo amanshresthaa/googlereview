@@ -5,7 +5,7 @@ import { motion } from "framer-motion"
 import { toast } from "sonner"
 import { useReviewMutations } from "@/app/(app)/inbox/hooks/useReviewMutations"
 import { cn } from "@/lib/utils"
-import { type ReviewDetail, type ReviewRow } from "@/lib/hooks"
+import type { ReviewDetail, ReviewRow } from "@/lib/hooks"
 import { mapReviewDetailToRow } from "@/lib/reviews/detail-to-row"
 import { getFirstVerifierIssueMessage } from "@/lib/reviews/verifier-result"
 import { Badge } from "@/components/ui/badge"
@@ -75,7 +75,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
 
   React.useEffect(() => {
     setText(draft?.text ?? "")
-  }, [draft?.id, draft?.text])
+  }, [draft?.text])
 
   const isDirty = text !== (draft?.text ?? "")
   const hasText = text.trim().length > 0
@@ -149,7 +149,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
 
   if (!draft && !isReplied) {
     return (
-      <div className="rounded-[24px] border-2 border-dashed border-primary/20 bg-primary/[0.02] px-6 py-12 text-center transition-all hover:bg-primary/[0.04]">
+      <div className="app-surface-shell rounded-[24px] border-2 border-dashed border-primary/25 bg-primary/[0.03] px-6 py-12 text-center transition-all hover:bg-primary/[0.05]">
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-glow-primary">
           <Sparkles className="h-8 w-8 text-primary-foreground" />
         </div>
@@ -163,7 +163,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
           type="button"
           onClick={handleGenerate}
           disabled={Boolean(busy)}
-          className="mt-8 h-12 rounded-2xl bg-primary px-8 font-black shadow-glow-primary hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98]"
+          className="app-action-primary mt-8 h-12 rounded-2xl bg-primary px-8 font-black text-primary-foreground shadow-glow-primary hover:bg-primary/90 motion-safe:hover:scale-[1.02]"
         >
           {busy === "generate" ? (
             <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
@@ -199,7 +199,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
           onValueChange={(value) => {
             if (value) setTone(value)
           }}
-          className="rounded-xl border border-border/50 bg-muted/30 p-1"
+          className="rounded-xl border border-border/55 bg-muted/35 p-1"
         >
           {(["professional", "friendly", "apologetic"] as const).map((option) => (
             <ToggleGroupItem
@@ -220,7 +220,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
 
       <div
         className={cn(
-          "relative overflow-hidden rounded-[24px] border bg-background shadow-inner transition-all duration-300",
+          "app-pane-card relative overflow-hidden rounded-[24px] border bg-card/90 shadow-inner transition-all duration-300",
           isBlocked
             ? "border-destructive ring-4 ring-destructive/5"
             : "border-border/50 focus-within:border-primary/30 focus-within:ring-4 focus-within:ring-primary/5",
@@ -281,14 +281,14 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[24px] border border-border/50 bg-muted/30 p-4">
+      <div className="app-pane-card flex flex-wrap items-center justify-between gap-4 rounded-[24px] border-border/55 bg-muted/35 p-4">
         <div className="flex w-full items-center gap-2 sm:w-auto">
           <Button
             type="button"
             size="sm"
             onClick={handleGenerate}
             disabled={Boolean(busy)}
-            className="h-10 flex-1 rounded-xl bg-primary/10 px-5 text-xs font-bold text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground sm:flex-none"
+            className="app-action-secondary h-10 flex-1 rounded-xl bg-primary/10 px-5 text-xs font-bold text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground sm:flex-none"
           >
             {busy === "generate" ? (
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
@@ -306,7 +306,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
             size="sm"
             onClick={clearText}
             disabled={!hasText || Boolean(busy)}
-            className="h-10 w-10 rounded-xl text-destructive transition-all hover:bg-destructive/10"
+            className="app-action-secondary h-10 w-10 rounded-xl text-destructive transition-all hover:bg-destructive/10"
           >
             <Trash2 className="h-5 w-5" />
           </Button>
@@ -319,7 +319,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
             size="sm"
             onClick={handleVerify}
             disabled={!hasText || Boolean(busy)}
-            className="h-10 w-full rounded-xl border-border/50 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50 sm:w-auto"
+            className="app-action-secondary h-10 w-full rounded-xl border-border/55 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50 sm:w-auto"
           >
             {busy === "verify" ? (
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
@@ -336,7 +336,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
             size="sm"
             onClick={handleSave}
             disabled={!isDirty || Boolean(busy) || !hasText}
-            className="h-10 w-full rounded-xl border-border/50 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50 sm:w-auto"
+            className="app-action-secondary h-10 w-full rounded-xl border-border/55 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50 sm:w-auto"
           >
             {busy === "save" ? (
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
@@ -352,7 +352,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
             size="sm"
             onClick={handlePublish}
             disabled={!hasText || Boolean(busy)}
-            className="h-10 w-full rounded-xl bg-primary px-8 text-xs font-black text-primary-foreground shadow-glow-primary transition-all hover:scale-[1.02] hover:bg-primary/90 active:scale-[0.98] sm:w-auto"
+            className="app-action-primary h-10 w-full rounded-xl bg-primary px-8 text-xs font-black text-primary-foreground shadow-glow-primary transition-all hover:bg-primary/90 motion-safe:hover:scale-[1.02] sm:w-auto"
           >
             {busy === "publish" ? (
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>

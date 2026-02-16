@@ -210,14 +210,14 @@ export function JobTracker({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -8 }}
-        className="rounded-xl border border-border/60 bg-card p-3"
+        className="app-pane-card rounded-xl border-border/60 bg-card/90 p-3"
       >
         <div className="flex items-start gap-2.5">
           <StatusIcon status={status} className="mt-0.5 h-4 w-4" />
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
-              <p className="truncate text-sm font-semibold text-foreground">{statusText(status)}</p>
-              <Badge variant="outline" className="text-[10px] font-semibold uppercase">
+              <p className="truncate text-sm font-black tracking-tight text-foreground">{statusText(status)}</p>
+              <Badge variant="outline" className="rounded-md border-border/55 bg-muted/30 px-1.5 text-[10px] font-black uppercase">
                 {status}
               </Badge>
             </div>

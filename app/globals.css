@@ -15,7 +15,7 @@
   - theme: blue
   - radius: large
   - rtl: false
-  - font: noto-sans (via `next/font/google`, `--font-sans`)
+  - font: inter (via `next/font/google`, `--font-sans`)
 */
 
 /*
@@ -133,6 +133,13 @@
     --shadow-google-md: var(--shadow-elevated);
     --shadow-google-lg: var(--shadow-floating);
     --shadow-google-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+    --tahoe-action-blue: #007AFF;
+    --tahoe-glass-l1: rgb(255 255 255 / 0.4);
+    --tahoe-glass-l2: rgb(255 255 255 / 0.2);
+    --tahoe-glass-l3: rgb(255 255 255 / 0.3);
+    --tahoe-glass-l4: rgb(255 255 255 / 0.8);
+    --tahoe-pane-border: rgb(255 255 255 / 0.48);
   }
 
   .dark {
@@ -180,6 +187,14 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    font-family:
+      "SF Pro Text",
+      "SF Pro Display",
+      "Inter",
+      "Segoe UI",
+      system-ui,
+      -apple-system,
+      sans-serif;
     font-feature-settings: "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -201,6 +216,141 @@
 }
 
 @layer utilities {
+
+  .tahoe-pane-l1 {
+    background-color: var(--tahoe-glass-l1);
+    border-color: var(--tahoe-pane-border);
+    -webkit-backdrop-filter: blur(42px);
+    backdrop-filter: blur(42px);
+  }
+
+  .tahoe-pane-l2 {
+    background-color: var(--tahoe-glass-l2);
+    border-color: var(--tahoe-pane-border);
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+  }
+
+  .tahoe-pane-l3 {
+    background-color: var(--tahoe-glass-l3);
+  }
+
+  .tahoe-pane-l4 {
+    background-color: var(--tahoe-glass-l4);
+    -webkit-backdrop-filter: blur(30px);
+    backdrop-filter: blur(30px);
+  }
+
+  .tahoe-canvas {
+    background-image:
+      radial-gradient(circle at 12% 22%, rgb(255 255 255 / 0.42), transparent 54%),
+      radial-gradient(circle at 86% 10%, rgb(191 219 254 / 0.25), transparent 47%),
+      linear-gradient(165deg, rgb(255 255 255 / 0.15), rgb(255 255 255 / 0.03));
+  }
+
+  .tahoe-action-island {
+    -webkit-backdrop-filter: blur(26px);
+    backdrop-filter: blur(26px);
+  }
+
+  .tahoe-nav-pill {
+    border-radius: 1.05rem;
+    transition: all 300ms;
+  }
+
+  .tahoe-nav-pill:active {
+    transform: scale(0.97);
+  }
+
+  .tahoe-squircle-card {
+    border-radius: 2rem;
+    transition: all 300ms;
+  }
+
+  .tahoe-squircle-card:active {
+    transform: scale(0.97);
+  }
+
+  .tahoe-intelligence-glow {
+    background-image: conic-gradient(from 0deg, #ffdee9, #b5fffc, #ffdee9);
+  }
+
+  .app-surface-shell {
+    border: 1px solid hsl(var(--border) / 0.55);
+    background: hsl(var(--card) / 0.8);
+    box-shadow: var(--shadow-google-sm);
+    border-radius: 1.5rem;
+  }
+
+  .app-pane-card {
+    border: 1px solid hsl(var(--border) / 0.55);
+    background: hsl(var(--card));
+    border-radius: 1.25rem;
+    box-shadow: var(--shadow-google-sm);
+  }
+
+  .app-kicker {
+    font-size: 0.625rem;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground) / 0.78);
+  }
+
+  .app-section-title {
+    font-size: 1.1rem;
+    line-height: 1.2;
+    font-weight: 900;
+    letter-spacing: -0.025em;
+    color: hsl(var(--foreground));
+  }
+
+  .app-field-label {
+    font-size: 0.625rem;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground) / 0.72);
+  }
+
+  .app-action-primary {
+    border-radius: 0.9rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    transition: all 300ms;
+  }
+
+  .app-action-primary:active {
+    transform: scale(0.98);
+  }
+
+  .app-action-secondary {
+    border-radius: 0.8rem;
+    font-weight: 700;
+    transition: all 300ms;
+  }
+
+  .app-action-secondary:active {
+    transform: scale(0.98);
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .tahoe-pane-l1,
+    .tahoe-pane-l2,
+    .tahoe-pane-l4,
+    .tahoe-action-island {
+      background-color: rgb(255 255 255 / 0.88);
+    }
+
+    .dark .tahoe-pane-l1,
+    .dark .tahoe-pane-l2,
+    .dark .tahoe-pane-l4,
+    .dark .tahoe-action-island {
+      background-color: rgb(2 6 23 / 0.8);
+    }
+  }
 
   /* Shadow system */
   .shadow-glass {

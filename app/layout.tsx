@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from "next"
-import { Noto_Sans } from "next/font/google"
+import { Inter } from "next/font/google"
 import "@/app/globals.css"
 import { cn } from "@/lib/utils"
 import { Providers } from "@/components/Providers"
 
-const notoSans = Noto_Sans({
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  display: "swap",
   variable: "--font-sans",
 })
 
@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="en"
       suppressHydrationWarning
       dir="ltr"
-      className={cn(notoSans.variable, "font-sans")}
+      className={cn(inter.variable, "font-sans")}
     >
       <body className="min-h-[100dvh] bg-background text-foreground">
         <Providers>{children}</Providers>

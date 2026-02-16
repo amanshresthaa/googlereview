@@ -1,6 +1,4 @@
 "use client"
-
-import * as React from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
@@ -85,7 +83,7 @@ function StarRating({ rating }: { rating: number }) {
     <span className="inline-flex items-center gap-0.5">
       {Array.from({ length: 5 }, (_, i) => (
         <Star
-          key={i}
+          key={`${rating}-${String(i)}`}
           weight={i < rating ? "fill" : "regular"}
           className={cn(
             "h-4 w-4",
@@ -171,7 +169,7 @@ export function ReviewDetail({
       {/* ── Mobile Header ─────────────────────────────── */}
       <header className="sticky top-0 z-20 flex items-center gap-4 border-b border-border bg-background/80 px-4 py-4 backdrop-blur-xl md:hidden">
         {backHref ? (
-          <Button asChild variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground">
+          <Button asChild variant="ghost" size="icon" className="app-action-secondary h-10 w-10 rounded-xl border-border/55 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground">
             <Link href={backHref} aria-label="Back">
               <ArrowLeft className="h-5 w-5" />
             </Link>
@@ -191,7 +189,7 @@ export function ReviewDetail({
       <ScrollArea className="flex-1">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 p-6 md:p-8">
           {/* ── Review Identity Section ─────────────────── */}
-          <section className="relative overflow-hidden rounded-[32px] border border-border/50 bg-background shadow-sm transition-all hover:shadow-card">
+          <section className="app-surface-shell relative overflow-hidden rounded-[32px] border-border/55 bg-card/90 transition-all hover:shadow-card">
             <div className="absolute right-0 top-0 h-32 w-32 bg-primary/5 blur-3xl rounded-full -mr-16 -mt-16" />
             
             <div className="p-6 md:p-10">
@@ -264,7 +262,7 @@ export function ReviewDetail({
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-10 rounded-xl px-4 text-xs font-bold border-border/50 bg-background shadow-sm hover:bg-muted/50"
+                    className="app-action-secondary h-10 rounded-xl border-border/55 bg-background px-4 text-xs font-bold shadow-sm hover:bg-muted/50"
                   >
                     <ExternalLink className="mr-2 h-4 w-4" />
                     Maps
@@ -277,7 +275,7 @@ export function ReviewDetail({
                 <div className="absolute -left-4 -top-4 text-primary/5">
                   <MessageSquare className="h-24 w-24 fill-current" />
                 </div>
-                <div className="relative rounded-[24px] border border-border/50 bg-muted/20 p-8 md:p-10 shadow-inner">
+                  <div className="app-pane-card relative rounded-[24px] border-border/55 bg-muted/25 p-8 md:p-10 shadow-inner">
                   <p className="text-xl italic leading-relaxed text-foreground/90 font-medium md:text-2xl">
                     &ldquo;{review.comment || "No written comment provided."}&rdquo;
                   </p>
@@ -287,7 +285,7 @@ export function ReviewDetail({
           </section>
 
           {/* ── Official Response Section ─────────────── */}
-          <section className="overflow-hidden rounded-[32px] border border-border/50 bg-background shadow-sm transition-all hover:shadow-card">
+          <section className="app-surface-shell overflow-hidden rounded-[32px] border-border/55 bg-card/90 transition-all hover:shadow-card">
             <div className="p-6 md:p-10 space-y-8">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
@@ -326,7 +324,7 @@ export function ReviewDetail({
               </div>
 
               {postedReply ? (
-                <div className="relative overflow-hidden rounded-[24px] border border-emerald-500/10 bg-emerald-500/[0.02] p-8 md:p-10 shadow-inner transition-all hover:bg-emerald-500/[0.04]">
+                <div className="app-pane-card relative overflow-hidden rounded-[24px] border-emerald-500/15 bg-emerald-500/[0.03] p-8 md:p-10 shadow-inner transition-all hover:bg-emerald-500/[0.05]">
                   <p className="text-lg leading-relaxed text-foreground font-medium">
                     {postedReply}
                   </p>
@@ -354,7 +352,7 @@ export function ReviewDetail({
           </section>
 
           {/* ── Intelligence Layer ─────────────────── */}
-          <section className="relative overflow-hidden rounded-[32px] border border-primary/20 bg-primary/5 p-8 md:p-10 transition-all hover:bg-primary/[0.08]">
+          <section className="app-surface-shell relative overflow-hidden rounded-[32px] border-primary/25 bg-primary/5 p-8 md:p-10 transition-all hover:bg-primary/[0.08]">
             <div className="absolute right-0 bottom-0 h-40 w-40 bg-primary/5 blur-3xl rounded-full -mr-20 -mb-20" />
             
             <div className="relative space-y-8">
@@ -368,7 +366,7 @@ export function ReviewDetail({
               </div>
 
               <div className="grid gap-6 md:grid-cols-2">
-                <div className="group flex items-start gap-4 rounded-2xl bg-background/60 p-5 shadow-sm transition-all hover:bg-background hover:shadow-card">
+                <div className="app-pane-card group flex items-start gap-4 rounded-2xl border-border/55 bg-background/70 p-5 shadow-sm transition-all hover:bg-background hover:shadow-card">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 transition-colors group-hover:bg-emerald-500 group-hover:text-white">
                     <CheckCircle2 className="h-5 w-5" />
                   </div>
@@ -386,7 +384,7 @@ export function ReviewDetail({
                   </div>
                 </div>
 
-                <div className="group flex items-start gap-4 rounded-2xl bg-background/60 p-5 shadow-sm transition-all hover:bg-background hover:shadow-card">
+                <div className="app-pane-card group flex items-start gap-4 rounded-2xl border-border/55 bg-background/70 p-5 shadow-sm transition-all hover:bg-background hover:shadow-card">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                     <TrendingUp className="h-5 w-5" />
                   </div>

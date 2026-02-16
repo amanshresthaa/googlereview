@@ -1,14 +1,15 @@
 "use client"
 
-import * as React from "react"
 import { motion } from "framer-motion"
 
 import { NotificationCenter } from "@/components/NotificationCenter"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { InboxIcon, RefreshCw, Search } from "@/components/icons"
+import { RefreshCw, Search, Sparkles } from "lucide-react"
 import { INBOX_THEME_CLASSES, inboxSegmentedClass } from "@/lib/design-system/inbox-theme"
 import { cn } from "@/lib/utils"
+
+const ICON_STROKE = 2.6
 
 export type InboxTab = "pending" | "replied" | "all"
 
@@ -37,77 +38,71 @@ export function InboxHeader({
   refreshing,
   onRefresh,
 }: InboxHeaderProps) {
-  const activeIndex = TAB_OPTIONS.findIndex((o) => o.value === tab)
-
   return (
     <motion.header
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="border-b border-slate-200/70 px-3 pb-2.5 pt-3"
+      transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+      className={INBOX_THEME_CLASSES.headerSection}
     >
-      <div className="mb-2.5 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <h1 className="text-lg font-extrabold tracking-tight text-slate-900">Inbox</h1>
-          {pendingCount > 0 && (
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#007aff] px-1.5 text-[10px] font-bold tabular-nums text-white">
-              {pendingCount}
-            </span>
-          )}
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Tahoe Inbox</p>
+          <div className="flex items-center gap-2.5">
+            <h2 className="truncate text-3xl font-black tracking-[-0.04em] text-slate-900">Reviews</h2>
+            {pendingCount > 0 ? (
+              <span className="inline-flex min-w-6 items-center justify-center rounded-full border border-white/55 bg-white/75 px-2 py-0.5 text-[10px] font-black tabular-nums text-[#007AFF]">
+                {pendingCount}
+              </span>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex items-center gap-1.5">
-          <NotificationCenter className="rounded-2xl border-slate-200 bg-white" />
+          <NotificationCenter className="h-10 w-10 rounded-2xl border-white/60 bg-white/75 backdrop-blur-xl" />
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="icon"
-            className="h-9 w-9 rounded-xl border-slate-200 bg-white transition-colors duration-200 hover:bg-slate-50 hover:text-[#007aff]"
+            className="h-10 w-10 rounded-2xl border border-white/60 bg-white/75 text-slate-600 transition-all duration-300 hover:bg-white hover:text-[#007AFF]"
             onClick={onRefresh}
             aria-label="Refresh inbox"
           >
-            <RefreshCw className={cn("h-4 w-4 transition-transform duration-500", refreshing && "animate-spin")} />
+            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} strokeWidth={ICON_STROKE} />
           </Button>
         </div>
       </div>
 
-      <div className="relative mb-2.5">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <div className="relative mb-3">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" strokeWidth={ICON_STROKE} />
         <Input
           type="search"
-          placeholder="Search conversations…"
+          placeholder="Search reviewer, content, or location"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
-          className="h-10 rounded-xl border-slate-200/80 bg-[#f2f2f7] pl-10 text-sm font-medium placeholder:text-slate-400 transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-[#007aff]/20 focus:border-[#007aff]/40"
+          className={INBOX_THEME_CLASSES.searchInput}
           aria-label="Search inbox reviews"
         />
       </div>
 
-      <div className="relative rounded-xl bg-[#f2f2f7] p-0.5">
-        <div className="relative grid grid-cols-3">
-          <div
-            className="absolute top-0 bottom-0 rounded-[10px] bg-white shadow-sm transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
-            style={{
-              width: `calc(100% / 3)`,
-              left: `calc(${activeIndex} * 100% / 3)`,
-            }}
-          />
+      <div className={INBOX_THEME_CLASSES.segmented}>
+        <div className="grid grid-cols-3 gap-1">
           {TAB_OPTIONS.map((option) => (
             <button
               key={option.value}
-              type="button"
-              onClick={() => onTabChange(option.value)}
-              className={cn(
-                "relative z-10 h-7 rounded-[10px] text-xs font-bold tracking-tight transition-colors duration-200",
-                tab === option.value
-                  ? "text-[#007aff]"
-                  : "text-slate-500 hover:text-slate-800"
-              )}
-            >
-              {option.label}
-            </button>
+                type="button"
+                onClick={() => onTabChange(option.value)}
+                className={cn(inboxSegmentedClass(option.value === tab), "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/30")}
+              >
+                {option.label}
+              </button>
           ))}
         </div>
+      </div>
+
+      <div className="mt-2.5 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+        <Sparkles className="h-3.5 w-3.5 text-[#007AFF]" strokeWidth={ICON_STROKE} />
+        AI responses adapt to brand tone and reviewer sentiment
       </div>
     </motion.header>
   )

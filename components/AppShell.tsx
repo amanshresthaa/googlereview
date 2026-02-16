@@ -5,22 +5,21 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 import { useTheme } from "next-themes"
+
 import { SearchProvider } from "@/components/search-context"
-import { cn } from "@/lib/utils"
-import { REPLYAI_UNANSWERED_COUNT_EVENT } from "@/lib/reviews/count-events"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
+  BarChart3 as BarChart,
   Bell,
   ChevronDown,
   ChevronLeft,
@@ -33,9 +32,10 @@ import {
   Settings,
   Sparkles,
   Sun,
-  BarChart,
-} from "@/components/icons"
-import { JobHealthWidget } from "./JobHealthWidget"
+} from "lucide-react"
+import { JobHealthWidget } from "@/components/JobHealthWidget"
+import { REPLYAI_UNANSWERED_COUNT_EVENT } from "@/lib/reviews/count-events"
+import { cn } from "@/lib/utils"
 
 type UserShape = {
   name: string | null
@@ -54,6 +54,7 @@ type NavItem = {
 const SIDEBAR_COLLAPSE_STORAGE_KEY = "replyai.sidebarCollapsed"
 const UNANSWERED_CACHE_TTL_MS = 20_000
 const UNANSWERED_POLL_INTERVAL_MS = 60_000
+const ICON_STROKE = 2.6
 
 let unansweredCountCache = {
   value: 0,
@@ -160,6 +161,21 @@ function initials(name: string | null | undefined) {
   return `${a}${b}`.toUpperCase()
 }
 
+function CountBadge({ active, count }: { active: boolean; count: number }) {
+  return (
+    <Badge
+      className={cn(
+        "rounded-full border px-1.5 py-0 text-[10px] font-black tabular-nums",
+        active
+          ? "border-white/50 bg-white text-[#007AFF]"
+          : "border-white/30 bg-[#007AFF] text-white",
+      )}
+    >
+      {count > 99 ? "99+" : count}
+    </Badge>
+  )
+}
+
 export function AppShell({
   user,
   children,
@@ -208,32 +224,36 @@ export function AppShell({
 
   return (
     <SearchProvider>
-      <TooltipProvider delayDuration={300}>
-        <div className="flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden bg-background text-foreground">
+      <TooltipProvider delayDuration={220}>
+        <div className="relative flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden bg-[linear-gradient(130deg,#dbe8ff_0%,#f4f7ff_42%,#d8f5f0_100%)] text-slate-900">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(255,255,255,0.95),transparent_48%),radial-gradient(circle_at_85%_20%,rgba(191,219,254,0.45),transparent_45%),radial-gradient(circle_at_70%_80%,rgba(221,250,247,0.65),transparent_42%)]" />
+          <div className="pointer-events-none absolute inset-0 opacity-[0.15] [background-image:radial-gradient(rgba(15,23,42,0.14)_0.6px,transparent_0.6px)] [background-size:8px_8px]" />
+
           <aside
             className={cn(
-              "hidden shrink-0 flex-col border-r border-border bg-card transition-[width] duration-300 lg:flex",
-              sidebarCollapsed ? "w-[72px]" : "w-64",
+              "relative z-20 hidden h-full p-3 lg:flex",
+              sidebarCollapsed ? "w-[94px]" : "w-[290px]",
             )}
           >
-            <div className="border-b border-border p-4">
-              <div className="flex items-center justify-between">
+            <div className="tahoe-pane-l1 flex h-full w-full flex-col rounded-[34px] border border-white/55 bg-white/40 shadow-[0_24px_70px_rgba(15,23,42,0.2)]">
+              <div className="flex items-center justify-between border-b border-white/50 px-4 py-4">
                 <Link
                   href="/inbox"
-                  className={cn("flex items-center", sidebarCollapsed ? "gap-0" : "gap-2.5")}
+                  className={cn("flex items-center", sidebarCollapsed ? "gap-0" : "gap-3")}
                   aria-label="Go to inbox"
                 >
-                  <div className="rounded-xl bg-primary p-2 shadow-glow-primary">
-                    <Sparkles className="h-5 w-5 text-primary-foreground" />
+                    <div className="grid h-11 w-11 place-items-center rounded-2xl border border-white/40 bg-white/70 text-[#007AFF] shadow-[0_10px_22px_rgba(0,122,255,0.25)]">
+                     <Sparkles className="h-5 w-5" strokeWidth={ICON_STROKE} />
                   </div>
-                  <span
+                  <div
                     className={cn(
-                      "overflow-hidden whitespace-nowrap text-lg font-bold tracking-tight text-foreground transition-all duration-300",
-                      sidebarCollapsed ? "max-w-0 opacity-0" : "max-w-[180px] opacity-100",
+                      "overflow-hidden whitespace-nowrap transition-all duration-300",
+                      sidebarCollapsed ? "max-w-0 opacity-0" : "max-w-[170px] opacity-100",
                     )}
                   >
-                    ReplyAI
-                  </span>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Tahoe</p>
+                    <p className="text-lg font-black tracking-[-0.03em] text-slate-900">ReplyAI</p>
+                  </div>
                 </Link>
 
                 <Tooltip>
@@ -242,20 +262,141 @@ export function AppShell({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                      onClick={() => setSidebarCollapsed((prev) => !prev)}
                       aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                      className="h-8 w-8 text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                      className="h-8 w-8 rounded-xl text-slate-500 hover:bg-white/70 hover:text-slate-800"
                     >
-                      {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                       {sidebarCollapsed ? <ChevronRight className="h-4 w-4" strokeWidth={ICON_STROKE} /> : <ChevronLeft className="h-4 w-4" strokeWidth={ICON_STROKE} />}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="right">{sidebarCollapsed ? "Expand" : "Collapse"}</TooltipContent>
                 </Tooltip>
               </div>
-            </div>
 
-            <ScrollArea className="flex-1 px-3 py-4">
-              <nav className="space-y-1.5" aria-label="Main navigation">
+              <ScrollArea className="flex-1 px-3 py-4">
+                <nav className="space-y-2" aria-label="Main navigation">
+                  {items.map((item) => {
+                    const isActive = isNavItemActive(pathname, item.href)
+                    const showCount = item.href === "/inbox" && unanswered > 0
+
+                    return (
+                      <Tooltip key={item.href}>
+                        <TooltipTrigger asChild>
+                          <Link
+                            href={item.href}
+                            prefetch={true}
+                            aria-current={isActive ? "page" : undefined}
+                            className={cn(
+                               "tahoe-nav-pill group flex items-center rounded-2xl border px-3 py-2.5 transition-all duration-300 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/35",
+                              sidebarCollapsed ? "justify-center px-0" : "gap-3",
+                              isActive
+                                ? "border-white/65 bg-white/80 text-[#007AFF] shadow-[0_14px_28px_rgba(15,23,42,0.12)]"
+                                : "border-transparent bg-white/0 text-slate-600 hover:border-white/50 hover:bg-white/45 hover:text-slate-900",
+                            )}
+                          >
+                            <item.Icon className={cn("h-5 w-5 shrink-0")} strokeWidth={isActive ? 2.9 : ICON_STROKE} />
+                            {!sidebarCollapsed ? (
+                              <span className="truncate text-sm font-black tracking-[-0.01em]">{item.label}</span>
+                            ) : null}
+                            {!sidebarCollapsed && showCount ? (
+                              <span className="ml-auto">
+                                <CountBadge active={isActive} count={unanswered} />
+                              </span>
+                            ) : null}
+                          </Link>
+                        </TooltipTrigger>
+                        {sidebarCollapsed ? (
+                          <TooltipContent side="right" sideOffset={12} className="font-semibold">
+                            {item.label}
+                            {showCount ? ` (${unanswered})` : ""}
+                          </TooltipContent>
+                        ) : null}
+                      </Tooltip>
+                    )
+                  })}
+                </nav>
+
+                <div className="mt-8 rounded-2xl border border-white/50 bg-white/45 p-3 backdrop-blur-2xl">
+                  <p
+                    className={cn(
+                      "mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 transition-opacity duration-300",
+                      sidebarCollapsed && "opacity-0",
+                    )}
+                  >
+                    System
+                  </p>
+                  <JobHealthWidget compact={sidebarCollapsed} />
+                </div>
+              </ScrollArea>
+
+              <div className="border-t border-white/45 p-3">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className={cn(
+                        "h-auto w-full rounded-2xl border border-transparent p-2 transition-all duration-300 hover:border-white/55 hover:bg-white/60",
+                        sidebarCollapsed ? "justify-center" : "flex items-center justify-start gap-3",
+                      )}
+                      aria-label="User menu"
+                    >
+                      <Avatar className="h-10 w-10 shrink-0 border border-white/60 shadow-sm">
+                        <AvatarImage src={user.image ?? undefined} alt={user.name ?? "User"} />
+                        <AvatarFallback className="bg-white text-xs font-black text-slate-700">
+                          {initials(user.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {!sidebarCollapsed ? (
+                        <>
+                          <div className="min-w-0 flex-1 text-left">
+                            <p className="truncate text-sm font-black tracking-tight text-slate-900 leading-none">
+                              {user.name ?? "User"}
+                            </p>
+                            <p className="mt-1 truncate text-[11px] text-slate-500">{user.email ?? ""}</p>
+                          </div>
+                          <ChevronDown className="h-4 w-4 text-slate-500" strokeWidth={ICON_STROKE} />
+                        </>
+                      ) : null}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 rounded-2xl border-white/60 bg-white/90 backdrop-blur-2xl">
+                    <DropdownMenuItem onSelect={toggleTheme}>
+                      {mounted && theme === "dark" ? (
+                        <>
+                           <Sun className="mr-2 size-4" strokeWidth={ICON_STROKE} />
+                          Light mode
+                        </>
+                      ) : (
+                        <>
+                           <Moon className="mr-2 size-4" strokeWidth={ICON_STROKE} />
+                          Dark mode
+                        </>
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => signOut({ callbackUrl: "/signin" })}
+                      className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                    >
+                       <LogOut className="mr-2 size-4" strokeWidth={ICON_STROKE} />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </aside>
+
+          <aside className="relative z-20 hidden h-full w-[92px] p-3 md:flex lg:hidden">
+            <div className="tahoe-pane-l1 flex h-full w-full flex-col items-center rounded-[30px] border border-white/55 bg-white/42 py-4 shadow-[0_18px_52px_rgba(15,23,42,0.18)]">
+              <Link
+                href="/inbox"
+                aria-label="Go to inbox"
+                className="mb-5 grid h-11 w-11 place-items-center rounded-2xl border border-white/45 bg-white/75 text-[#007AFF]"
+              >
+                <Sparkles className="h-5 w-5" strokeWidth={ICON_STROKE} />
+              </Link>
+              <nav className="flex w-full flex-1 flex-col items-center gap-2 px-2" aria-label="Tablet navigation">
                 {items.map((item) => {
                   const isActive = isNavItemActive(pathname, item.href)
                   const showCount = item.href === "/inbox" && unanswered > 0
@@ -268,100 +409,61 @@ export function AppShell({
                           prefetch={true}
                           aria-current={isActive ? "page" : undefined}
                           className={cn(
-                            "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                            sidebarCollapsed && "justify-center px-0",
+                             "relative grid h-11 w-11 place-items-center rounded-2xl border transition-all duration-300 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/35",
                             isActive
-                              ? "bg-primary text-primary-foreground shadow-glow-primary"
-                              : "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+                              ? "border-white/70 bg-white/80 text-[#007AFF] shadow-[0_12px_24px_rgba(15,23,42,0.15)]"
+                              : "border-transparent bg-white/0 text-slate-600 hover:border-white/55 hover:bg-white/55",
                           )}
                         >
-                          <item.Icon
-                            className={cn(
-                              "h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110",
-                              isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground",
-                            )}
-                          />
-                          {!sidebarCollapsed ? <span className="truncate">{item.label}</span> : null}
-                          {showCount && !sidebarCollapsed ? (
-                            <Badge className={cn(
-                              "ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-                              isActive ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground"
-                            )}>
-                              {unanswered > 99 ? "99+" : unanswered}
-                            </Badge>
+                          <item.Icon className={cn("h-5 w-5")} strokeWidth={isActive ? 2.9 : ICON_STROKE} />
+                          {showCount ? (
+                            <span className="absolute -right-1 -top-1">
+                              <CountBadge active={isActive} count={unanswered} />
+                            </span>
                           ) : null}
                         </Link>
                       </TooltipTrigger>
-                      {sidebarCollapsed ? (
-                        <TooltipContent side="right" sideOffset={10} className="font-semibold">
-                          {item.label}
-                          {showCount ? ` (${unanswered})` : ""}
-                        </TooltipContent>
-                      ) : null}
+                      <TooltipContent side="right">{item.label}</TooltipContent>
                     </Tooltip>
                   )
                 })}
               </nav>
 
-              <div className="mt-8 space-y-4">
-                <div className={cn(
-                  "px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 transition-opacity duration-300",
-                  sidebarCollapsed ? "opacity-0" : "opacity-100"
-                )}>
-                  System
-                </div>
-                <JobHealthWidget compact={sidebarCollapsed} />
-              </div>
-            </ScrollArea>
-
-            <div className="border-t border-border p-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     type="button"
                     variant="ghost"
-                    className={cn(
-                      "h-auto w-full rounded-xl p-2 transition-all hover:bg-muted/80",
-                      sidebarCollapsed ? "justify-center" : "flex items-center justify-start gap-3",
-                    )}
+                    className="mt-3 h-11 w-11 rounded-2xl border border-white/45 bg-white/65 p-0"
                     aria-label="User menu"
                   >
-                    <Avatar className="h-9 w-9 shrink-0 border border-border shadow-sm">
+                    <Avatar className="h-9 w-9 border border-white/70">
                       <AvatarImage src={user.image ?? undefined} alt={user.name ?? "User"} />
-                      <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
+                      <AvatarFallback className="bg-white text-xs font-black text-slate-700">
                         {initials(user.name)}
                       </AvatarFallback>
                     </Avatar>
-                    {!sidebarCollapsed ? (
-                      <>
-                        <div className="min-w-0 flex-1 text-left">
-                          <p className="truncate text-sm font-semibold text-foreground leading-none">{user.name ?? "User"}</p>
-                          <p className="mt-1 truncate text-[11px] text-muted-foreground">{user.email ?? ""}</p>
-                        </div>
-                        <ChevronDown className="h-4 w-4 text-muted-foreground/50" />
-                      </>
-                    ) : null}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 rounded-xl">
+                <DropdownMenuContent align="end" className="w-56 rounded-2xl border-white/60 bg-white/90 backdrop-blur-2xl">
                   <DropdownMenuItem onSelect={toggleTheme}>
                     {mounted && theme === "dark" ? (
                       <>
-                        <Sun className="mr-2 size-4" />
+                         <Sun className="mr-2 size-4" strokeWidth={ICON_STROKE} />
                         Light mode
                       </>
                     ) : (
                       <>
-                        <Moon className="mr-2 size-4" />
+                         <Moon className="mr-2 size-4" strokeWidth={ICON_STROKE} />
                         Dark mode
                       </>
                     )}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={() => signOut({ callbackUrl: "/signin" })}
-                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                    className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                   >
-                    <LogOut className="mr-2 size-4" />
+                     <LogOut className="mr-2 size-4" strokeWidth={ICON_STROKE} />
                     Sign out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -369,27 +471,30 @@ export function AppShell({
             </div>
           </aside>
 
-          <main className="relative flex flex-1 flex-col overflow-hidden">
-            <header className="z-10 flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/80 glass-sm px-4 md:h-16 md:px-6">
-              <div className="flex items-center gap-3 md:gap-4">
-                <h1 className="text-base font-bold tracking-tight text-foreground md:text-xl">{viewLabel}</h1>
-                <Separator orientation="vertical" className="hidden h-5 bg-border md:block" />
-                <div className="hidden items-center gap-2 text-sm font-medium text-muted-foreground md:flex">
-                  <Globe className="h-4 w-4 text-primary/60" />
-                  <span>Google Business Profile</span>
+          <main className="relative z-10 flex min-h-0 flex-1 flex-col p-2 pb-[5.5rem] md:p-3 md:pb-3">
+            <header className="tahoe-pane-l4 mb-2 flex h-14 shrink-0 items-center justify-between rounded-[24px] border border-white/60 bg-white/78 px-4 shadow-[0_16px_42px_rgba(15,23,42,0.15)] md:h-16 md:px-5">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Tahoe Engine v1.0</p>
+                  <h1 className="truncate text-lg font-black tracking-[-0.03em] text-slate-900 md:text-2xl">{viewLabel}</h1>
+                </div>
+                <div className="hidden h-8 w-px bg-white/70 md:block" />
+                <div className="hidden items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 md:flex">
+                   <Globe className="h-3.5 w-3.5 text-[#007AFF]" strokeWidth={ICON_STROKE} />
+                  Google Business Profile
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 md:gap-3">
+              <div className="flex items-center gap-2 md:gap-2.5">
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="relative h-10 w-10 rounded-full text-muted-foreground hover:bg-muted/80 hover:text-foreground md:h-9 md:w-9"
+                  className="relative h-10 w-10 rounded-2xl border border-white/60 bg-white/65 text-slate-600 transition-all duration-300 hover:bg-white"
                   aria-label="Notifications"
                 >
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive shadow-[0_0_0_2px_white] dark:shadow-[0_0_0_2px_black]" />
+                  <Bell className="h-5 w-5" strokeWidth={ICON_STROKE} />
+                  <span className="absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full bg-[#007AFF] shadow-[0_0_0_2px_rgba(255,255,255,0.95)]" />
                 </Button>
 
                 <Button
@@ -397,62 +502,53 @@ export function AppShell({
                   variant="ghost"
                   size="icon"
                   onClick={toggleTheme}
-                  className="h-9 w-9 rounded-full text-muted-foreground hover:bg-muted/80 hover:text-foreground lg:hidden"
+                  className="h-10 w-10 rounded-2xl border border-white/60 bg-white/65 text-slate-600 transition-all duration-300 hover:bg-white"
                   aria-label="Toggle theme"
                 >
-                  {mounted && theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                  {mounted && theme === "dark" ? <Sun className="h-5 w-5" strokeWidth={ICON_STROKE} /> : <Moon className="h-5 w-5" strokeWidth={ICON_STROKE} />}
                 </Button>
               </div>
             </header>
 
-            <div className="flex-1 overflow-x-hidden overflow-y-auto bg-zinc-50/50 dark:bg-zinc-950/20">{children}</div>
-
-            <nav
-              className="flex h-16 shrink-0 items-center justify-around border-t border-border bg-background/80 glass px-2 pb-[env(safe-area-inset-bottom)] lg:hidden"
-              aria-label="Mobile navigation"
-            >
-              {items.map((item) => {
-                const isActive = isNavItemActive(pathname, item.href)
-                const showCount = item.href === "/inbox" && unanswered > 0
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    prefetch={true}
-                    aria-current={isActive ? "page" : undefined}
-                    className={cn(
-                      "relative flex h-full flex-1 flex-col items-center justify-center gap-1 transition-all duration-200",
-                      isActive ? "text-primary scale-110" : "text-muted-foreground",
-                    )}
-                  >
-                    <div className="relative">
-                      <item.Icon className={cn("h-5 w-5", isActive && "stroke-[2.5px]")} />
-                      {showCount ? (
-                        <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-black text-primary-foreground shadow-sm">
-                          {unanswered > 99 ? "99+" : unanswered}
-                        </span>
-                      ) : null}
-                    </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest">{item.shortLabel}</span>
-                  </Link>
-                )
-              })}
-            </nav>
+            <div className="tahoe-pane-l2 min-h-0 flex-1 overflow-hidden rounded-[26px] border border-white/55 bg-white/32 shadow-[0_20px_56px_rgba(15,23,42,0.14)]">
+              <div className="h-full overflow-x-hidden overflow-y-auto">{children}</div>
+            </div>
           </main>
+
+          <nav
+            className="tahoe-pane-l4 fixed inset-x-3 bottom-3 z-50 flex h-[72px] items-center justify-around rounded-[30px] border border-white/60 bg-white/80 px-2 shadow-[0_20px_48px_rgba(15,23,42,0.24)] md:hidden"
+            aria-label="Mobile navigation"
+          >
+            {items.map((item) => {
+              const isActive = isNavItemActive(pathname, item.href)
+              const showCount = item.href === "/inbox" && unanswered > 0
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch={true}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                     "relative flex h-full flex-1 flex-col items-center justify-center gap-1 rounded-2xl transition-all duration-300 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/35",
+                    isActive ? "bg-white/85 text-[#007AFF]" : "text-slate-500",
+                  )}
+                >
+                  <div className="relative">
+                    <item.Icon className={cn("h-5 w-5")} strokeWidth={isActive ? 2.9 : ICON_STROKE} />
+                    {showCount ? (
+                      <span className="absolute -right-2 -top-2">
+                        <CountBadge active={isActive} count={unanswered} />
+                      </span>
+                    ) : null}
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-[0.16em]">{item.shortLabel}</span>
+                </Link>
+              )
+            })}
+          </nav>
         </div>
       </TooltipProvider>
     </SearchProvider>
   )
-}
-
-
-export function ShellBadge({
-  children,
-  className,
-}: {
-  children: React.ReactNode
-  className?: string
-}) {
-  return <Badge className={cn("bg-foreground text-background", className)}>{children}</Badge>
 }

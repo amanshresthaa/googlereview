@@ -1,6 +1,4 @@
 "use client"
-
-import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -50,23 +48,23 @@ export function JobFilters(props: {
             value={props.q}
             onChange={(e) => props.onQChange(e.target.value)}
             placeholder="Filter by job id or dedupKey…"
-            className="pl-9 rounded-lg"
+            className="h-10 rounded-xl border-border/55 bg-background pl-9 shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20"
           />
         </div>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary" className="w-full justify-between rounded-lg sm:w-auto sm:justify-start">
+            <Button variant="secondary" className="app-action-secondary h-10 w-full justify-between rounded-xl border-border/55 bg-muted/40 px-3 sm:w-auto sm:justify-start">
               <Filter className="size-4" />
               <span className="ml-2">Status</span>
               {countSelected(props.selectedStatuses) ? (
-                <Badge variant="secondary" className="ml-2 rounded-md">
+                <Badge variant="secondary" className="ml-2 rounded-md bg-background/75 px-2 py-0 text-[10px] font-black">
                   {countSelected(props.selectedStatuses)}
                 </Badge>
               ) : null}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-56 rounded-xl border-border/60 bg-card/95">
             <DropdownMenuLabel>Status</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {props.statusOptions.map((opt) => (
@@ -83,17 +81,17 @@ export function JobFilters(props: {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary" className="w-full justify-between rounded-lg sm:w-auto sm:justify-start">
+            <Button variant="secondary" className="app-action-secondary h-10 w-full justify-between rounded-xl border-border/55 bg-muted/40 px-3 sm:w-auto sm:justify-start">
               <Filter className="size-4" />
               <span className="ml-2">Type</span>
               {countSelected(props.selectedTypes) ? (
-                <Badge variant="secondary" className="ml-2 rounded-md">
+                <Badge variant="secondary" className="ml-2 rounded-md bg-background/75 px-2 py-0 text-[10px] font-black">
                   {countSelected(props.selectedTypes)}
                 </Badge>
               ) : null}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-64">
+          <DropdownMenuContent align="start" className="w-64 rounded-xl border-border/60 bg-card/95">
             <DropdownMenuLabel>Type</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {props.typeOptions.map((opt) => (
@@ -113,7 +111,7 @@ export function JobFilters(props: {
       <Button
         type="button"
         variant="ghost"
-        className={cn("w-full rounded-lg justify-start sm:w-auto sm:justify-center", !hasFilters && "opacity-50")}
+        className={cn("app-action-secondary h-10 w-full justify-start rounded-xl border border-transparent px-3 sm:w-auto sm:justify-center", !hasFilters && "opacity-50")}
         onClick={props.onReset}
         disabled={!hasFilters}
       >

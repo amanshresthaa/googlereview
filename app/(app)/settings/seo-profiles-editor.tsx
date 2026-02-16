@@ -86,6 +86,11 @@ const DSPY_LIMITS = {
   experimentsMax: 20,
 } as const
 
+const SEO_EDITOR_CARD = "app-surface-shell rounded-[28px] border-border/55 bg-card/85 shadow-card"
+const SEO_SECTION_LABEL = "app-field-label"
+const SEO_COUNT_BADGE = "rounded-md bg-muted text-muted-foreground px-2 font-mono text-[9px]"
+const SEO_INPUT = "h-9 rounded-xl border-border/50 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20"
+
 const BUCKET_CONFIG: Record<
   KeywordBucket,
   { label: string; hint: string; max: number; placeholder: string }
@@ -465,17 +470,17 @@ export function SeoProfilesEditor({ initialProfiles, saving, onSave }: SeoProfil
   }
 
   return (
-    <Card className="rounded-2xl border-border bg-card shadow-card">
+    <Card className={SEO_EDITOR_CARD}>
       <CardContent className="p-4 md:p-6 space-y-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
           <div className="space-y-1">
-            <div className="text-sm font-bold text-foreground">Location SEO Profiles</div>
+            <div className="app-section-title">Location SEO Profiles</div>
             <p className="text-xs text-muted-foreground leading-relaxed font-medium max-w-xl">
               DSPy will use these keywords to produce replies that are locally relevant and SEO aligned without
               keyword stuffing.
             </p>
           </div>
-          <Badge variant="secondary" className="rounded-md font-mono text-[9px] h-5 px-2 bg-muted text-muted-foreground">
+          <Badge variant="secondary" className={SEO_COUNT_BADGE}>
             {profiles.length} location{profiles.length === 1 ? "" : "s"}
           </Badge>
         </div>
@@ -491,7 +496,8 @@ export function SeoProfilesEditor({ initialProfiles, saving, onSave }: SeoProfil
               const locationErrors = dspyErrors[profile.locationId]
 
               return (
-                <div key={profile.locationId} className="rounded-2xl border border-border bg-muted/30 p-3 md:p-4 space-y-4">
+                <Card key={profile.locationId} className="app-pane-card rounded-2xl border-border/55 bg-muted/30 shadow-sm">
+                  <CardContent className="space-y-4 p-3 md:p-4">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="h-7 w-7 rounded-lg border border-border bg-card flex items-center justify-center shrink-0">
                       <MapPin className="size-3.5 text-muted-foreground" />
@@ -536,7 +542,8 @@ export function SeoProfilesEditor({ initialProfiles, saving, onSave }: SeoProfil
                       setDspyExperimentField(profile.locationId, index, field, value)
                     }
                   />
-                </div>
+                  </CardContent>
+                </Card>
               )
             })}
           </div>
@@ -546,7 +553,7 @@ export function SeoProfilesEditor({ initialProfiles, saving, onSave }: SeoProfil
           <Button
             type="button"
             size="sm"
-            className="w-full sm:w-auto rounded-xl gap-2 h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-elevated min-w-[120px]"
+            className="app-action-primary w-full min-w-[120px] gap-2 rounded-xl bg-primary text-xs text-primary-foreground shadow-elevated hover:bg-primary/90 sm:w-auto"
             disabled={saving || profiles.length === 0}
             onClick={handleSave}
           >
@@ -586,17 +593,17 @@ function KeywordBucketEditor({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="space-y-1">
-          <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{config.label}</Label>
+          <Label className={SEO_SECTION_LABEL}>{config.label}</Label>
           <p className="text-xs text-muted-foreground font-medium">{config.hint}</p>
         </div>
-        <Badge variant="secondary" className="rounded-md font-mono text-[9px] h-5 px-2 bg-muted text-muted-foreground">
+        <Badge variant="secondary" className={SEO_COUNT_BADGE}>
           {values.length}/{config.max}
         </Badge>
       </div>
 
       <div className="flex items-center gap-2">
         <Input
-          className={cn("rounded-xl h-9 text-sm border-border", values.length >= config.max && "opacity-50")}
+          className={cn(SEO_INPUT, values.length >= config.max && "opacity-50")}
           value={inputValue}
           placeholder={config.placeholder}
           onChange={(event) => onInputChange(event.target.value)}
@@ -611,7 +618,7 @@ function KeywordBucketEditor({
           type="button"
           variant="outline"
           size="sm"
-          className="rounded-xl h-9 text-xs border-border font-semibold shrink-0"
+          className="app-action-secondary h-9 shrink-0 rounded-xl border-border text-xs font-semibold"
           onClick={onAdd}
           disabled={values.length >= config.max}
         >
@@ -625,7 +632,7 @@ function KeywordBucketEditor({
             <Badge
               key={value}
               variant="secondary"
-              className="rounded-lg gap-1.5 px-2.5 h-7 text-xs bg-card text-muted-foreground border border-border"
+              className="app-action-secondary h-7 gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs text-muted-foreground"
             >
               <Globe className="size-3" />
               {value}
@@ -668,12 +675,12 @@ function DspyOverridesEditor({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="space-y-1">
-          <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">DSPy Overrides</Label>
+          <Label className={SEO_SECTION_LABEL}>DSPy Overrides</Label>
           <p className="text-xs text-muted-foreground font-medium">
             Optional model and program overrides scoped to this location.
           </p>
         </div>
-        <Badge variant="secondary" className="rounded-md font-mono text-[9px] h-5 px-2 bg-muted text-muted-foreground">
+        <Badge variant="secondary" className={SEO_COUNT_BADGE}>
           {draft.experiments.length}/{DSPY_LIMITS.experimentsMax} exp
         </Badge>
       </div>
@@ -681,11 +688,11 @@ function DspyOverridesEditor({
       <div className="grid gap-2 md:grid-cols-3">
         {DSPY_OVERRIDE_FIELD_CONFIG.map((field) => (
           <div key={field.key} className="space-y-1">
-            <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{field.label}</Label>
+            <Label className="app-field-label">{field.label}</Label>
             <Input
               value={draft[field.key]}
               placeholder={field.placeholder}
-              className={cn("h-8 rounded-lg text-xs border-border", errors?.base[field.key] && "border-destructive")}
+              className={cn("h-8 rounded-lg text-xs border-border/50 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20", errors?.base[field.key] && "border-destructive")}
               onChange={(event) => onOverrideChange(field.key, event.target.value)}
               aria-invalid={Boolean(errors?.base[field.key])}
             />
@@ -698,12 +705,12 @@ function DspyOverridesEditor({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Experiments</Label>
+          <Label className="app-field-label">Experiments</Label>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="h-7 rounded-lg text-[10px] font-semibold border-border"
+            className="app-action-secondary h-7 rounded-lg border-border/50 text-[10px] font-semibold"
             onClick={onAddExperiment}
             disabled={draft.experiments.length >= DSPY_LIMITS.experimentsMax}
           >
@@ -717,23 +724,23 @@ function DspyOverridesEditor({
         ) : null}
 
         {draft.experiments.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border p-3 text-[11px] font-medium text-muted-foreground">
-            No experiments configured.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {draft.experiments.map((experiment, index) => {
+            <div className="rounded-xl border border-dashed border-border/60 bg-muted/30 p-3 text-[11px] font-medium text-muted-foreground">
+              No experiments configured.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {draft.experiments.map((experiment, index) => {
               const rowErrors = errors?.experiments[index]
 
               return (
-                <div key={`${index}-${experiment.id || "new"}`} className="rounded-xl border border-border/70 bg-background p-2.5 space-y-2">
+                  <div key={`${index}-${experiment.id || "new"}`} className="app-pane-card rounded-xl border-border/60 bg-background p-2.5 space-y-2">
                   <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_128px_auto]">
                     <div className="space-y-1">
-                      <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Experiment Id</Label>
+                      <Label className="app-field-label">Experiment Id</Label>
                       <Input
                         value={experiment.id}
                         placeholder="e.g. lunch-semantic-a"
-                        className={cn("h-8 rounded-lg text-xs border-border", rowErrors?.id && "border-destructive")}
+                        className={cn("h-8 rounded-lg text-xs border-border/50 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20", rowErrors?.id && "border-destructive")}
                         onChange={(event) => onExperimentChange(index, "id", event.target.value)}
                         aria-invalid={Boolean(rowErrors?.id)}
                       />
@@ -743,7 +750,7 @@ function DspyOverridesEditor({
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Traffic %</Label>
+                      <Label className="app-field-label">Traffic %</Label>
                       <Input
                         value={experiment.trafficPercent}
                         type="number"
@@ -751,7 +758,7 @@ function DspyOverridesEditor({
                         min="0"
                         max="100"
                         placeholder="0"
-                        className={cn("h-8 rounded-lg text-xs border-border", rowErrors?.trafficPercent && "border-destructive")}
+                        className={cn("h-8 rounded-lg text-xs border-border/50 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20", rowErrors?.trafficPercent && "border-destructive")}
                         onChange={(event) => onExperimentChange(index, "trafficPercent", event.target.value)}
                         aria-invalid={Boolean(rowErrors?.trafficPercent)}
                       />
@@ -777,13 +784,13 @@ function DspyOverridesEditor({
                   <div className="grid gap-2 md:grid-cols-3">
                     {DSPY_OVERRIDE_FIELD_CONFIG.map((field) => (
                       <div key={`${index}-${field.key}`} className="space-y-1">
-                        <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        <Label className="app-field-label">
                           {field.label}
                         </Label>
                         <Input
                           value={experiment[field.key]}
                           placeholder={`Optional ${field.label.toLowerCase()}`}
-                          className={cn("h-8 rounded-lg text-xs border-border", rowErrors?.[field.key] && "border-destructive")}
+                          className={cn("h-8 rounded-lg text-xs border-border/50 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20", rowErrors?.[field.key] && "border-destructive")}
                           onChange={(event) => onExperimentChange(index, field.key, event.target.value)}
                           aria-invalid={Boolean(rowErrors?.[field.key])}
                         />

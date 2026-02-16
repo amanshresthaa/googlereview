@@ -117,7 +117,7 @@ export function NotificationCenter({ className }: { className?: string }) {
       <Button
         variant="outline"
         size="icon"
-        className={cn("relative h-10 w-10 rounded-xl border-border/60", className)}
+        className={cn("app-action-secondary relative h-10 w-10 rounded-xl border-border/60 bg-background/70", className)}
         onClick={() => setOpen(true)}
         aria-label="Open notifications"
       >
@@ -137,13 +137,13 @@ export function NotificationCenter({ className }: { className?: string }) {
       </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="w-full p-0 sm:max-w-md">
+        <SheetContent side="right" className="w-full border-border/60 bg-card/95 p-0 sm:max-w-md">
           <SheetTitle className="sr-only">Notifications</SheetTitle>
           <div className="flex h-full flex-col">
-            <div className="flex items-center justify-between border-b border-border/60 p-5">
+            <div className="flex items-center justify-between border-b border-border/60 bg-muted/25 p-5">
               <div>
                 <h2 className="text-lg font-black tracking-tight">Notifications</h2>
-                <p className="text-xs text-muted-foreground">
+                <p className="app-kicker mt-1">
                   {notifications.length} {notifications.length === 1 ? "item" : "items"}
                 </p>
               </div>
@@ -164,7 +164,7 @@ export function NotificationCenter({ className }: { className?: string }) {
                   <p className="text-xs text-muted-foreground">Background jobs and updates will appear here.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-border/60">
+                <div className="divide-y divide-border/60 p-1">
                   {notifications.map((notification) => (
                     <NotificationItem
                       key={notification.id}
@@ -195,10 +195,10 @@ function NotificationItem({
     <motion.div
       initial={{ opacity: 0, x: 14 }}
       animate={{ opacity: 1, x: 0 }}
-      className="p-4"
+      className="app-pane-card rounded-2xl border-border/55 bg-card/85 p-4"
     >
       <div className="flex gap-3">
-        <div className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-full", color.bg)}>
+        <div className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-2xl", color.bg)}>
           {notification.type === "loading" ? (
             <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
               {renderNotificationIcon(notification.type, cn("h-4 w-4", color.icon))}
@@ -210,13 +210,13 @@ function NotificationItem({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-semibold text-foreground">{notification.title}</p>
-            {notification.dismissible ? (
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onDismiss}>
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            ) : null}
-          </div>
+              <p className="text-sm font-black tracking-tight text-foreground">{notification.title}</p>
+              {notification.dismissible ? (
+                <Button variant="ghost" size="icon" className="app-action-secondary h-6 w-6 rounded-lg" onClick={onDismiss}>
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              ) : null}
+            </div>
 
           {notification.message ? <p className="mt-0.5 text-xs text-muted-foreground">{notification.message}</p> : null}
 
@@ -234,11 +234,11 @@ function NotificationItem({
             </div>
           ) : null}
 
-          {notification.action ? (
-            <Button variant="outline" size="sm" className="mt-2 h-7 text-xs" onClick={notification.action.onClick}>
-              {notification.action.label}
-            </Button>
-          ) : null}
+            {notification.action ? (
+              <Button variant="outline" size="sm" className="app-action-secondary mt-2 h-7 rounded-lg border-border/55 text-xs" onClick={notification.action.onClick}>
+                {notification.action.label}
+              </Button>
+            ) : null}
 
           <p className="mt-2 text-[10px] text-muted-foreground">{formatTimestamp(notification.timestamp)}</p>
         </div>
