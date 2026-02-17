@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from "next"
-import { Inter } from "next/font/google"
+import { Geist_Mono } from "next/font/google"
 import "@/app/globals.css"
 import { cn } from "@/lib/utils"
 import { Providers } from "@/components/Providers"
 
-const inter = Inter({
+const geistMono = Geist_Mono({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-sans",
@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="en"
       suppressHydrationWarning
       dir="ltr"
-      className={cn(inter.variable, "font-sans")}
+      className={cn(geistMono.variable, "font-sans")}
     >
       <body className="min-h-[100dvh] bg-background text-foreground">
         <Providers>{children}</Providers>

@@ -9,13 +9,13 @@ import { cn } from "@/lib/utils"
 
 export default function SignInPage() {
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-background p-4">
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-shell p-4">
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px]" />
+        <div className="absolute top-[-10%] left-[-10%] h-[40%] w-[40%] rounded-full bg-brand/15 blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] h-[40%] w-[40%] rounded-full bg-success/10 blur-[120px]" />
       </div>
 
-      <div className="pointer-events-none absolute inset-0 opacity-[0.13] [background-image:radial-gradient(rgba(15,23,42,0.16)_0.6px,transparent_0.6px)] [background-size:8px_8px]" />
+      <div className="bg-auth-dot-grid pointer-events-none absolute inset-0 opacity-[0.06]" />
 
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
@@ -23,27 +23,27 @@ export default function SignInPage() {
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         className="w-full max-w-lg relative z-10"
       >
-        <Card className="app-surface-shell overflow-hidden rounded-[40px] border-border/55 bg-card/85 shadow-google-xl">
+        <Card className="app-surface-shell overflow-hidden rounded-[40px] shadow-2xl">
           <CardContent className="p-8 md:p-12">
           <div className="flex flex-col items-center text-center mb-10">
-            <div className="flex h-20 w-20 items-center justify-center rounded-[24px] bg-primary text-primary-foreground shadow-glow-primary mb-6">
+            <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[24px] bg-brand text-brand-foreground shadow-lg shadow-brand/25">
               <MapPin className="h-10 w-10" />
             </div>
             <div className="space-y-2">
-              <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-foreground">ReplyAI</h1>
-              <p className="app-kicker">Review Intelligence</p>
+              <h1 className="bg-gradient-to-b from-foreground to-foreground/60 bg-clip-text text-3xl font-black tracking-tighter text-transparent md:text-4xl">ReplyAI</h1>
+              <p className="text-sm font-semibold uppercase tracking-widest text-shell-foreground/40">Review Intelligence</p>
             </div>
           </div>
 
-          <div className="app-pane-card rounded-[24px] bg-muted/35 p-6 text-sm md:text-base text-muted-foreground leading-relaxed font-medium text-center">
-            The intelligent layer for your <span className="text-foreground font-bold">Google Business Profile</span>. Automate drafting, verify claims, and boost local SEO.
+          <div className="rounded-[24px] border border-shell-foreground/10 bg-shell-foreground/5 p-6 text-center text-sm font-medium leading-relaxed text-shell-foreground/70 md:text-base">
+            The intelligent layer for your <span className="font-bold text-foreground">Google Business Profile</span>. Automate drafting, verify claims, and boost local SEO.
           </div>
 
           <div className="mt-10">
             <Button
               type="button"
               onClick={() => signIn("google", { callbackUrl: "/inbox" })}
-              className="app-action-primary w-full rounded-[20px] bg-primary h-16 text-lg font-black shadow-glow-primary text-primary-foreground motion-safe:hover:scale-[1.02] hover:bg-primary/90 active:scale-[0.98] flex items-center justify-center gap-4"
+              className="flex h-16 w-full items-center justify-center gap-4 rounded-[20px] bg-brand text-lg font-black text-brand-foreground shadow-lg shadow-brand/20 motion-safe:hover:scale-[1.02] hover:bg-brand-soft active:scale-[0.98]"
             >
               <svg className="size-6" viewBox="0 0 48 48" fill="none" role="img" aria-label="Google">
                 <title>Google</title>
@@ -58,20 +58,20 @@ export default function SignInPage() {
 
           <div className="mt-12 grid grid-cols-3 gap-4">
             {[
-              { icon: Sparkles, label: "AI Drafting", color: "bg-primary/10 text-primary" },
-              { icon: ShieldCheck, label: "Claim Verify", color: "bg-emerald-500/10 text-emerald-600" },
-              { icon: MessageSquare, label: "Smart Inbox", color: "bg-purple-500/10 text-purple-600" },
+              { icon: Sparkles, label: "AI Drafting", color: "border-brand/20 bg-brand/10 text-brand-muted" },
+              { icon: ShieldCheck, label: "Claim Verify", color: "border-success/20 bg-success/10 text-success-soft" },
+              { icon: MessageSquare, label: "Smart Inbox", color: "border-info/20 bg-info/10 text-info" },
             ].map((item) => (
               <div key={item.label} className="flex flex-col items-center gap-3">
-                <div className={cn("app-pane-card h-12 w-12 rounded-2xl flex items-center justify-center", item.color)}>
+                <div className={cn("backdrop-blur-sm h-12 w-12 rounded-2xl flex items-center justify-center", item.color)}>
                   <item.icon className="h-6 w-6" />
                 </div>
-                <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{item.label}</div>
+                <div className="text-[10px] font-black uppercase tracking-wider text-shell-foreground/40">{item.label}</div>
               </div>
             ))}
           </div>
 
-          <div className="mt-12 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/45">
+          <div className="mt-12 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-shell-foreground/40">
             <ShieldCheck className="h-3.5 w-3.5" />
             Secure Enterprise Authentication
           </div>

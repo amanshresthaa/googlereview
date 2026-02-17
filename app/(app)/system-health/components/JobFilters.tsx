@@ -48,13 +48,13 @@ export function JobFilters(props: {
             value={props.q}
             onChange={(e) => props.onQChange(e.target.value)}
             placeholder="Filter by job id or dedupKey…"
-            className="h-10 rounded-xl border-border/55 bg-background pl-9 shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20"
+            className="h-10 rounded-xl border-shell-foreground/10 bg-background pl-9 shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20"
           />
         </div>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary" className="app-action-secondary h-10 w-full justify-between rounded-xl border-border/55 bg-muted/40 px-3 sm:w-auto sm:justify-start">
+            <Button variant="secondary" className="app-action-secondary h-10 w-full justify-between rounded-xl border-shell-foreground/10 bg-muted/40 px-3 sm:w-auto sm:justify-start">
               <Filter className="size-4" />
               <span className="ml-2">Status</span>
               {countSelected(props.selectedStatuses) ? (
@@ -64,7 +64,7 @@ export function JobFilters(props: {
               ) : null}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56 rounded-xl border-border/60 bg-card/95">
+          <DropdownMenuContent align="start" className="w-56 rounded-xl border-shell-foreground/10 bg-shell-foreground/10">
             <DropdownMenuLabel>Status</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {props.statusOptions.map((opt) => (
@@ -81,7 +81,7 @@ export function JobFilters(props: {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary" className="app-action-secondary h-10 w-full justify-between rounded-xl border-border/55 bg-muted/40 px-3 sm:w-auto sm:justify-start">
+            <Button variant="secondary" className="app-action-secondary h-10 w-full justify-between rounded-xl border-shell-foreground/10 bg-muted/40 px-3 sm:w-auto sm:justify-start">
               <Filter className="size-4" />
               <span className="ml-2">Type</span>
               {countSelected(props.selectedTypes) ? (
@@ -91,7 +91,7 @@ export function JobFilters(props: {
               ) : null}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-64 rounded-xl border-border/60 bg-card/95">
+          <DropdownMenuContent align="start" className="w-64 rounded-xl border-shell-foreground/10 bg-shell-foreground/10">
             <DropdownMenuLabel>Type</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {props.typeOptions.map((opt) => (

@@ -1,14 +1,14 @@
 # Inbox Theme Design System
 
-This design system captures the current Apple-inspired inbox styling and turns it into reusable primitives for other app pages.
+This design system captures the current inbox styling (dark glass shell + high-contrast controls) and turns it into reusable primitives for other app pages.
 
 ## 1. Visual Principles
 
-- Soft neutral shell: the app sits on `#f2f2f7` with white panels.
+- Dark glass shell: deep canvas with subtle blue/emerald atmospheric gradients.
 - Strong hierarchy: bold display headlines, compact micro labels.
-- Calm contrast: semantic color accents are sparse and intentional.
-- Tactile controls: rounded corners, subtle inset shadows, glassy action island.
-- Mobile-first behavior: feed-first on small screens, split view on desktop.
+- High contrast: white-on-dark text with sparing accent color.
+- Tactile controls: rounded corners, subtle borders, glass panels, clear active states.
+- Mobile-first behavior: feed-first on small screens, split/expanded surfaces on desktop.
 
 ## 2. Canonical Source
 
@@ -25,15 +25,15 @@ This design system captures the current Apple-inspired inbox styling and turns i
 
 ### Color
 
-- `shell`: `#f2f2f7`
-- `panel`: `#ffffff`
-- `panelMuted`: `#f7f7fb`
-- `border`: `#e2e8f0`
-- `textPrimary`: `#0f172a`
-- `textSecondary`: `#64748b`
-- `textMuted`: `#94a3b8`
-- `accent`: `#007aff`
-- `accentSoft`: `#eef3ff`
+- `shell`: `#050507`
+- `panel`: `rgb(255 255 255 / 0.03)`
+- `panelMuted`: `rgb(255 255 255 / 0.02)`
+- `border`: `rgb(255 255 255 / 0.08)`
+- `textPrimary`: `#ffffff`
+- `textSecondary`: `rgb(255 255 255 / 0.6)`
+- `textMuted`: `rgb(255 255 255 / 0.4)`
+- `accent`: `#2563eb`
+- `accentSoft`: `rgb(59 130 246 / 0.2)`
 
 ### Radius
 
@@ -64,6 +64,9 @@ This design system captures the current Apple-inspired inbox styling and turns i
 - `feedPane`, `detailPane`: split layout panes
 - `feedListSection`, `feedListInner`, `feedLoadMoreButton`: feed scroll + pagination primitives
 - `headerSection`, `searchInput`, `segmented`: feed header primitives
+- `page`, `hero`, `heroIcon`, `heroTitle`, `heroKicker`: cross-page header primitives via `INBOX_PAGE_THEME_CLASSES`
+- `tabList`, `tabTrigger`: cross-page segmented/tabs recipe via `INBOX_PAGE_THEME_CLASSES`
+- `metricCard`, `metricLabel`: dashboard card primitives via `INBOX_PAGE_THEME_CLASSES`
 - `filterSurface`, `filterControl`: filter bar primitives
 - `feedCard`, `feedCardSelected`, `feedCardIdle`, `draftBadge`: conversation card states
 - `statusPending`, `statusReplied`: consistent status badges
@@ -72,14 +75,18 @@ This design system captures the current Apple-inspired inbox styling and turns i
 
 ## 5. Usage Pattern
 
-Use `INBOX_THEME_CLASSES` as the default class source when building new app surfaces.
+Use `INBOX_THEME_CLASSES` for inbox/feed-specific surfaces and `INBOX_PAGE_THEME_CLASSES` for non-inbox app pages.
 
 ```tsx
-import { INBOX_THEME_CLASSES } from "@/lib/design-system/inbox-theme"
+import { INBOX_PAGE_THEME_CLASSES, INBOX_THEME_CLASSES } from "@/lib/design-system/inbox-theme"
 
 <div className={INBOX_THEME_CLASSES.workspace}>
   <aside className={INBOX_THEME_CLASSES.feedPane}>...</aside>
   <main className={INBOX_THEME_CLASSES.detailPane}>...</main>
+</div>
+
+<div className={INBOX_PAGE_THEME_CLASSES.page}>
+  <header className={INBOX_PAGE_THEME_CLASSES.hero}>...</header>
 </div>
 ```
 
@@ -91,10 +98,10 @@ Use helper functions for conditional variants:
 ## 6. Rollout Guidance For Other Pages
 
 1. Keep page-specific business logic unchanged.
-2. Replace structural container classes first with `frame` + `workspace`.
-3. Apply header/search/segmented recipes.
-4. Apply card and badge recipes.
-5. Add action island only where a sticky primary action exists.
+2. For non-inbox routes, start with `INBOX_PAGE_THEME_CLASSES.page` and `hero`.
+3. Apply `tabList`/`tabTrigger` for segmented controls and tabs.
+4. Apply `app-surface-shell` + `app-pane-card` (or `metricCard`) for sections and cards.
+5. Keep action semantics intact; only switch visual recipes (`app-action-*`).
 6. Validate mobile-first behavior before desktop polish.
 
 ## 7. Non-goals

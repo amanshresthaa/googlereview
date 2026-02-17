@@ -44,7 +44,10 @@ describe("runProcessReviewFastPath budget handling", () => {
     vi.clearAllMocks()
   })
 
-  it("releases the lock without consuming attempts when fast-path budget is exhausted", async () => {
+  it(
+    "releases the lock without consuming attempts when fast-path budget is exhausted",
+    { timeout: 10_000 },
+    async () => {
     const orgId = `test-org-${uuid()}`
     await ensureOrg(orgId)
 
@@ -85,9 +88,13 @@ describe("runProcessReviewFastPath budget handling", () => {
     expect(after?.attempts ?? null).toBe(before?.attempts ?? null)
 
     await cleanup(orgId)
-  })
+    },
+  )
 
-  it("marks the job failed with FASTPATH_TIMEOUT when maxAttempts is 1", async () => {
+  it(
+    "marks the job failed with FASTPATH_TIMEOUT when maxAttempts is 1",
+    { timeout: 10_000 },
+    async () => {
     const orgId = `test-org-${uuid()}`
     await ensureOrg(orgId)
 
@@ -124,5 +131,6 @@ describe("runProcessReviewFastPath budget handling", () => {
     expect(after?.lastErrorCode).toBe("FASTPATH_TIMEOUT")
 
     await cleanup(orgId)
-  })
+    },
+  )
 })

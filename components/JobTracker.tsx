@@ -101,9 +101,9 @@ function formatJobType(type: string) {
 }
 
 function StatusIcon({ status, className }: { status: JobStatus; className?: string }) {
-  if (status === "COMPLETED") return <CheckCircle2 className={cn("text-emerald-500", className)} />
+  if (status === "COMPLETED") return <CheckCircle2 className={cn("text-success", className)} />
   if (status === "FAILED" || status === "CANCELLED") return <X className={cn("text-destructive", className)} />
-  if (status === "RETRYING") return <AlertTriangle className={cn("text-amber-500", className)} />
+  if (status === "RETRYING") return <AlertTriangle className={cn("text-warning", className)} />
   if (status === "RUNNING") {
     return (
       <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
@@ -210,14 +210,14 @@ export function JobTracker({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -8 }}
-        className="app-pane-card rounded-xl border-border/60 bg-card/90 p-3"
+        className="app-pane-card rounded-xl border-shell-foreground/10 bg-shell-foreground/10 p-3"
       >
         <div className="flex items-start gap-2.5">
           <StatusIcon status={status} className="mt-0.5 h-4 w-4" />
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
               <p className="truncate text-sm font-black tracking-tight text-foreground">{statusText(status)}</p>
-              <Badge variant="outline" className="rounded-md border-border/55 bg-muted/30 px-1.5 text-[10px] font-black uppercase">
+              <Badge variant="outline" className="rounded-md border-shell-foreground/10 bg-muted/30 px-1.5 text-[10px] font-black uppercase">
                 {status}
               </Badge>
             </div>

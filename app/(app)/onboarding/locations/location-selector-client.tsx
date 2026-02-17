@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { RefreshCw, Search, MapPin, Loader2, LayoutDashboard, CheckCircle2, ChevronRight } from "@/components/icons"
 import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
+import { INBOX_PAGE_THEME_CLASSES } from "@/lib/design-system/inbox-theme"
 import { cn } from "@/lib/utils"
 
 type LocationRow = {
@@ -121,29 +122,29 @@ export function LocationSelectorClient({
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 p-4 sm:p-6 lg:p-10">
+    <div className={INBOX_PAGE_THEME_CLASSES.page}>
       {/* Header */}
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-5">
+      <div className={INBOX_PAGE_THEME_CLASSES.hero}>
+        <div className={INBOX_PAGE_THEME_CLASSES.heroLead}>
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm"
+            className={INBOX_PAGE_THEME_CLASSES.heroIcon}
           >
-            <LayoutDashboard className="size-7 text-primary" />
+            <LayoutDashboard className="size-7" />
           </motion.div>
           <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">
+            <h1 className={INBOX_PAGE_THEME_CLASSES.heroTitle}>
               {mode === "onboarding" ? "Select Locations" : "Managed Locations"}
             </h1>
-            <p className="text-sm text-muted-foreground font-semibold uppercase tracking-widest text-[10px]">
+            <p className={INBOX_PAGE_THEME_CLASSES.heroKicker}>
               Sync reviews for active business units
             </p>
           </div>
         </div>
         <Button
           type="button"
-          variant="outline"
-          className="w-full sm:w-auto rounded-xl gap-2 h-11 px-6 font-bold border-border/50 bg-background shadow-sm hover:bg-muted/50 transition-all"
+          variant="secondary"
+          className="app-action-secondary h-11 w-full gap-2 rounded-xl px-6 font-bold sm:w-auto"
           onClick={syncFromGoogle}
           disabled={syncing}
         >
@@ -160,18 +161,18 @@ export function LocationSelectorClient({
 
       {/* Selection Control Bar */}
       <div className="sticky top-4 z-20">
-        <Card className="rounded-[24px] border-border/50 bg-background/80 backdrop-blur-xl shadow-google-lg overflow-hidden">
+        <Card className="app-surface-shell overflow-hidden rounded-[24px] border-shell-foreground/[0.08]">
           <CardContent className="flex flex-col gap-4 p-4 md:p-6 sm:flex-row sm:items-center">
             <div className="flex items-center gap-3">
               <motion.div
                 key={selected.size}
                 initial={{ scale: 0.8 }}
                 animate={{ scale: 1 }}
-                className="bg-primary px-4 py-1.5 rounded-full text-primary-foreground text-xs font-black shadow-glow-primary tabular-nums"
+                className="rounded-full border border-brand/30 bg-brand px-4 py-1.5 text-xs font-black tabular-nums text-brand-foreground shadow-lg shadow-brand/20"
               >
                 {selected.size} active
               </motion.div>
-              <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest text-[10px]">
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-shell-foreground/45">
                 Selected for sync
               </div>
             </div>
@@ -181,7 +182,7 @@ export function LocationSelectorClient({
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="h-10 rounded-xl px-4 text-xs font-bold text-muted-foreground hover:bg-muted/80"
+                className="app-action-secondary h-10 rounded-xl px-4 text-xs font-bold"
                 onClick={selectAll}
               >
                 Select All
@@ -190,15 +191,15 @@ export function LocationSelectorClient({
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="h-10 rounded-xl px-4 text-xs font-bold text-muted-foreground hover:bg-muted/80"
+                className="app-action-secondary h-10 rounded-xl px-4 text-xs font-bold"
                 onClick={deselectAll}
               >
                 Clear All
               </Button>
-              <div className="mx-1 hidden h-6 w-px bg-border/50 sm:block" />
+              <div className="mx-1 hidden h-6 w-px bg-shell-foreground/10 sm:block" />
               <Button
                 type="button"
-                className="h-10 w-full rounded-xl bg-primary px-6 text-sm font-black text-primary-foreground shadow-glow-primary transition-all hover:scale-[1.02] hover:bg-primary/90 active:scale-[0.98] sm:w-auto sm:min-w-[120px] sm:px-8"
+                className="app-action-primary h-10 w-full rounded-xl px-6 text-sm font-black transition-all hover:scale-[1.02] active:scale-[0.98] sm:w-auto sm:min-w-[120px] sm:px-8"
                 onClick={save}
                 disabled={busy}
               >
@@ -220,20 +221,20 @@ export function LocationSelectorClient({
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center py-24"
+            className="flex flex-col items-center justify-center py-24 text-shell-foreground"
           >
             <div className="relative mb-8">
               <motion.div
                 animate={{ opacity: [0.3, 0.6, 0.3] }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="absolute inset-0 rounded-full bg-primary/5 blur-2xl"
+                className="absolute inset-0 rounded-full bg-brand/15 blur-2xl"
               />
-              <div className="relative h-24 w-24 bg-background shadow-card rounded-[32px] flex items-center justify-center border border-border/50 transition-transform hover:rotate-12">
-                <Search className="h-10 w-10 text-primary/40" />
+              <div className="app-surface-shell relative flex h-24 w-24 items-center justify-center rounded-[32px] border-shell-foreground/[0.08] transition-transform hover:rotate-12">
+                <Search className="h-10 w-10 text-shell-foreground/35" />
               </div>
             </div>
-            <h3 className="text-xl font-bold text-foreground">No locations found</h3>
-            <p className="text-sm font-medium text-muted-foreground mt-2 max-w-xs text-center">
+            <h3 className="text-xl font-bold text-shell-foreground">No locations found</h3>
+            <p className="mt-2 max-w-xs text-center text-sm font-medium text-shell-foreground/55">
               We couldn&apos;t find any locations matching your search. Try a different query or sync from Google.
             </p>
           </motion.div>
@@ -251,8 +252,10 @@ export function LocationSelectorClient({
                 >
                   <Card
                     className={cn(
-                      "rounded-[24px] border-border/50 bg-background shadow-sm cursor-pointer transition-all duration-300 hover:shadow-card group overflow-hidden",
-                      isEnabled ? "border-primary/20 ring-1 ring-primary/10 bg-primary/[0.01]" : "hover:border-border"
+                      "app-pane-card group cursor-pointer overflow-hidden rounded-[24px] transition-all duration-300 hover:shadow-card",
+                      isEnabled
+                        ? "border-brand/30 bg-brand/10 ring-1 ring-brand/25"
+                        : "border-shell-foreground/[0.08] hover:bg-shell-foreground/[0.035]"
                     )}
                     onClick={() => toggle(l.id, !isEnabled)}
                   >
@@ -263,19 +266,19 @@ export function LocationSelectorClient({
                             checked={isEnabled}
                             onCheckedChange={(v) => toggle(l.id, Boolean(v))}
                             onClick={(e) => e.stopPropagation()}
-                            className="h-6 w-6 rounded-lg border-2 border-border/50 data-[state=checked]:bg-primary data-[state=checked]:border-primary transition-all shadow-sm"
+                            className="h-6 w-6 rounded-lg border-2 border-shell-foreground/20 data-[state=checked]:border-brand data-[state=checked]:bg-brand transition-all shadow-sm"
                           />
                         </div>
 
-                        <Avatar className="h-12 w-12 border-2 border-border/30 shadow-sm transition-transform group-hover:scale-110">
-                          <AvatarFallback className={cn("font-black text-sm transition-colors", isEnabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                        <Avatar className="h-12 w-12 border-2 border-shell-foreground/[0.1] shadow-sm transition-transform group-hover:scale-110">
+                          <AvatarFallback className={cn("font-black text-sm transition-colors", isEnabled ? "bg-brand/15 text-brand/80" : "bg-shell-foreground/10 text-shell-foreground/50")}>
                             <MapPin className="size-5" />
                           </AvatarFallback>
                         </Avatar>
 
                         <div className="min-w-0 flex-1 space-y-1">
                           <div className="flex flex-wrap items-center gap-3">
-                            <span className="text-lg font-bold truncate text-foreground group-hover:text-primary transition-colors">{l.displayName}</span>
+                            <span className="truncate text-lg font-bold text-shell-foreground transition-colors group-hover:text-brand/80">{l.displayName}</span>
                             <AnimatePresence>
                               {isEnabled && (
                                 <motion.div
@@ -283,7 +286,7 @@ export function LocationSelectorClient({
                                   animate={{ opacity: 1, scale: 1 }}
                                   exit={{ opacity: 0, scale: 0.8 }}
                                 >
-                                  <Badge className="rounded-full text-[10px] px-3 py-0.5 gap-1 bg-emerald-500/10 text-emerald-600 border-none font-black uppercase tracking-widest shadow-sm">
+                                  <Badge className="gap-1 rounded-full border border-success/20 bg-success/20 px-3 py-0.5 text-[10px] font-black uppercase tracking-widest text-success-soft shadow-sm">
                                     <CheckCircle2 className="size-3" /> Enabled
                                   </Badge>
                                 </motion.div>
@@ -292,17 +295,17 @@ export function LocationSelectorClient({
                           </div>
                           <div className="flex items-center gap-3 mt-1.5">
                             {l.storeCode && (
-                              <div className="bg-muted/50 px-2 py-0.5 rounded-md text-[10px] font-black font-mono text-muted-foreground/80 border border-border/50">
+                              <div className="rounded-md border border-shell-foreground/10 bg-shell-foreground/5 px-2 py-0.5 font-mono text-[10px] font-black text-shell-foreground/60">
                                 #{l.storeCode}
                               </div>
                             )}
-                            <span className="text-xs font-medium text-muted-foreground truncate italic opacity-80">
+                            <span className="truncate text-xs font-medium italic text-shell-foreground/50">
                               {l.addressSummary ?? "Address not available"}
                             </span>
                           </div>
                         </div>
                         
-                        <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-full bg-muted/30 text-muted-foreground group-hover:bg-primary group-hover:text-white transition-all opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0">
+                        <div className="hidden h-10 w-10 translate-x-4 items-center justify-center rounded-full bg-shell-foreground/5 text-shell-foreground/50 opacity-0 transition-all group-hover:translate-x-0 group-hover:bg-brand group-hover:text-brand-foreground group-hover:opacity-100 sm:flex">
                           <ChevronRight className="h-5 w-5" />
                         </div>
                       </div>

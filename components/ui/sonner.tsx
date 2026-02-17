@@ -2,27 +2,22 @@
 
 import * as React from "react"
 import { Toaster as Sonner } from "sonner"
-import { useTheme } from "next-themes"
 
 export function Toaster() {
-  const { theme } = useTheme()
-  const resolved = theme === "dark" ? "dark" : "light"
-
   return (
     <Sonner
-      theme={resolved}
+      theme="light"
       richColors
       closeButton
       toastOptions={{
         classNames: {
           toast:
-            "group toast bg-background text-foreground border border-border shadow-google-md",
-          description: "text-muted-foreground",
-          actionButton: "bg-primary text-primary-foreground",
-          cancelButton: "bg-muted text-muted-foreground",
+            "group toast app-surface-shell border-shell-foreground/10 text-shell-foreground/90 shadow-google-md",
+          description: "text-shell-foreground/70",
+          actionButton: "border border-brand/35 bg-brand text-brand-foreground",
+          cancelButton: "border border-shell-foreground/10 bg-shell-foreground/5 text-shell-foreground/70",
         },
       }}
     />
   )
 }
-

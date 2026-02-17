@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowRight, BarChart, RefreshCw, Zap } from "@/components/icons"
 import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
+import { INBOX_PAGE_THEME_CLASSES } from "@/lib/design-system/inbox-theme"
 import { cn } from "@/lib/utils"
 import { EnqueuePanel, type EnabledLocation } from "@/app/(app)/system-health/components/EnqueuePanel"
 import { JobDetailSheet } from "@/app/(app)/system-health/components/JobDetailSheet"
@@ -406,22 +407,18 @@ export function SystemHealthClient(props: {
   const staleModeActive = staleOnly && backlogStatuses.size === 1 && backlogStatuses.has("RUNNING")
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 p-4 sm:p-6 lg:p-10">
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-5">
+    <div className={INBOX_PAGE_THEME_CLASSES.page}>
+      <div className={INBOX_PAGE_THEME_CLASSES.hero}>
+        <div className={INBOX_PAGE_THEME_CLASSES.heroLead}>
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm"
+            className={INBOX_PAGE_THEME_CLASSES.heroIcon}
           >
-            <BarChart className="size-7 text-primary" />
+            <BarChart className="size-7" />
           </motion.div>
           <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">
-              System Health
-            </h1>
-            <p className="app-kicker">
-              Background job processing status
-            </p>
+            <h1 className={INBOX_PAGE_THEME_CLASSES.heroTitle}>System Health</h1>
+            <p className={INBOX_PAGE_THEME_CLASSES.heroKicker}>Background job processing status</p>
           </div>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
@@ -429,7 +426,7 @@ export function SystemHealthClient(props: {
             <Button
               type="button"
               variant="secondary"
-              className="app-action-secondary h-11 w-full rounded-xl border-border/55 px-5 font-bold shadow-sm sm:w-auto"
+              className="app-action-secondary h-11 w-full rounded-xl px-5 font-bold sm:w-auto"
               onClick={() => void runWorkerNow(1)}
               disabled={workerLoading || loading || enqueueLoading || props.workerDisabled}
               title={props.workerDisabled ? "Worker execution is disabled (DISABLE_CRON=true)." : "Claims and runs up to 1 eligible job."}
@@ -441,7 +438,7 @@ export function SystemHealthClient(props: {
           <Button
             type="button"
             variant="secondary"
-            className="app-action-secondary h-11 w-full rounded-xl border-border/55 px-5 font-bold shadow-sm sm:w-auto"
+            className="app-action-secondary h-11 w-full rounded-xl px-5 font-bold sm:w-auto"
             onClick={applyStuckPreset}
             disabled={loading || enqueueLoading || workerLoading}
           >
@@ -451,7 +448,7 @@ export function SystemHealthClient(props: {
           <Button
             type="button"
             variant="secondary"
-            className="app-action-secondary h-11 w-full rounded-xl border-border/55 px-5 font-bold shadow-sm sm:w-auto"
+            className="app-action-secondary h-11 w-full rounded-xl px-5 font-bold sm:w-auto"
             onClick={() => void refreshAll()}
             disabled={loading || enqueueLoading || workerLoading}
           >
@@ -465,10 +462,10 @@ export function SystemHealthClient(props: {
         <MetricCard label="Backlog" value={summary.backlog} tone={summary.backlog > 0 ? "warn" : "ok"} />
         <MetricCard label="Running" value={summary.running} tone={summary.running > 0 ? "info" : "ok"} />
         <MetricCard label="Failed (24h)" value={summary.failed24h} tone={summary.failed24h > 0 ? "bad" : "ok"} />
-        <Card className="app-surface-shell rounded-[24px] border-border/55 bg-card/90 p-6 shadow-sm">
-          <div className="app-kicker">Role</div>
+        <Card className={INBOX_PAGE_THEME_CLASSES.metricCard}>
+          <div className={INBOX_PAGE_THEME_CLASSES.metricLabel}>Role</div>
           <div className="mt-2 text-2xl font-black tabular-nums">
-            <Badge variant="secondary" className="rounded-lg px-2.5 py-0.5 text-xs font-bold">{props.role || "—"}</Badge>
+            <Badge variant="secondary" className="rounded-lg border border-shell-foreground/10 bg-shell-foreground/10 px-2.5 py-0.5 text-xs font-bold text-shell-foreground/85">{props.role || "—"}</Badge>
           </div>
         </Card>
       </div>
@@ -491,16 +488,16 @@ export function SystemHealthClient(props: {
       </div>
 
       {error ? (
-        <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm font-medium text-destructive">
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm font-medium text-destructive-foreground">
           {error}
         </div>
       ) : null}
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "backlog" | "completed")} className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList className="h-11 w-full rounded-xl border border-border/50 bg-muted/45 p-1 sm:w-auto">
-            <TabsTrigger value="backlog" className="h-9 rounded-lg px-4 text-xs font-black uppercase tracking-[0.14em]">Backlog</TabsTrigger>
-            <TabsTrigger value="completed" className="h-9 rounded-lg px-4 text-xs font-black uppercase tracking-[0.14em]">Completed</TabsTrigger>
+          <TabsList className={INBOX_PAGE_THEME_CLASSES.tabList}>
+            <TabsTrigger value="backlog" className={INBOX_PAGE_THEME_CLASSES.tabTrigger}>Backlog</TabsTrigger>
+            <TabsTrigger value="completed" className={INBOX_PAGE_THEME_CLASSES.tabTrigger}>Completed</TabsTrigger>
           </TabsList>
 
           <JobFilters
@@ -518,8 +515,8 @@ export function SystemHealthClient(props: {
 
           <TabsContent value="backlog" className="mt-0 space-y-4">
           {isOwner || staleModeActive ? (
-            <div className="app-pane-card flex flex-col gap-3 rounded-2xl bg-muted/25 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-xs font-medium text-muted-foreground">
+            <div className="app-pane-card flex flex-col gap-3 rounded-2xl bg-shell-foreground/[0.035] p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs font-medium text-shell-foreground/60">
                 {staleModeActive ? "Showing stale RUNNING jobs (locked > 15m)." : "Owner controls for queue management."}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -528,7 +525,7 @@ export function SystemHealthClient(props: {
                     type="button"
                     variant="destructive"
                     size="sm"
-                    className="app-action-primary h-9 w-full rounded-xl px-4 font-bold sm:w-auto"
+                    className="h-9 w-full rounded-xl border border-destructive/35 bg-destructive px-4 font-bold text-destructive-foreground shadow-lg shadow-destructive/20 hover:bg-destructive/85 sm:w-auto"
                     onClick={() => void clearBacklog()}
                     disabled={loading || enqueueLoading || workerLoading}
                   >
@@ -541,7 +538,7 @@ export function SystemHealthClient(props: {
                     type="button"
                     variant="secondary"
                     size="sm"
-                    className="app-action-secondary h-9 w-full rounded-xl border-border/55 px-4 font-bold sm:w-auto"
+                    className="app-action-secondary h-9 w-full rounded-xl px-4 font-bold sm:w-auto"
                     onClick={() => {
                       const ids = visibleStaleRunning.map((j) => j.id)
                       if (!ids.length) return
@@ -600,16 +597,16 @@ export function SystemHealthClient(props: {
 function MetricCard(props: { label: string; value: number; tone: "ok" | "info" | "warn" | "bad" }) {
   const cls =
     props.tone === "bad"
-      ? "text-destructive bg-destructive/10"
+      ? "text-destructive-foreground bg-destructive/15 border border-destructive/20"
       : props.tone === "warn"
-        ? "text-amber-600 bg-amber-500/10"
+        ? "text-warning-soft bg-warning/15 border border-warning/20"
         : props.tone === "info"
-          ? "text-blue-600 bg-blue-500/10"
-          : "text-foreground bg-muted/30"
+          ? "text-brand/80 bg-brand/15 border border-brand/20"
+          : "text-shell-foreground bg-shell-foreground/10 border border-shell-foreground/10"
           
   return (
-    <Card className="rounded-[24px] p-6 border-border/50 bg-background shadow-sm flex flex-col justify-between h-32">
-      <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{props.label}</div>
+    <Card className={`${INBOX_PAGE_THEME_CLASSES.metricCard} flex h-32 flex-col justify-between`}>
+      <div className={INBOX_PAGE_THEME_CLASSES.metricLabel}>{props.label}</div>
       <div className={cn("mt-1.5 text-4xl font-black tabular-nums self-start px-3 py-1 rounded-xl", cls)}>{props.value}</div>
     </Card>
   )
@@ -619,7 +616,7 @@ function LoadMore(props: { show: boolean; onClick: () => void; disabled: boolean
   if (!props.show) return null
   return (
     <div className="mt-6 flex justify-center">
-      <Button type="button" variant="secondary" className="app-action-secondary h-12 rounded-xl border-border/55 px-8 font-bold shadow-sm" onClick={props.onClick} disabled={props.disabled}>
+      <Button type="button" variant="secondary" className="app-action-secondary h-12 rounded-xl px-8 font-bold" onClick={props.onClick} disabled={props.disabled}>
         Load more history
       </Button>
     </div>

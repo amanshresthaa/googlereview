@@ -117,7 +117,7 @@ export function NotificationCenter({ className }: { className?: string }) {
       <Button
         variant="outline"
         size="icon"
-        className={cn("app-action-secondary relative h-10 w-10 rounded-xl border-border/60 bg-background/70", className)}
+        className={cn("app-action-secondary relative h-10 w-10 rounded-xl border-shell-foreground/10 bg-background/70", className)}
         onClick={() => setOpen(true)}
         aria-label="Open notifications"
       >
@@ -137,10 +137,10 @@ export function NotificationCenter({ className }: { className?: string }) {
       </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="w-full border-border/60 bg-card/95 p-0 sm:max-w-md">
+        <SheetContent side="right" className="w-full border-shell-foreground/10 bg-shell-foreground/10 p-0 sm:max-w-md">
           <SheetTitle className="sr-only">Notifications</SheetTitle>
           <div className="flex h-full flex-col">
-            <div className="flex items-center justify-between border-b border-border/60 bg-muted/25 p-5">
+            <div className="flex items-center justify-between border-b border-shell-foreground/10 bg-muted/25 p-5">
               <div>
                 <h2 className="text-lg font-black tracking-tight">Notifications</h2>
                 <p className="app-kicker mt-1">
@@ -195,7 +195,7 @@ function NotificationItem({
     <motion.div
       initial={{ opacity: 0, x: 14 }}
       animate={{ opacity: 1, x: 0 }}
-      className="app-pane-card rounded-2xl border-border/55 bg-card/85 p-4"
+      className="app-pane-card rounded-2xl border-shell-foreground/10 bg-shell-foreground/10 p-4"
     >
       <div className="flex gap-3">
         <div className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-2xl", color.bg)}>
@@ -235,7 +235,7 @@ function NotificationItem({
           ) : null}
 
             {notification.action ? (
-              <Button variant="outline" size="sm" className="app-action-secondary mt-2 h-7 rounded-lg border-border/55 text-xs" onClick={notification.action.onClick}>
+              <Button variant="outline" size="sm" className="app-action-secondary mt-2 h-7 rounded-lg border-shell-foreground/10 text-xs" onClick={notification.action.onClick}>
                 {notification.action.label}
               </Button>
             ) : null}
@@ -256,9 +256,9 @@ function renderNotificationIcon(type: NotificationType, className: string) {
 }
 
 function colorForType(type: NotificationType) {
-  if (type === "success") return { bg: "bg-emerald-500/10", icon: "text-emerald-600" }
+  if (type === "success") return { bg: "bg-success/10", icon: "text-success" }
   if (type === "error") return { bg: "bg-destructive/10", icon: "text-destructive" }
-  if (type === "warning") return { bg: "bg-amber-500/10", icon: "text-amber-600" }
+  if (type === "warning") return { bg: "bg-warning/10", icon: "text-warning" }
   if (type === "loading") return { bg: "bg-primary/10", icon: "text-primary" }
   return { bg: "bg-muted", icon: "text-muted-foreground" }
 }

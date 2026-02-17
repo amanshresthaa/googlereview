@@ -8,7 +8,7 @@ import { z } from "zod"
 
 const E2E_COOKIE_NAME = "__e2e_session"
 export const MEMBERSHIP_GRANT_COOKIE_NAME = "__membership_grant"
-export const MEMBERSHIP_CACHE_TTL_MS = 60_000
+export const MEMBERSHIP_CACHE_TTL_MS = 180_000
 const MEMBERSHIP_CACHE_MAX_ENTRIES = 2048
 export const MEMBERSHIP_GRANT_TTL_SEC = 180
 

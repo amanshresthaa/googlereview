@@ -7,7 +7,7 @@ export const runtime = "nodejs"
 
 const JOB_TYPES: JobType[] = ["SYNC_LOCATIONS", "SYNC_REVIEWS", "PROCESS_REVIEW", "POST_REPLY"]
 
-const SUMMARY_CACHE_TTL_MS = 10_000
+const SUMMARY_CACHE_TTL_MS = 45_000
 const DETAIL_CACHE_TTL_MS = 30_000
 const STALE_IF_ERROR_MAX_AGE_MS = 5 * 60_000
 const ERROR_BACKOFF_MS = 15_000
@@ -167,6 +167,225 @@ function toSummaryApiError(error: unknown): ApiError {
   })
 }
 
+async function computeSummaryBody(orgId: string, detail: boolean): Promise<JobsSummaryBody> {
+  const now = new Date()
+  const since = new Date(now.getTime() - 24 * 60 * 60_000)
+
+  // Single bounded, index-backed aggregation query for widget summary.
+  // Avoid Prisma groupBy overhead on large job tables.
+  const rows = await prisma.$queryRaw<SummaryAggRow[]>`
+    SELECT
+      "type" AS "type",
+      SUM(CASE WHEN "status" = 'PENDING' THEN 1 ELSE 0 END)::int AS "pending",
+      SUM(CASE WHEN "status" = 'RUNNING' THEN 1 ELSE 0 END)::int AS "running",
+      SUM(CASE WHEN "status" = 'RETRYING' THEN 1 ELSE 0 END)::int AS "retrying",
+      SUM(CASE WHEN "status" = 'FAILED' AND "completedAt" >= ${since} THEN 1 ELSE 0 END)::int AS "failed_24h"
+    FROM "Job"
+    WHERE "orgId" = ${orgId}
+      AND (
+        "status" IN ('PENDING','RUNNING','RETRYING')
+        OR ("status" = 'FAILED' AND "completedAt" >= ${since})
+      )
+    GROUP BY "type";
+  `
+
+  const byType: Record<JobType, SummaryRow> = Object.fromEntries(JOB_TYPES.map((t) => [t, emptyRow()])) as never
+
+  for (const r of rows) {
+    byType[r.type] = {
+      pending: r.pending ?? 0,
+      running: r.running ?? 0,
+      retrying: r.retrying ?? 0,
+      failed_24h: r.failed_24h ?? 0,
+    }
+  }
+
+  if (!detail) {
+    return { summary: { byType, recentFailures: [] } }
+  }
+
+  const [recentFailuresResult, aiQualityRowsResult, aiProgramVersionRowsResult, aiModeCountsResult] = await Promise.allSettled([
+    prisma.job.findMany({
+      where: { orgId, status: "FAILED", completedAt: { gte: since } },
+      orderBy: { completedAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        type: true,
+        completedAt: true,
+        lastError: true,
+        lastErrorCode: true,
+        lastErrorMetaJson: true,
+      },
+    }),
+    prisma.$queryRaw<AiQualityRow[]>`
+      SELECT
+        COUNT(*)::int AS "runs",
+        SUM(CASE WHEN "decision" = 'BLOCKED_BY_VERIFIER' THEN 1 ELSE 0 END)::int AS "blocked",
+        SUM(
+          CASE
+            WHEN COALESCE((NULLIF("outputJson"->'seoQuality'->>'stuffingRisk', ''))::boolean, false) THEN 1
+            ELSE 0
+          END
+        )::int AS "stuffing_risk",
+        AVG((NULLIF("outputJson"->'seoQuality'->>'keywordCoverage', ''))::double precision) AS "avg_keyword_coverage",
+        SUM(
+          CASE
+            WHEN COALESCE((NULLIF("outputJson"->'seoQuality'->>'requiredKeywordUsed', ''))::boolean, false) THEN 1
+            ELSE 0
+          END
+        )::int AS "required_keyword_used"
+      FROM "DspyRun"
+      WHERE "orgId" = ${orgId}
+        AND "createdAt" >= ${since}
+        AND "status" = 'COMPLETED';
+    `,
+    prisma.$queryRaw<ProgramVersionRow[]>`
+      SELECT
+        COALESCE(NULLIF("programVersion", ''), 'unknown') AS "program_version",
+        COUNT(*)::int AS "runs",
+        SUM(CASE WHEN "decision" = 'BLOCKED_BY_VERIFIER' THEN 1 ELSE 0 END)::int AS "blocked",
+        AVG((NULLIF("outputJson"->'seoQuality'->>'keywordCoverage', ''))::double precision) AS "avg_keyword_coverage",
+        SUM(
+          CASE
+            WHEN COALESCE((NULLIF("outputJson"->'seoQuality'->>'requiredKeywordUsed', ''))::boolean, false) THEN 1
+            ELSE 0
+          END
+        )::int AS "required_keyword_used"
+      FROM "DspyRun"
+      WHERE "orgId" = ${orgId}
+        AND "createdAt" >= ${since}
+        AND "status" = 'COMPLETED'
+      GROUP BY 1
+      ORDER BY "runs" DESC, "program_version" ASC
+      LIMIT 5;
+    `,
+    prisma.dspyRun.groupBy({
+      by: ["mode"],
+      where: { orgId, createdAt: { gte: since }, status: "COMPLETED" },
+      _count: { _all: true },
+    }),
+  ])
+
+  if (recentFailuresResult.status === "rejected") {
+    console.warn("[api/jobs/summary] detail recent failures query failed", {
+      orgId,
+      message: errorMessage(recentFailuresResult.reason),
+    })
+  }
+  if (aiQualityRowsResult.status === "rejected") {
+    console.warn("[api/jobs/summary] detail ai quality query failed", {
+      orgId,
+      message: errorMessage(aiQualityRowsResult.reason),
+    })
+  }
+  if (aiProgramVersionRowsResult.status === "rejected") {
+    console.warn("[api/jobs/summary] detail ai program versions query failed", {
+      orgId,
+      message: errorMessage(aiProgramVersionRowsResult.reason),
+    })
+  }
+  if (aiModeCountsResult.status === "rejected") {
+    console.warn("[api/jobs/summary] detail ai mode distribution query failed", {
+      orgId,
+      message: errorMessage(aiModeCountsResult.reason),
+    })
+  }
+
+  const recentFailures =
+    recentFailuresResult.status === "fulfilled" ? recentFailuresResult.value : []
+  const aiQualityRows =
+    aiQualityRowsResult.status === "fulfilled" ? aiQualityRowsResult.value : []
+  const aiProgramVersionRows =
+    aiProgramVersionRowsResult.status === "fulfilled" ? aiProgramVersionRowsResult.value : []
+  const aiModeCounts =
+    aiModeCountsResult.status === "fulfilled" ? aiModeCountsResult.value : []
+
+  const aiQuality = aiQualityRows[0] ?? {
+    runs: 0,
+    blocked: 0,
+    stuffing_risk: 0,
+    avg_keyword_coverage: null,
+    required_keyword_used: 0,
+  }
+  const aiRuns = aiQuality.runs
+  const blockedRate = aiRuns > 0 ? aiQuality.blocked / aiRuns : 0
+  const stuffingRiskRate = aiRuns > 0 ? aiQuality.stuffing_risk / aiRuns : 0
+  const requiredKeywordUsageRate = aiRuns > 0 ? aiQuality.required_keyword_used / aiRuns : 0
+  const programVersions = aiProgramVersionRows.map((row) => {
+    const runs = row.runs
+    return {
+      version: row.program_version,
+      runs,
+      blockedRate: runs > 0 ? row.blocked / runs : 0,
+      avgKeywordCoverage: row.avg_keyword_coverage ?? 0,
+      requiredKeywordUsageRate: runs > 0 ? row.required_keyword_used / runs : 0,
+    }
+  })
+  const modeDistribution = aiModeCounts.map((row) => ({
+    mode: row.mode,
+    runs: row._count._all,
+    ratio: aiRuns > 0 ? row._count._all / aiRuns : 0,
+  }))
+
+  return {
+    summary: {
+      byType,
+      recentFailures: recentFailures.map((j) => ({
+        id: j.id,
+        type: j.type,
+        completedAtIso: j.completedAt?.toISOString() ?? null,
+        lastError: j.lastErrorCode ?? j.lastError ?? null,
+        lastErrorMeta: (j.lastErrorMetaJson ?? null) as Record<string, unknown> | null,
+      })),
+      aiQuality24h: {
+        runs: aiRuns,
+        blocked: aiQuality.blocked,
+        stuffingRisk: aiQuality.stuffing_risk,
+        avgKeywordCoverage: aiQuality.avg_keyword_coverage ?? 0,
+        blockedRate,
+        stuffingRiskRate,
+        requiredKeywordUsageRate,
+        topProgramVersion: programVersions[0]?.version ?? null,
+        programVersions,
+        modeDistribution,
+      },
+    },
+  }
+}
+
+function startSummaryRefresh(params: {
+  cacheKey: string
+  orgId: string
+  detail: boolean
+  ttlMs: number
+}): Promise<JobsSummaryBody> {
+  const inflight = summaryInflight.get(params.cacheKey)
+  if (inflight) return inflight
+
+  const refresh = computeSummaryBody(params.orgId, params.detail)
+    .then((body) => {
+      cacheSummary(params.cacheKey, params.ttlMs, body)
+      summaryFailureAt.delete(params.cacheKey)
+      return body
+    })
+    .catch((error) => {
+      summaryFailureAt.set(params.cacheKey, Date.now())
+      console.warn("[api/jobs/summary] summary compute failed", {
+        orgId: params.orgId,
+        detail: params.detail,
+        message: errorMessage(error),
+      })
+      throw error
+    })
+    .finally(() => {
+      summaryInflight.delete(params.cacheKey)
+    })
+
+  summaryInflight.set(params.cacheKey, refresh)
+  return refresh
+}
+
 export async function GET(req: Request) {
   return handleAuthedGet(req, async ({ session }) => {
     const url = new URL(req.url)
@@ -180,235 +399,33 @@ export async function GET(req: Request) {
       return { body: cached }
     }
 
-    if (inFailureBackoff(cacheKey, now)) {
-      const stale = getStaleSummary(cacheKey, now)
-      if (stale) {
-        return { body: stale, headers: { "X-Data-Stale": "1" } }
+    const stale = getStaleSummary(cacheKey, now)
+    if (stale) {
+      if (!inFailureBackoff(cacheKey, now)) {
+        void startSummaryRefresh({
+          cacheKey,
+          orgId: session.orgId,
+          detail,
+          ttlMs,
+        }).catch(() => undefined)
       }
+      return { body: stale, headers: { "X-Data-Stale": "1" } }
     }
 
-    const inflight = summaryInflight.get(cacheKey)
-    if (inflight) {
-      try {
-        return { body: await inflight }
-      } catch (error) {
-        const stale = getStaleSummary(cacheKey)
-        if (stale) {
-          return { body: stale, headers: { "X-Data-Stale": "1" } }
-        }
-        throw toSummaryApiError(error)
-      }
-    }
-
-    const compute = (async (): Promise<JobsSummaryBody> => {
-      const now = new Date()
-      const since = new Date(now.getTime() - 24 * 60 * 60_000)
-
-      // Single bounded, index-backed aggregation query for widget summary.
-      // Avoid Prisma groupBy overhead on large job tables.
-      const rows = await prisma.$queryRaw<SummaryAggRow[]>`
-        SELECT
-          "type" AS "type",
-          SUM(CASE WHEN "status" = 'PENDING' THEN 1 ELSE 0 END)::int AS "pending",
-          SUM(CASE WHEN "status" = 'RUNNING' THEN 1 ELSE 0 END)::int AS "running",
-          SUM(CASE WHEN "status" = 'RETRYING' THEN 1 ELSE 0 END)::int AS "retrying",
-          SUM(CASE WHEN "status" = 'FAILED' AND "completedAt" >= ${since} THEN 1 ELSE 0 END)::int AS "failed_24h"
-        FROM "Job"
-        WHERE "orgId" = ${session.orgId}
-          AND (
-            "status" IN ('PENDING','RUNNING','RETRYING')
-            OR ("status" = 'FAILED' AND "completedAt" >= ${since})
-          )
-        GROUP BY "type";
-      `
-
-      const byType: Record<JobType, SummaryRow> = Object.fromEntries(JOB_TYPES.map((t) => [t, emptyRow()])) as never
-
-      for (const r of rows) {
-        byType[r.type] = {
-          pending: r.pending ?? 0,
-          running: r.running ?? 0,
-          retrying: r.retrying ?? 0,
-          failed_24h: r.failed_24h ?? 0,
-        }
-      }
-
-      if (!detail) {
-        return { summary: { byType, recentFailures: [] } }
-      }
-
-      const [recentFailuresResult, aiQualityRowsResult, aiProgramVersionRowsResult, aiModeCountsResult] = await Promise.allSettled([
-        prisma.job.findMany({
-          where: { orgId: session.orgId, status: "FAILED", completedAt: { gte: since } },
-          orderBy: { completedAt: "desc" },
-          take: 20,
-          select: {
-            id: true,
-            type: true,
-            completedAt: true,
-            lastError: true,
-            lastErrorCode: true,
-            lastErrorMetaJson: true,
-          },
-        }),
-        prisma.$queryRaw<AiQualityRow[]>`
-        SELECT
-          COUNT(*)::int AS "runs",
-          SUM(CASE WHEN "decision" = 'BLOCKED_BY_VERIFIER' THEN 1 ELSE 0 END)::int AS "blocked",
-          SUM(
-            CASE
-              WHEN COALESCE((NULLIF("outputJson"->'seoQuality'->>'stuffingRisk', ''))::boolean, false) THEN 1
-              ELSE 0
-            END
-          )::int AS "stuffing_risk",
-          AVG((NULLIF("outputJson"->'seoQuality'->>'keywordCoverage', ''))::double precision) AS "avg_keyword_coverage",
-          SUM(
-            CASE
-              WHEN COALESCE((NULLIF("outputJson"->'seoQuality'->>'requiredKeywordUsed', ''))::boolean, false) THEN 1
-              ELSE 0
-            END
-          )::int AS "required_keyword_used"
-        FROM "DspyRun"
-        WHERE "orgId" = ${session.orgId}
-          AND "createdAt" >= ${since}
-          AND "status" = 'COMPLETED';
-      `,
-        prisma.$queryRaw<ProgramVersionRow[]>`
-        SELECT
-          COALESCE(NULLIF("programVersion", ''), 'unknown') AS "program_version",
-          COUNT(*)::int AS "runs",
-          SUM(CASE WHEN "decision" = 'BLOCKED_BY_VERIFIER' THEN 1 ELSE 0 END)::int AS "blocked",
-          AVG((NULLIF("outputJson"->'seoQuality'->>'keywordCoverage', ''))::double precision) AS "avg_keyword_coverage",
-          SUM(
-            CASE
-              WHEN COALESCE((NULLIF("outputJson"->'seoQuality'->>'requiredKeywordUsed', ''))::boolean, false) THEN 1
-              ELSE 0
-            END
-          )::int AS "required_keyword_used"
-        FROM "DspyRun"
-        WHERE "orgId" = ${session.orgId}
-          AND "createdAt" >= ${since}
-          AND "status" = 'COMPLETED'
-        GROUP BY 1
-        ORDER BY "runs" DESC, "program_version" ASC
-        LIMIT 5;
-      `,
-        prisma.dspyRun.groupBy({
-          by: ["mode"],
-          where: { orgId: session.orgId, createdAt: { gte: since }, status: "COMPLETED" },
-          _count: { _all: true },
-        }),
-      ])
-
-      if (recentFailuresResult.status === "rejected") {
-        console.warn("[api/jobs/summary] detail recent failures query failed", {
-          orgId: session.orgId,
-          message: errorMessage(recentFailuresResult.reason),
-        })
-      }
-      if (aiQualityRowsResult.status === "rejected") {
-        console.warn("[api/jobs/summary] detail ai quality query failed", {
-          orgId: session.orgId,
-          message: errorMessage(aiQualityRowsResult.reason),
-        })
-      }
-      if (aiProgramVersionRowsResult.status === "rejected") {
-        console.warn("[api/jobs/summary] detail ai program versions query failed", {
-          orgId: session.orgId,
-          message: errorMessage(aiProgramVersionRowsResult.reason),
-        })
-      }
-      if (aiModeCountsResult.status === "rejected") {
-        console.warn("[api/jobs/summary] detail ai mode distribution query failed", {
-          orgId: session.orgId,
-          message: errorMessage(aiModeCountsResult.reason),
-        })
-      }
-
-      const recentFailures =
-        recentFailuresResult.status === "fulfilled" ? recentFailuresResult.value : []
-      const aiQualityRows =
-        aiQualityRowsResult.status === "fulfilled" ? aiQualityRowsResult.value : []
-      const aiProgramVersionRows =
-        aiProgramVersionRowsResult.status === "fulfilled" ? aiProgramVersionRowsResult.value : []
-      const aiModeCounts =
-        aiModeCountsResult.status === "fulfilled" ? aiModeCountsResult.value : []
-
-      const aiQuality = aiQualityRows[0] ?? {
-        runs: 0,
-        blocked: 0,
-        stuffing_risk: 0,
-        avg_keyword_coverage: null,
-        required_keyword_used: 0,
-      }
-      const aiRuns = aiQuality.runs
-      const blockedRate = aiRuns > 0 ? aiQuality.blocked / aiRuns : 0
-      const stuffingRiskRate = aiRuns > 0 ? aiQuality.stuffing_risk / aiRuns : 0
-      const requiredKeywordUsageRate = aiRuns > 0 ? aiQuality.required_keyword_used / aiRuns : 0
-      const programVersions = aiProgramVersionRows.map((row) => {
-        const runs = row.runs
-        return {
-          version: row.program_version,
-          runs,
-          blockedRate: runs > 0 ? row.blocked / runs : 0,
-          avgKeywordCoverage: row.avg_keyword_coverage ?? 0,
-          requiredKeywordUsageRate: runs > 0 ? row.required_keyword_used / runs : 0,
-        }
-      })
-      const modeDistribution = aiModeCounts.map((row) => ({
-        mode: row.mode,
-        runs: row._count._all,
-        ratio: aiRuns > 0 ? row._count._all / aiRuns : 0,
-      }))
-
-      return {
-        summary: {
-          byType,
-          recentFailures: recentFailures.map((j) => ({
-            id: j.id,
-            type: j.type,
-            completedAtIso: j.completedAt?.toISOString() ?? null,
-            lastError: j.lastErrorCode ?? j.lastError ?? null,
-            lastErrorMeta: (j.lastErrorMetaJson ?? null) as Record<string, unknown> | null,
-          })),
-          aiQuality24h: {
-            runs: aiRuns,
-            blocked: aiQuality.blocked,
-            stuffingRisk: aiQuality.stuffing_risk,
-            avgKeywordCoverage: aiQuality.avg_keyword_coverage ?? 0,
-            blockedRate,
-            stuffingRiskRate,
-            requiredKeywordUsageRate,
-            topProgramVersion: programVersions[0]?.version ?? null,
-            programVersions,
-            modeDistribution,
-          },
-        },
-      }
-    })()
-
-    summaryInflight.set(cacheKey, compute)
     try {
-      const body = await compute
-      cacheSummary(cacheKey, ttlMs, body)
-      summaryFailureAt.delete(cacheKey)
-      return { body }
-    } catch (error) {
-      summaryFailureAt.set(cacheKey, Date.now())
-      console.warn("[api/jobs/summary] summary compute failed", {
+      const body = await startSummaryRefresh({
+        cacheKey,
         orgId: session.orgId,
         detail,
-        message: errorMessage(error),
+        ttlMs,
       })
-
-      const stale = getStaleSummary(cacheKey)
-      if (stale) {
-        return { body: stale, headers: { "X-Data-Stale": "1" } }
+      return { body }
+    } catch (error) {
+      const staleAfterFailure = getStaleSummary(cacheKey)
+      if (staleAfterFailure) {
+        return { body: staleAfterFailure, headers: { "X-Data-Stale": "1" } }
       }
-
       throw toSummaryApiError(error)
-    } finally {
-      summaryInflight.delete(cacheKey)
     }
   })
 }

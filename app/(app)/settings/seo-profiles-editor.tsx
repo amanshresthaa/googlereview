@@ -86,10 +86,10 @@ const DSPY_LIMITS = {
   experimentsMax: 20,
 } as const
 
-const SEO_EDITOR_CARD = "app-surface-shell rounded-[28px] border-border/55 bg-card/85 shadow-card"
+const SEO_EDITOR_CARD = "app-surface-shell rounded-[28px] border-shell-foreground/10 bg-shell-foreground/10 shadow-card"
 const SEO_SECTION_LABEL = "app-field-label"
 const SEO_COUNT_BADGE = "rounded-md bg-muted text-muted-foreground px-2 font-mono text-[9px]"
-const SEO_INPUT = "h-9 rounded-xl border-border/50 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20"
+const SEO_INPUT = "h-9 rounded-xl border-shell-foreground/10 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20"
 
 const BUCKET_CONFIG: Record<
   KeywordBucket,
@@ -496,10 +496,10 @@ export function SeoProfilesEditor({ initialProfiles, saving, onSave }: SeoProfil
               const locationErrors = dspyErrors[profile.locationId]
 
               return (
-                <Card key={profile.locationId} className="app-pane-card rounded-2xl border-border/55 bg-muted/30 shadow-sm">
+                <Card key={profile.locationId} className="app-pane-card rounded-2xl border-shell-foreground/10 bg-muted/30 shadow-sm">
                   <CardContent className="space-y-4 p-3 md:p-4">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="h-7 w-7 rounded-lg border border-border bg-card flex items-center justify-center shrink-0">
+                    <div className="h-7 w-7 rounded-lg border border-border bg-shell-foreground/5 flex items-center justify-center shrink-0">
                       <MapPin className="size-3.5 text-muted-foreground" />
                     </div>
                     <div className="text-sm font-semibold text-foreground truncate">{profile.displayName}</div>
@@ -632,7 +632,7 @@ function KeywordBucketEditor({
             <Badge
               key={value}
               variant="secondary"
-              className="app-action-secondary h-7 gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs text-muted-foreground"
+              className="app-action-secondary h-7 gap-1.5 rounded-lg border border-border bg-shell-foreground/5 px-2.5 text-xs text-muted-foreground"
             >
               <Globe className="size-3" />
               {value}
@@ -692,7 +692,7 @@ function DspyOverridesEditor({
             <Input
               value={draft[field.key]}
               placeholder={field.placeholder}
-              className={cn("h-8 rounded-lg text-xs border-border/50 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20", errors?.base[field.key] && "border-destructive")}
+              className={cn("h-8 rounded-lg text-xs border-shell-foreground/10 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20", errors?.base[field.key] && "border-destructive")}
               onChange={(event) => onOverrideChange(field.key, event.target.value)}
               aria-invalid={Boolean(errors?.base[field.key])}
             />
@@ -710,7 +710,7 @@ function DspyOverridesEditor({
             type="button"
             variant="outline"
             size="sm"
-            className="app-action-secondary h-7 rounded-lg border-border/50 text-[10px] font-semibold"
+            className="app-action-secondary h-7 rounded-lg border-shell-foreground/10 text-[10px] font-semibold"
             onClick={onAddExperiment}
             disabled={draft.experiments.length >= DSPY_LIMITS.experimentsMax}
           >
@@ -724,7 +724,7 @@ function DspyOverridesEditor({
         ) : null}
 
         {draft.experiments.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border/60 bg-muted/30 p-3 text-[11px] font-medium text-muted-foreground">
+            <div className="rounded-xl border border-dashed border-shell-foreground/10 bg-muted/30 p-3 text-[11px] font-medium text-muted-foreground">
               No experiments configured.
             </div>
           ) : (
@@ -733,14 +733,14 @@ function DspyOverridesEditor({
               const rowErrors = errors?.experiments[index]
 
               return (
-                  <div key={`${index}-${experiment.id || "new"}`} className="app-pane-card rounded-xl border-border/60 bg-background p-2.5 space-y-2">
+                  <div key={`${index}-${experiment.id || "new"}`} className="app-pane-card rounded-xl border-shell-foreground/10 bg-background p-2.5 space-y-2">
                   <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_128px_auto]">
                     <div className="space-y-1">
                       <Label className="app-field-label">Experiment Id</Label>
                       <Input
                         value={experiment.id}
                         placeholder="e.g. lunch-semantic-a"
-                        className={cn("h-8 rounded-lg text-xs border-border/50 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20", rowErrors?.id && "border-destructive")}
+                        className={cn("h-8 rounded-lg text-xs border-shell-foreground/10 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20", rowErrors?.id && "border-destructive")}
                         onChange={(event) => onExperimentChange(index, "id", event.target.value)}
                         aria-invalid={Boolean(rowErrors?.id)}
                       />
@@ -758,7 +758,7 @@ function DspyOverridesEditor({
                         min="0"
                         max="100"
                         placeholder="0"
-                        className={cn("h-8 rounded-lg text-xs border-border/50 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20", rowErrors?.trafficPercent && "border-destructive")}
+                        className={cn("h-8 rounded-lg text-xs border-shell-foreground/10 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20", rowErrors?.trafficPercent && "border-destructive")}
                         onChange={(event) => onExperimentChange(index, "trafficPercent", event.target.value)}
                         aria-invalid={Boolean(rowErrors?.trafficPercent)}
                       />
@@ -790,7 +790,7 @@ function DspyOverridesEditor({
                         <Input
                           value={experiment[field.key]}
                           placeholder={`Optional ${field.label.toLowerCase()}`}
-                          className={cn("h-8 rounded-lg text-xs border-border/50 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20", rowErrors?.[field.key] && "border-destructive")}
+                          className={cn("h-8 rounded-lg text-xs border-shell-foreground/10 bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20", rowErrors?.[field.key] && "border-destructive")}
                           onChange={(event) => onExperimentChange(index, field.key, event.target.value)}
                           aria-invalid={Boolean(rowErrors?.[field.key])}
                         />

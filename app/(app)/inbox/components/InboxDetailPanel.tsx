@@ -21,11 +21,12 @@ import {
 import { toast } from "sonner"
 
 import { InlineError } from "@/components/ErrorStates"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { INBOX_THEME_CLASSES } from "@/lib/design-system/inbox-theme"
+import { INBOX_THEME_CLASSES, inboxStarClass } from "@/lib/design-system/inbox-theme"
 import { formatAge, type ReviewDetail, type ReviewRow } from "@/lib/hooks"
 import { cn } from "@/lib/utils"
 
@@ -58,7 +59,7 @@ function StarRow({ rating }: { rating: number }) {
           key={`${rating}-${String(index)}`}
           fill={index < rating ? "currentColor" : "none"}
           strokeWidth={ICON_STROKE}
-          className={cn("h-3.5 w-3.5", index < rating ? "text-[#007AFF]" : "text-slate-300")}
+          className={cn("h-3.5 w-3.5", inboxStarClass(index < rating))}
         />
       ))}
     </div>
@@ -74,7 +75,7 @@ function ReviewerAvatar({ name }: { name: string | null }) {
     .toUpperCase()
 
   return (
-    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-white/60 bg-white/75 text-xs font-black text-slate-700 shadow-[0_10px_18px_rgba(15,23,42,0.12)]">
+    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-shell-foreground/68 bg-shell-foreground/82 text-[11px] font-black text-ink-soft shadow-elevated">
       {initials}
     </div>
   )
@@ -82,7 +83,7 @@ function ReviewerAvatar({ name }: { name: string | null }) {
 
 function AiAvatar() {
   return (
-    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-[#007AFF]/35 bg-[#007AFF]/15 text-[#007AFF] shadow-[0_10px_18px_rgba(0,122,255,0.2)]">
+    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-gbp-blue/35 bg-gbp-blue/15 text-gbp-blue shadow-glow-primary">
       <Sparkles className="h-4 w-4" strokeWidth={ICON_STROKE} />
     </div>
   )
@@ -90,12 +91,14 @@ function AiAvatar() {
 
 function ActionButton({
   tooltip,
+  ariaLabel,
   onClick,
   disabled,
   className,
   children,
 }: {
   tooltip: string
+  ariaLabel?: string
   onClick: () => void
   disabled?: boolean
   className?: string
@@ -109,9 +112,10 @@ function ActionButton({
           variant="ghost"
           size="sm"
           className={cn(
-            "h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-white transition-all duration-300 hover:bg-white/20",
+            "h-10 rounded-xl border border-shell-foreground/22 bg-shell-foreground/12 px-3 text-shell-foreground/90 transition-all duration-300 hover:bg-shell-foreground/22",
             className,
           )}
+          aria-label={ariaLabel ?? tooltip}
           onClick={onClick}
           disabled={disabled}
         >
@@ -127,28 +131,28 @@ function DraftStatusChip({ status }: { status: string | null }) {
   if (!status) return null
 
   const config: Record<string, { label: string; className: string }> = {
-    NEEDS_APPROVAL: { label: "Pending review", className: "border-orange-300/45 bg-orange-200/25 text-orange-100" },
-    READY: { label: "Verified", className: "border-emerald-300/45 bg-emerald-200/25 text-emerald-100" },
-    BLOCKED_BY_VERIFIER: { label: "Changes needed", className: "border-rose-300/45 bg-rose-200/25 text-rose-100" },
-    POSTED: { label: "Published", className: "border-blue-300/45 bg-blue-200/25 text-blue-100" },
-    POST_FAILED: { label: "Publish failed", className: "border-rose-300/45 bg-rose-200/25 text-rose-100" },
+    NEEDS_APPROVAL: { label: "Pending review", className: "inbox-draft-status-needs-approval" },
+    READY: { label: "Verified", className: "inbox-draft-status-ready" },
+    BLOCKED_BY_VERIFIER: { label: "Changes needed", className: "inbox-draft-status-blocked" },
+    POSTED: { label: "Published", className: "inbox-draft-status-posted" },
+    POST_FAILED: { label: "Publish failed", className: "inbox-draft-status-error" },
   }
   const entry = config[status] ?? {
     label: status,
-    className: "border-white/30 bg-white/10 text-white",
+    className: "border-shell-foreground/10 bg-shell-foreground/10 text-foreground",
   }
 
   return (
-    <span
+    <Badge
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em]",
+        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.1em]",
         entry.className,
       )}
     >
       {status === "READY" ? <ShieldCheck className="h-3 w-3" strokeWidth={ICON_STROKE} /> : null}
       {status === "BLOCKED_BY_VERIFIER" ? <AlertTriangle className="h-3 w-3" strokeWidth={ICON_STROKE} /> : null}
       {entry.label}
-    </span>
+    </Badge>
   )
 }
 
@@ -168,9 +172,9 @@ function DraftHistoryTimeline({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28 }}
-      className="mb-6"
+      className="mb-7"
     >
-      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.13em] text-slate-500">
+      <div className="mb-2.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.11em] text-ink-muted">
         <History className="h-3.5 w-3.5" strokeWidth={ICON_STROKE} />
         {drafts.length} versions
       </div>
@@ -184,13 +188,13 @@ function DraftHistoryTimeline({
               className={cn(
                 "flex items-center gap-2 rounded-2xl border px-3 py-2 text-[11px] backdrop-blur-xl",
                 isCurrent
-                  ? "border-white/65 bg-white/72 text-slate-800"
-                  : "border-white/45 bg-white/32 text-slate-600",
+                  ? "border-shell-foreground/70 bg-shell-foreground/78 text-ink"
+                  : "border-shell-foreground/52 bg-shell-foreground/42 text-ink-soft",
               )}
             >
-              <span className={cn("h-1.5 w-1.5 rounded-full", isCurrent ? "bg-[#007AFF]" : "bg-slate-400")} />
+              <span className={cn("h-1.5 w-1.5 rounded-full", isCurrent ? "bg-gbp-blue" : "bg-muted-foreground")} />
               <span className="font-black tracking-[-0.01em]">v{draft.version}</span>
-              <span className="ml-auto text-[10px] font-semibold text-slate-500">{updatedLabel}</span>
+              <span className="ml-auto text-[11px] font-medium text-ink-muted">{updatedLabel}</span>
             </div>
           )
         })}
@@ -298,6 +302,10 @@ export function InboxDetailPanel({
   const isDirty = text !== (row?.currentDraft?.text ?? "")
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length
   const showGeneratingGlow = busy === "generate"
+  const currentDraftStatus = detail?.currentDraft?.status ?? row?.currentDraft?.status ?? row?.draftStatus ?? null
+  const verifyActionBlocked = currentDraftStatus === "READY" && !isDirty
+  const verifyDisabled = busy !== null || !hasText || verifyActionBlocked
+  const verifyTooltip = verifyActionBlocked ? "Already verified" : "Tone check"
 
   React.useEffect(() => {
     if (!row || isReplied) return
@@ -323,21 +331,34 @@ export function InboxDetailPanel({
     return () => window.removeEventListener("keydown", handler)
   }, [row, isReplied, hasText, isDirty, busy, text, runAction, onSave, onPublish])
 
+  React.useEffect(() => {
+    if (!showMobileBack || !onBack) return
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      event.preventDefault()
+      onBack()
+    }
+
+    window.addEventListener("keydown", handleEscape)
+    return () => window.removeEventListener("keydown", handleEscape)
+  }, [onBack, showMobileBack])
+
   if (!row) {
     return (
-      <div className="flex h-full min-h-0 items-center justify-center bg-[linear-gradient(160deg,rgba(255,255,255,0.3),rgba(255,255,255,0.15))]">
+      <div className="inbox-detail-stage flex h-full min-h-0 items-center justify-center">
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.38 }}
-          className="flex max-w-sm flex-col items-center gap-4 rounded-[34px] border border-white/60 bg-white/48 px-8 py-9 text-center shadow-[0_22px_60px_rgba(15,23,42,0.16)] backdrop-blur-3xl"
+          className="flex max-w-sm flex-col items-center gap-5 rounded-[34px] border border-shell-foreground/65 bg-shell-foreground/56 px-8 py-10 text-center shadow-floating backdrop-blur-3xl"
         >
-          <div className="grid h-20 w-20 place-items-center rounded-[28px] border border-white/70 bg-white/80 text-[#007AFF]">
+          <div className="grid h-20 w-20 place-items-center rounded-[28px] border border-shell-foreground/70 bg-shell-foreground/80 text-gbp-blue">
             <Inbox className="h-9 w-9" strokeWidth={ICON_STROKE} />
           </div>
           <div>
-            <h3 className="text-2xl font-black tracking-[-0.03em] text-slate-900">Select a conversation</h3>
-            <p className="mt-1 text-sm font-medium text-slate-600">
+            <h3 className="text-[2rem] font-black tracking-[-0.03em] text-ink-strong">Select a conversation</h3>
+            <p className="mt-1.5 text-[15px] font-medium text-ink-soft">
               Choose a review to open the workspace and start drafting a response.
             </p>
           </div>
@@ -348,9 +369,9 @@ export function InboxDetailPanel({
 
   return (
     <TooltipProvider delayDuration={280}>
-      <section className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[linear-gradient(160deg,rgba(255,255,255,0.25),rgba(255,255,255,0.12))]">
+      <section className="inbox-detail-stage-soft relative flex h-full min-h-0 flex-col overflow-hidden">
         <ScrollArea className="h-full">
-          <div className="mx-auto w-full max-w-4xl px-4 pb-60 pt-5 md:px-8 md:pb-64 md:pt-8">
+          <div className="mx-auto w-full max-w-4xl px-4 pb-56 pt-6 md:px-8 md:pb-60 md:pt-9">
             {showMobileBack ? (
               <Button
                 type="button"
@@ -364,7 +385,7 @@ export function InboxDetailPanel({
               </Button>
             ) : null}
 
-            <div className="mb-4 flex justify-center">
+            <div className="mb-5 flex justify-center">
               <div className={INBOX_THEME_CLASSES.detailLocationChip}>
                 <MapPin className="h-3 w-3" strokeWidth={ICON_STROKE} />
                 {row.location.displayName}
@@ -372,8 +393,8 @@ export function InboxDetailPanel({
             </div>
 
             {detailLoading ? (
-              <div className="mb-4 flex justify-center">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/55 bg-white/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+              <div className="mb-5 flex justify-center">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-gbp-blue/28 bg-shell-foreground/82 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gbp-blue">
                   <Loader2 className="h-3 w-3 animate-spin" />
                   Syncing draft history
                 </span>
@@ -388,21 +409,21 @@ export function InboxDetailPanel({
                 animate="visible"
                 exit="exit"
                 transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
-                className="mb-6 flex items-start gap-3"
+                className="mb-7 flex items-start gap-3.5"
               >
                 <ReviewerAvatar name={row.reviewer.displayName} />
                 <div className="min-w-0 max-w-[88%]">
                   <div className="mb-1 flex items-center gap-2">
-                    <span className="text-sm font-black tracking-[-0.01em] text-slate-900">
+                    <span className="text-[15px] font-black tracking-[-0.01em] text-ink-strong">
                       {row.reviewer.displayName ?? "Anonymous"}
                     </span>
-                    <span className="text-[11px] font-semibold text-slate-500">{formatAge(row.createTimeIso)} ago</span>
+                    <span className="text-[12px] font-medium text-ink-muted">{formatAge(row.createTimeIso)} ago</span>
                   </div>
-                  <div className="rounded-[28px] rounded-tl-[14px] border border-white/60 bg-white/78 px-5 py-4 shadow-[0_12px_30px_rgba(15,23,42,0.1)] backdrop-blur-2xl">
+                  <div className="rounded-[28px] rounded-tl-[14px] border border-shell-foreground/68 bg-shell-foreground/84 px-5 py-[18px] shadow-card backdrop-blur-2xl">
                     <div className="mb-2.5">
                       <StarRow rating={row.starRating} />
                     </div>
-                    <p className="text-[15px] font-medium leading-relaxed text-slate-700">
+                    <p className="text-[15px] font-medium leading-relaxed text-ink">
                       {row.comment || "No written comment provided."}
                     </p>
                   </div>
@@ -416,15 +437,15 @@ export function InboxDetailPanel({
                 initial="hidden"
                 animate="visible"
                 transition={{ duration: 0.24, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                className="mb-6 flex items-start justify-end gap-3"
+                className="mb-7 flex items-start justify-end gap-3.5"
               >
                 <div className="min-w-0 max-w-[88%]">
-                  <div className="mb-1 flex items-center justify-end gap-2 text-[11px] font-semibold text-slate-500">
+                  <div className="mb-1 flex items-center justify-end gap-2 text-[11px] font-semibold text-ink-muted">
                     Published reply
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" strokeWidth={ICON_STROKE} />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-success" strokeWidth={ICON_STROKE} />
                   </div>
-                  <div className="rounded-[28px] rounded-tr-[14px] border border-white/65 bg-white/76 px-5 py-4 shadow-[0_12px_30px_rgba(15,23,42,0.1)] backdrop-blur-2xl">
-                    <p className="text-[15px] font-medium leading-relaxed text-slate-700">{row.reply.comment}</p>
+                  <div className="rounded-[28px] rounded-tr-[14px] border border-shell-foreground/68 bg-shell-foreground/84 px-5 py-[18px] shadow-card backdrop-blur-2xl">
+                    <p className="text-[15px] font-medium leading-relaxed text-ink">{row.reply.comment}</p>
                   </div>
                 </div>
                 <AiAvatar />
@@ -437,22 +458,22 @@ export function InboxDetailPanel({
                 initial="hidden"
                 animate="visible"
                 transition={{ duration: 0.24, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                className="mb-6 flex items-start justify-end gap-3"
+                className="mb-7 flex items-start justify-end gap-3.5"
               >
                 <div className="min-w-0 max-w-[88%]">
-                  <div className="mb-1 flex items-center justify-end gap-2 text-[11px] font-black uppercase tracking-[0.13em] text-slate-500">
+                  <div className="mb-1 flex items-center justify-end gap-2 text-[11px] font-semibold uppercase tracking-[0.11em] text-ink-muted">
                     AI Draft
                   </div>
-                  <div className="rounded-[28px] rounded-tr-[14px] border border-white/65 bg-white/78 px-5 py-4 shadow-[0_12px_30px_rgba(15,23,42,0.1)] backdrop-blur-2xl">
+                  <div className="rounded-[28px] rounded-tr-[14px] border border-shell-foreground/68 bg-shell-foreground/84 px-5 py-[18px] shadow-card backdrop-blur-2xl">
                     {busy === "generate" ? (
-                      <div className="flex min-h-[120px] items-center justify-center text-[#007AFF]">
+                      <div className="flex min-h-[120px] items-center justify-center text-gbp-blue">
                         <div className="flex flex-col items-center gap-2">
                           <Loader2 className="h-6 w-6 animate-spin" />
-                          <span className="text-[10px] font-black uppercase tracking-[0.16em]">Generating response</span>
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.12em]">Generating response</span>
                         </div>
                       </div>
                     ) : (
-                      <p className="whitespace-pre-wrap text-[15px] font-medium leading-relaxed text-slate-700">{text}</p>
+                      <p className="whitespace-pre-wrap text-[15px] font-medium leading-relaxed text-ink">{text}</p>
                     )}
                   </div>
                 </div>
@@ -491,7 +512,7 @@ export function InboxDetailPanel({
               <div className={INBOX_THEME_CLASSES.actionIsland}>
                 <div className={INBOX_THEME_CLASSES.islandSuccess}>
                    <CheckCircle2 className="h-5 w-5" strokeWidth={ICON_STROKE} />
-                  <span className="text-sm font-black uppercase tracking-[0.15em]">Published successfully</span>
+                  <span className="text-sm font-black uppercase tracking-[0.12em]">Published successfully</span>
                 </div>
               </div>
             </motion.div>
@@ -504,40 +525,49 @@ export function InboxDetailPanel({
               className={INBOX_THEME_CLASSES.actionIslandWrap}
             >
               <div className={INBOX_THEME_CLASSES.actionIsland}>
-                <div className="relative mb-3">
+                <div className="relative mb-3.5">
                   {showGeneratingGlow ? (
                     <div className="tahoe-intelligence-glow pointer-events-none absolute -inset-1 rounded-[40px] opacity-85 blur-[6px] motion-safe:animate-[spin_3.5s_linear_infinite]" />
                   ) : null}
-                  <div className="relative rounded-[40px] border border-white/25 bg-white/10 p-3">
+                  <div className="relative rounded-[40px] border border-shell-foreground/25 bg-shell-foreground/10 p-3">
                     <Textarea
                       value={text}
                       onChange={(event) => setText(event.target.value)}
                       placeholder="Shape the final response before publishing..."
+                      aria-label="Draft response"
                       disabled={busy === "generate"}
                       rows={3}
-                      className="min-h-[110px] resize-none rounded-[32px] border-none bg-transparent px-2 py-1 text-[16px] font-medium leading-relaxed text-white shadow-none outline-none ring-0 placeholder:text-white/55 focus-visible:ring-0"
+                      className="min-h-[112px] resize-none rounded-[32px] border-none bg-transparent px-2 py-1 text-[15px] font-medium leading-relaxed text-shell-foreground shadow-none outline-none ring-0 placeholder:text-shell-foreground/60 focus-visible:ring-0"
                     />
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <DraftStatusChip status={detail?.currentDraft?.status ?? row.currentDraft?.status ?? row.draftStatus} />
+                  <DraftStatusChip status={currentDraftStatus} />
+
+                  <p className="sr-only" role="status" aria-live="polite">
+                    {saveState === "saving"
+                      ? "Saving draft"
+                      : saveState === "saved"
+                        ? "Draft saved"
+                        : "Draft idle"}
+                  </p>
 
                   {saveState === "saving" ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/80">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-shell-foreground/80">
                       <Loader2 className="h-3 w-3 animate-spin" />
                       Saving
                     </span>
                   ) : null}
 
                   {saveState === "saved" ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-300">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-success-soft">
                       <CheckCircle2 className="h-3 w-3" strokeWidth={ICON_STROKE} />
                       Saved
                     </span>
                   ) : null}
 
-                  <span className="ml-auto text-[10px] font-black uppercase tracking-[0.12em] text-white/70">
+                  <span className="ml-auto text-[11px] font-semibold uppercase tracking-[0.1em] text-shell-foreground/72">
                     {wordCount} {wordCount === 1 ? "word" : "words"}
                   </span>
                 </div>
@@ -545,31 +575,34 @@ export function InboxDetailPanel({
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <ActionButton
                     tooltip="Generate AI draft"
+                    ariaLabel="Generate AI draft"
                     onClick={() =>
                       void runAction("generate", async () => {
                         await onGenerate(row.id)
                       })
                     }
                     disabled={busy !== null}
-                    className="text-[#b5fffc]"
+                    className="text-highlight-cyan"
                   >
                     {busy === "generate" ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={ICON_STROKE} /> : <Sparkles className="h-4 w-4" strokeWidth={ICON_STROKE} />}
                   </ActionButton>
 
                   <ActionButton
-                    tooltip="Tone check"
+                    tooltip={verifyTooltip}
+                    ariaLabel={verifyTooltip}
                     onClick={() =>
                       void runAction("verify", async () => {
                         await onVerify(row.id)
                       })
                     }
-                    disabled={busy !== null || !hasText}
+                    disabled={verifyDisabled}
                   >
                     {busy === "verify" ? <RefreshCw className="h-4 w-4 animate-spin" strokeWidth={ICON_STROKE} /> : <ShieldCheck className="h-4 w-4" strokeWidth={ICON_STROKE} />}
                   </ActionButton>
 
                   <ActionButton
                     tooltip="Save draft"
+                    ariaLabel="Save draft"
                     onClick={() =>
                       void runAction("save", async () => {
                         await onSave(row.id, text)
@@ -580,11 +613,11 @@ export function InboxDetailPanel({
                     {busy === "save" ? <RefreshCw className="h-4 w-4 animate-spin" strokeWidth={ICON_STROKE} /> : <Save className="h-4 w-4" strokeWidth={ICON_STROKE} />}
                   </ActionButton>
 
-                  <ActionButton tooltip="Copy draft" onClick={() => void copyDraft()} disabled={!hasText}>
+                  <ActionButton tooltip="Copy draft" ariaLabel="Copy draft" onClick={() => void copyDraft()} disabled={!hasText}>
                     <Copy className="h-4 w-4" strokeWidth={ICON_STROKE} />
                   </ActionButton>
 
-                  <span className="hidden text-[10px] font-black uppercase tracking-[0.12em] text-white/65 md:inline">
+                  <span className="hidden text-[11px] font-semibold uppercase tracking-[0.1em] text-shell-foreground/70 md:inline">
                     ⌘↵ publish
                   </span>
 

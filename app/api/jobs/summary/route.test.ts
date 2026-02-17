@@ -88,7 +88,7 @@ describe("/api/jobs/summary route", () => {
     const firstJson = (await first.json()) as { summary?: { byType?: Record<string, { pending: number }> } }
     expect(firstJson.summary?.byType?.SYNC_LOCATIONS?.pending).toBe(2)
 
-    vi.setSystemTime(new Date("2026-02-16T12:00:11.000Z"))
+    vi.setSystemTime(new Date("2026-02-16T12:00:46.000Z"))
 
     const second = await GET(
       new Request("http://localhost/api/jobs/summary", {
@@ -101,6 +101,65 @@ describe("/api/jobs/summary route", () => {
     const secondJson = (await second.json()) as { summary?: { byType?: Record<string, { pending: number }> } }
     expect(secondJson.summary?.byType?.SYNC_LOCATIONS?.pending).toBe(2)
     expect(prismaMock.$queryRaw).toHaveBeenCalledTimes(2)
+  })
+
+  it("returns stale immediately and refreshes in background after cache expiry", async () => {
+    type SummaryFixtureRow = {
+      type: "SYNC_LOCATIONS"
+      pending: number
+      running: number
+      retrying: number
+      failed_24h: number
+    }
+
+    let resolveRefresh: (value: SummaryFixtureRow[]) => void = () => undefined
+
+    const pendingRefresh = new Promise<SummaryFixtureRow[]>((resolve) => {
+      resolveRefresh = resolve
+    })
+
+    prismaMock.$queryRaw
+      .mockResolvedValueOnce([
+        {
+          type: "SYNC_LOCATIONS",
+          pending: 3,
+          running: 1,
+          retrying: 0,
+          failed_24h: 0,
+        },
+      ])
+      .mockReturnValueOnce(pendingRefresh)
+
+    const first = await GET(
+      new Request("http://localhost/api/jobs/summary", {
+        headers: { "x-org-id": "org-swr" },
+      }),
+    )
+    expect(first.status).toBe(200)
+    vi.setSystemTime(new Date("2026-02-16T12:00:46.000Z"))
+
+    const second = await GET(
+      new Request("http://localhost/api/jobs/summary", {
+        headers: { "x-org-id": "org-swr" },
+      }),
+    )
+    expect(second.status).toBe(200)
+    expect(second.headers.get("X-Data-Stale")).toBe("1")
+    expect(prismaMock.$queryRaw).toHaveBeenCalledTimes(2)
+
+    const secondJson = (await second.json()) as { summary?: { byType?: Record<string, { pending: number }> } }
+    expect(secondJson.summary?.byType?.SYNC_LOCATIONS?.pending).toBe(3)
+
+    resolveRefresh([
+      {
+        type: "SYNC_LOCATIONS",
+        pending: 4,
+        running: 0,
+        retrying: 0,
+        failed_24h: 0,
+      },
+    ])
+    await Promise.resolve()
   })
 
   it("returns 503 when summary cannot be computed and no stale cache exists", async () => {

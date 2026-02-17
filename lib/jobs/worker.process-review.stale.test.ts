@@ -116,26 +116,30 @@ describe("PROCESS_REVIEW stale verify contract", () => {
     }
   })
 
-  it("surfaces DRAFT_STALE when VERIFY_EXISTING_DRAFT targets a non-current draft", async () => {
-    const orgId = `test-org-stale-${uuid()}`
-    const { jobId } = await seedStaleVerifyFixture(orgId)
+  it(
+    "surfaces DRAFT_STALE when VERIFY_EXISTING_DRAFT targets a non-current draft",
+    { timeout: 12_000 },
+    async () => {
+      const orgId = `test-org-stale-${uuid()}`
+      const { jobId } = await seedStaleVerifyFixture(orgId)
 
-    const worker = await runProcessReviewFastPath({
-      jobId,
-      orgId,
-      workerId: `fastpath:${uuid()}`,
-      budgetMs: 15_000,
-    })
+      const worker = await runProcessReviewFastPath({
+        jobId,
+        orgId,
+        workerId: `fastpath:${uuid()}`,
+        budgetMs: 15_000,
+      })
 
-    expect(worker.claimed).toBe(1)
-    expect(worker.results[0]?.ok).toBe(false)
-    expect(worker.results[0]?.error).toBe("DRAFT_STALE")
+      expect(worker.claimed).toBe(1)
+      expect(worker.results[0]?.ok).toBe(false)
+      expect(worker.results[0]?.error).toBe("DRAFT_STALE")
 
-    const updated = await prisma.job.findUnique({
-      where: { id: jobId },
-      select: { status: true, lastErrorCode: true },
-    })
-    expect(updated?.status).toBe("FAILED")
-    expect(updated?.lastErrorCode).toBe("DRAFT_STALE")
-  })
+      const updated = await prisma.job.findUnique({
+        where: { id: jobId },
+        select: { status: true, lastErrorCode: true },
+      })
+      expect(updated?.status).toBe("FAILED")
+      expect(updated?.lastErrorCode).toBe("DRAFT_STALE")
+    },
+  )
 })

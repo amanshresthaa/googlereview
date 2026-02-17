@@ -116,7 +116,7 @@ export function JobDetailSheet(props: {
 
   return (
     <Sheet open={props.open} onOpenChange={props.onOpenChange}>
-      <SheetContent side="right" className="w-full border-border/60 bg-card/95 sm:max-w-xl">
+      <SheetContent side="right" className="w-full border-shell-foreground/10 bg-shell-foreground/10 sm:max-w-xl">
         <SheetHeader>
           <SheetTitle className="text-base">Job Details</SheetTitle>
           <SheetDescription className="text-xs">
@@ -133,7 +133,7 @@ export function JobDetailSheet(props: {
           <div className="mt-6 text-sm text-destructive">Failed to load job: {error}</div>
         ) : job ? (
           <div className="mt-6 grid gap-3">
-            <Card className="app-pane-card rounded-xl border-border/55 p-4 shadow-card">
+            <Card className="app-pane-card rounded-xl border-shell-foreground/10 p-4 shadow-card">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-xs font-semibold truncate">{job.type}</div>
@@ -146,21 +146,21 @@ export function JobDetailSheet(props: {
 
               <div className="mt-3 grid gap-2 text-[11px] text-muted-foreground sm:grid-cols-2">
                 <div>
-                  <div className="font-semibold text-foreground/80">Attempts</div>
+                  <div className="font-semibold text-shell-foreground/80">Attempts</div>
                   <div className="tabular-nums">{job.attempts} / {job.maxAttempts}</div>
                 </div>
                 <div>
-                  <div className="font-semibold text-foreground/80">Retry After</div>
+                  <div className="font-semibold text-shell-foreground/80">Retry After</div>
                   <div className="tabular-nums">{job.retryAfterSec ?? "—"}</div>
                 </div>
                 <div className="col-span-2">
-                  <div className="font-semibold text-foreground/80">Dedup Key</div>
+                  <div className="font-semibold text-shell-foreground/80">Dedup Key</div>
                   <div className="font-mono break-words">{job.dedupKey ?? "—"}</div>
                 </div>
               </div>
             </Card>
 
-            <Card className="app-pane-card rounded-xl border-border/55 p-4 shadow-card">
+            <Card className="app-pane-card rounded-xl border-shell-foreground/10 p-4 shadow-card">
               <div className="text-xs font-semibold">Timing</div>
               <div className="mt-2 grid gap-2 text-[11px] text-muted-foreground">
                 <div className="flex items-center justify-between gap-2">
@@ -182,13 +182,13 @@ export function JobDetailSheet(props: {
               </div>
             </Card>
 
-            <Card className="app-pane-card rounded-xl border-border/55 p-4 shadow-card">
+            <Card className="app-pane-card rounded-xl border-shell-foreground/10 p-4 shadow-card">
               <div className="text-xs font-semibold">Payload (Allowlisted)</div>
               {job.payload ? <JsonBlock value={job.payload} /> : <div className="mt-2 text-[11px] text-muted-foreground">—</div>}
             </Card>
 
             {job.type === "PROCESS_REVIEW" ? (
-              <Card className="app-pane-card rounded-xl border-border/55 p-4 shadow-card">
+              <Card className="app-pane-card rounded-xl border-shell-foreground/10 p-4 shadow-card">
                 <div className="text-xs font-semibold">DSPy (Latest Run)</div>
                 {job.dspyLatest ? (
                   <div className="mt-2 grid gap-2 text-[11px] text-muted-foreground">
@@ -270,7 +270,7 @@ export function JobDetailSheet(props: {
               </Card>
             ) : null}
 
-            <Card className="app-pane-card rounded-xl border-border/55 p-4 shadow-card">
+            <Card className="app-pane-card rounded-xl border-shell-foreground/10 p-4 shadow-card">
               <div className="text-xs font-semibold">Shortcuts</div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {typeof job.payload?.reviewId === "string" ? (
@@ -303,7 +303,7 @@ export function JobDetailSheet(props: {
               ) : null}
             </Card>
 
-            <Card className="app-pane-card rounded-xl border-border/55 p-4 shadow-card">
+            <Card className="app-pane-card rounded-xl border-shell-foreground/10 p-4 shadow-card">
               <div className="text-xs font-semibold">Last Error</div>
               <div className={cn("mt-2 text-[11px] font-mono break-words", job.lastError ? "text-destructive" : "text-muted-foreground")}>
                 {job.lastError ?? "—"}

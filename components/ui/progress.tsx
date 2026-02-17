@@ -9,8 +9,8 @@ type ProgressVariant = "default" | "success" | "warning" | "error"
 
 const BAR_VARIANT_CLASS: Record<ProgressVariant, string> = {
   default: "bg-primary",
-  success: "bg-emerald-500",
-  warning: "bg-amber-500",
+  success: "bg-success",
+  warning: "bg-warning",
   error: "bg-destructive",
 }
 
@@ -35,7 +35,7 @@ export function Progress({
       aria-valuenow={Math.round(clamped)}
       aria-valuemin={0}
       aria-valuemax={100}
-      className={cn("relative h-2 w-full overflow-hidden rounded-full bg-muted", className)}
+      className={cn("relative h-2 w-full overflow-hidden rounded-full bg-shell-foreground/10", className)}
       {...props}
     >
       <div
@@ -108,7 +108,7 @@ export function CircularProgress({
 
 export function IndeterminateProgress({ className }: { className?: string }) {
   return (
-    <div className={cn("relative h-2 w-full overflow-hidden rounded-full bg-muted", className)}>
+    <div className={cn("relative h-2 w-full overflow-hidden rounded-full bg-shell-foreground/10", className)}>
       <motion.div
         className="absolute h-full w-1/3 bg-primary"
         animate={{ x: ["-100%", "400%"] }}
@@ -122,12 +122,12 @@ export function Skeleton({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("animate-pulse rounded-md bg-muted", className)} {...props} />
+  return <div className={cn("animate-pulse rounded-md bg-shell-foreground/10", className)} {...props} />
 }
 
 export function SkeletonCard() {
   return (
-    <div className="space-y-3 rounded-2xl border border-border/60 bg-card p-4">
+    <div className="app-pane-card space-y-3 rounded-2xl border-shell-foreground/10 p-4">
       <div className="flex items-center gap-3">
         <Skeleton className="h-10 w-10 rounded-full" />
         <div className="flex-1 space-y-2">

@@ -33,7 +33,7 @@ export function EnqueuePanel(props: {
   const [locationId, setLocationId] = React.useState<string>("")
 
   return (
-    <Card className="app-surface-shell rounded-[24px] border-border/55 bg-card/85 p-6 shadow-sm">
+    <Card className="app-surface-shell rounded-[24px] border-shell-foreground/10 bg-shell-foreground/10 p-6 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="app-section-title">Enqueue Jobs</div>
@@ -73,7 +73,7 @@ export function EnqueuePanel(props: {
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Select value={locationId} onValueChange={setLocationId}>
-          <SelectTrigger className="h-11 w-full rounded-xl border-border/55 bg-background font-medium shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20 sm:w-[320px]">
+          <SelectTrigger className="h-11 w-full rounded-xl border-shell-foreground/10 bg-background font-medium shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20 sm:w-[320px]">
             <SelectValue placeholder="Sync one location (optional)" />
           </SelectTrigger>
           <SelectContent className="rounded-xl">
@@ -95,7 +95,7 @@ export function EnqueuePanel(props: {
           <Button
             type="button"
             variant="secondary"
-            className={cn("app-action-secondary h-11 w-full rounded-xl border-border/50 font-bold shadow-sm sm:w-auto", "sm:whitespace-nowrap")}
+            className={cn("app-action-secondary h-11 w-full rounded-xl border-shell-foreground/10 font-bold shadow-sm sm:w-auto", "sm:whitespace-nowrap")}
             onClick={() => {
               if (!locationId) return
               props.onSyncReviewsOne(locationId)

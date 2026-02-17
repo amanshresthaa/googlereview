@@ -11,11 +11,11 @@
 /*
   Design system preset (manual cutover; do not run `shadcn create`):
   - base: radix
-  - style: nova (zinc)
-  - theme: blue
-  - radius: large
+  - style: maia (radix-maia)
+  - theme: amber
+  - radius: medium
   - rtl: false
-  - font: inter (via `next/font/google`, `--font-sans`)
+  - font: geist-mono (via `next/font/google`, `--font-sans`)
 */
 
 /*
@@ -72,6 +72,8 @@
   --color-blue-900: oklch(0.35 0.15 262);
   --color-indigo-50: oklch(0.97 0.02 270);
   --color-indigo-100: oklch(0.93 0.04 270);
+  --color-indigo-400: oklch(0.72 0.16 270);
+  --color-indigo-500: oklch(0.61 0.19 270);
   --color-indigo-600: oklch(0.52 0.22 270);
   --color-purple-50: oklch(0.97 0.02 300);
   --color-purple-100: oklch(0.93 0.04 300);
@@ -88,39 +90,104 @@
   --color-zinc-900: oklch(0.21 0.006 264);
   --color-zinc-950: oklch(0.15 0.004 264);
 
+  /* D1 Conservative Enterprise semantic aliases */
+  --color-shell: hsl(220 16% 96%);
+  --color-shell-elevated: hsl(0 0% 100%);
+  --color-shell-foreground: hsl(218 54% 20%);
+  --color-surface-alt: hsl(0 0% 98%);
+  --color-surface-hover: hsl(220 16% 96%);
+  --color-border-strong: hsl(216 14% 79%);
+  --color-star: hsl(46 100% 50%);
+
+  --color-brand: hsl(216 100% 40%);
+  --color-brand-soft: hsl(216 92% 34%);
+  --color-brand-muted: hsl(216 100% 40%);
+  --color-brand-subtle: hsl(216 100% 94%);
+  --color-brand-foreground: hsl(0 0% 100%);
+
+  --color-success: hsl(160 100% 20%);
+  --color-success-soft: hsl(160 100% 20%);
+  --color-success-foreground: hsl(0 0% 100%);
+
+  --color-warning: hsl(29 85% 32%);
+  --color-warning-soft: hsl(40 100% 24%);
+  --color-warning-foreground: hsl(0 0% 100%);
+
+  --color-info: hsl(216 100% 40%);
+  --color-info-foreground: hsl(0 0% 100%);
+
+  --color-state-pending-fg: hsl(29 85% 32%);
+  --color-state-pending-bg: hsl(35 100% 96%);
+  --color-state-pending-border: hsl(39 100% 77%);
+  --color-state-ready-fg: hsl(160 100% 20%);
+  --color-state-ready-bg: hsl(149 81% 94%);
+  --color-state-ready-border: hsl(151 79% 82%);
+  --color-state-posted-fg: hsl(216 100% 40%);
+  --color-state-posted-bg: hsl(216 100% 94%);
+  --color-state-posted-border: hsl(214 100% 65%);
+  --color-state-error-fg: hsl(12 100% 37%);
+  --color-state-error-bg: hsl(12 100% 95%);
+  --color-state-error-border: hsl(12 100% 73%);
+  --color-state-blocked-fg: hsl(249 49% 39%);
+  --color-state-blocked-bg: hsl(250 100% 95%);
+  --color-state-blocked-border: hsl(249 50% 70%);
+  --color-state-needs-edit-fg: hsl(40 100% 24%);
+  --color-state-needs-edit-bg: hsl(35 100% 96%);
+  --color-state-needs-edit-border: hsl(39 100% 77%);
+
+  /* State aliases used in inbox detail chips */
+  --color-gbp-blue: var(--color-state-posted-fg);
+  --color-gbp-green: var(--color-state-ready-fg);
+  --color-gbp-yellow: var(--color-state-pending-fg);
+  --color-gbp-red: var(--color-state-error-fg);
+  --color-gbp-blue-foreground: var(--color-state-posted-fg);
+  --color-gbp-green-foreground: var(--color-state-ready-fg);
+  --color-gbp-yellow-foreground: var(--color-state-needs-edit-fg);
+  --color-gbp-red-foreground: var(--color-state-error-fg);
+  --color-ink-strong: hsl(218 54% 20%);
+  --color-ink: hsl(218 17% 44%);
+  --color-ink-soft: hsl(218 13% 64%);
+  --color-ink-muted: hsl(218 13% 64%);
+  --color-highlight-cyan: var(--color-brand-subtle);
+
+  /* Public invite gradient aliases */
+  --color-invite-start: var(--color-brand-subtle);
+  --color-invite-mid: hsl(0 0% 98%);
+  --color-invite-end: var(--color-state-ready-bg);
+
   /* Spacing tokens */
   --spacing-safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @layer base {
   :root {
-    /* Modern Minimal (Zinc) */
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* D1 Conservative Enterprise */
+    --background: 220 16% 96%;
+    --foreground: 218 54% 20%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 218 54% 20%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
+    --popover-foreground: 218 54% 20%;
+    --primary: 216 100% 40%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 98%;
+    --secondary-foreground: 218 17% 44%;
+    --muted: 220 16% 96%;
+    --muted-foreground: 218 17% 44%;
+    --accent: 216 100% 94%;
+    --accent-foreground: 216 100% 40%;
+    --destructive: 12 100% 37%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 223 12% 89%;
+    --input: 223 12% 89%;
+    --ring: 216 100% 40%;
     --radius: 0.5rem;
 
     /* Layout & depth */
-    --shadow-glass: 0 0 0 1px rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.04);
-    --shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
-    --shadow-elevated: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --shadow-floating: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-glass: 0 1px 2px rgb(23 43 77 / 0.08);
+    --shadow-card: 0 1px 2px rgb(23 43 77 / 0.08);
+    --shadow-elevated: 0 2px 4px rgb(23 43 77 / 0.08), 0 0 1px rgb(23 43 77 / 0.1);
+    --shadow-floating: 0 4px 8px rgb(23 43 77 / 0.12), 0 1px 2px rgb(23 43 77 / 0.08);
 
     /* App layout */
     --sidebar: var(--card);
@@ -132,47 +199,32 @@
     --shadow-google-sm: var(--shadow-card);
     --shadow-google-md: var(--shadow-elevated);
     --shadow-google-lg: var(--shadow-floating);
-    --shadow-google-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --shadow-google-xl: 0 8px 16px rgb(23 43 77 / 0.12), 0 1px 2px rgb(23 43 77 / 0.08);
 
-    --tahoe-action-blue: #007AFF;
-    --tahoe-glass-l1: rgb(255 255 255 / 0.4);
-    --tahoe-glass-l2: rgb(255 255 255 / 0.2);
-    --tahoe-glass-l3: rgb(255 255 255 / 0.3);
-    --tahoe-glass-l4: rgb(255 255 255 / 0.8);
-    --tahoe-pane-border: rgb(255 255 255 / 0.48);
-  }
-
-  .dark {
-    /* Modern Minimal (Dark Zinc, polished) */
-    --background: 240 10% 6%;
-    --foreground: 0 0% 95%;
-    --card: 240 8% 8%;
-    --card-foreground: 0 0% 95%;
-    --popover: 240 8% 8%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 4% 16%;
-    --secondary-foreground: 0 0% 95%;
-    --muted: 240 4% 14%;
-    --muted-foreground: 240 5% 65%;
-    --accent: 240 4% 14%;
-    --accent-foreground: 0 0% 95%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 0 0% 95%;
-    --border: 240 4% 16%;
-    --input: 240 4% 16%;
-    --ring: 217 91% 60%;
-
-    --shadow-glass: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 2px 8px rgba(0, 0, 0, 0.4);
-    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
-    --shadow-elevated: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
-    --shadow-floating: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
-
-    --sidebar: var(--card);
-    --sidebar-foreground: var(--foreground);
-    --sidebar-muted: var(--muted);
-    --sidebar-border: var(--border);
+    --tahoe-action-blue: var(--color-brand);
+    --tahoe-glass-l1: var(--color-shell-elevated);
+    --tahoe-glass-l2: var(--color-surface-alt);
+    --tahoe-glass-l3: var(--color-brand-subtle);
+    --tahoe-glass-l4: var(--color-shell-elevated);
+    --tahoe-pane-border: hsl(var(--border));
+    --tahoe-pane-border-outer: var(--color-border-strong);
+    --tahoe-text-high: hsl(var(--foreground));
+    --tahoe-text-mid: hsl(var(--muted-foreground));
+    --tahoe-text-low: hsl(218 13% 64%);
+    --tahoe-inset-shadow: inset 0 0 0 1px rgb(23 43 77 / 0.06);
+    --tahoe-canvas-brand: color-mix(in srgb, var(--color-brand) 8%, transparent);
+    --tahoe-canvas-success: color-mix(in srgb, var(--color-success) 8%, transparent);
+    --tahoe-canvas-sheen-start: color-mix(in srgb, var(--color-shell-foreground) 4%, transparent);
+    --tahoe-canvas-sheen-end: transparent;
+    --tahoe-dot-grid: color-mix(in srgb, var(--color-shell-foreground) 8%, transparent);
+    --tahoe-stage-strong-start: var(--color-shell-elevated);
+    --tahoe-stage-strong-end: var(--color-surface-alt);
+    --tahoe-stage-soft-start: var(--color-shell-elevated);
+    --tahoe-stage-soft-end: var(--color-shell);
+    --tahoe-surface-fallback: var(--color-shell-elevated);
+    --tahoe-scrollbar-thumb: color-mix(in srgb, var(--color-shell-foreground) 16%, transparent);
+    --tahoe-shadow-dock-main: rgb(23 43 77 / 0.08);
+    --tahoe-shadow-dock-sub: rgb(23 43 77 / 0.06);
   }
 
   html {
@@ -186,15 +238,17 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-shell text-foreground antialiased;
     font-family:
-      "SF Pro Text",
-      "SF Pro Display",
-      "Inter",
-      "Segoe UI",
-      system-ui,
-      -apple-system,
-      sans-serif;
+      var(--font-sans),
+      ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      Monaco,
+      Consolas,
+      "Liberation Mono",
+      "Courier New",
+      monospace;
     font-feature-settings: "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -217,40 +271,74 @@
 
 @layer utilities {
 
+  .tahoe-level-0 {
+    background: var(--color-shell);
+  }
+
+  .tahoe-level-1,
   .tahoe-pane-l1 {
-    background-color: var(--tahoe-glass-l1);
-    border-color: var(--tahoe-pane-border);
-    -webkit-backdrop-filter: blur(42px);
-    backdrop-filter: blur(42px);
+    border: 1px solid var(--tahoe-pane-border);
+    background: var(--tahoe-glass-l1);
   }
 
+  .tahoe-level-2,
   .tahoe-pane-l2 {
-    background-color: var(--tahoe-glass-l2);
-    border-color: var(--tahoe-pane-border);
-    -webkit-backdrop-filter: blur(24px);
-    backdrop-filter: blur(24px);
+    border: 1px solid var(--tahoe-pane-border-outer);
+    background: var(--tahoe-glass-l2);
+    box-shadow: var(--tahoe-inset-shadow);
   }
 
+  .tahoe-level-3,
   .tahoe-pane-l3 {
-    background-color: var(--tahoe-glass-l3);
+    border: 1px solid color-mix(in srgb, var(--color-brand) 35%, transparent);
+    background: var(--tahoe-glass-l3);
   }
 
   .tahoe-pane-l4 {
-    background-color: var(--tahoe-glass-l4);
-    -webkit-backdrop-filter: blur(30px);
-    backdrop-filter: blur(30px);
+    border: 1px solid var(--tahoe-pane-border);
+    background: var(--tahoe-glass-l4);
+  }
+
+  .tahoe-text-heading {
+    color: var(--tahoe-text-high);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .tahoe-text-body {
+    color: var(--tahoe-text-mid);
+    font-weight: 500;
+    line-height: 1.6;
+  }
+
+  .tahoe-text-label {
+    color: var(--tahoe-text-low);
+    font-size: 0.625rem;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .tahoe-interactive {
+    transition: all 300ms ease-out;
+  }
+
+  .tahoe-interactive:active {
+    transform: scale(0.95);
   }
 
   .tahoe-canvas {
     background-image:
-      radial-gradient(circle at 12% 22%, rgb(255 255 255 / 0.42), transparent 54%),
-      radial-gradient(circle at 86% 10%, rgb(191 219 254 / 0.25), transparent 47%),
-      linear-gradient(165deg, rgb(255 255 255 / 0.15), rgb(255 255 255 / 0.03));
+      radial-gradient(circle at 12% 22%, var(--tahoe-canvas-brand), transparent 54%),
+      radial-gradient(circle at 86% 10%, var(--tahoe-canvas-success), transparent 47%),
+      linear-gradient(165deg, var(--tahoe-canvas-sheen-start), var(--tahoe-canvas-sheen-end));
   }
 
   .tahoe-action-island {
-    -webkit-backdrop-filter: blur(26px);
-    backdrop-filter: blur(26px);
+    border: 1px solid var(--tahoe-pane-border);
+    background: var(--tahoe-glass-l1);
+    box-shadow: var(--shadow-card);
   }
 
   .tahoe-nav-pill {
@@ -272,54 +360,158 @@
   }
 
   .tahoe-intelligence-glow {
-    background-image: conic-gradient(from 0deg, #ffdee9, #b5fffc, #ffdee9);
+    background-image: conic-gradient(
+      from 0deg,
+      color-mix(in srgb, var(--color-brand) 40%, transparent),
+      color-mix(in srgb, var(--color-success) 40%, transparent),
+      color-mix(in srgb, var(--color-brand) 40%, transparent)
+    );
+  }
+
+  .bg-invite-gradient {
+    background-image: linear-gradient(
+      140deg,
+      var(--color-invite-start) 0%,
+      var(--color-invite-mid) 48%,
+      var(--color-invite-end) 100%
+    );
+  }
+
+  .bg-auth-dot-grid {
+    background-image: radial-gradient(var(--tahoe-dot-grid) 0.6px, transparent 0.6px);
+    background-size: 8px 8px;
+  }
+
+  .avatar-gradient-1 {
+    background-image: linear-gradient(to bottom right, var(--color-purple-600), var(--color-indigo-600));
+  }
+
+  .avatar-gradient-2 {
+    background-image: linear-gradient(to bottom right, var(--color-rose-500), var(--color-purple-600));
+  }
+
+  .avatar-gradient-3 {
+    background-image: linear-gradient(to bottom right, var(--color-amber-500), var(--color-warning));
+  }
+
+  .avatar-gradient-4 {
+    background-image: linear-gradient(to bottom right, var(--color-success), var(--color-blue-700));
+  }
+
+  .avatar-gradient-5 {
+    background-image: linear-gradient(to bottom right, var(--color-blue-500), var(--color-info));
+  }
+
+  .avatar-gradient-6 {
+    background-image: linear-gradient(to bottom right, var(--color-blue-400), var(--color-purple-600));
+  }
+
+  .brand-duo-gradient {
+    background-image: linear-gradient(to bottom right, var(--color-brand-soft), var(--color-success));
+  }
+
+  .inbox-detail-stage {
+    background-image: linear-gradient(160deg, var(--tahoe-stage-strong-start), var(--tahoe-stage-strong-end));
+  }
+
+  .inbox-detail-stage-soft {
+    background-image: linear-gradient(160deg, var(--tahoe-stage-soft-start), var(--tahoe-stage-soft-end));
+  }
+
+  .inbox-draft-status-needs-approval {
+    border-color: var(--color-state-pending-border);
+    background-color: var(--color-state-pending-bg);
+    color: var(--color-state-pending-fg);
+  }
+
+  .inbox-draft-status-ready {
+    border-color: var(--color-state-ready-border);
+    background-color: var(--color-state-ready-bg);
+    color: var(--color-state-ready-fg);
+  }
+
+  .inbox-draft-status-blocked {
+    border-color: var(--color-state-blocked-border);
+    background-color: var(--color-state-blocked-bg);
+    color: var(--color-state-blocked-fg);
+  }
+
+  .inbox-draft-status-posted {
+    border-color: var(--color-state-posted-border);
+    background-color: var(--color-state-posted-bg);
+    color: var(--color-state-posted-fg);
+  }
+
+  .inbox-draft-status-error {
+    border-color: var(--color-state-error-border);
+    background-color: var(--color-state-error-bg);
+    color: var(--color-state-error-fg);
   }
 
   .app-surface-shell {
-    border: 1px solid hsl(var(--border) / 0.55);
-    background: hsl(var(--card) / 0.8);
-    box-shadow: var(--shadow-google-sm);
-    border-radius: 1.5rem;
+    border: 1px solid var(--tahoe-pane-border);
+    background: var(--tahoe-glass-l1);
+    box-shadow: var(--shadow-card);
+    border-radius: 0.75rem;
   }
 
   .app-pane-card {
-    border: 1px solid hsl(var(--border) / 0.55);
-    background: hsl(var(--card));
-    border-radius: 1.25rem;
-    box-shadow: var(--shadow-google-sm);
+    border: 1px solid var(--tahoe-pane-border);
+    background: var(--color-surface-alt);
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow-card);
+  }
+
+  .app-input-surface {
+    border: 1px solid var(--color-border-strong);
+    background: var(--tahoe-glass-l2);
+    color: var(--tahoe-text-high);
+    box-shadow: var(--tahoe-inset-shadow);
+  }
+
+  .app-input-surface::placeholder {
+    color: var(--tahoe-text-low);
   }
 
   .app-kicker {
     font-size: 0.625rem;
     line-height: 1;
-    font-weight: 900;
+    font-weight: 700;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: hsl(var(--muted-foreground) / 0.78);
+    color: var(--tahoe-text-low);
   }
 
   .app-section-title {
     font-size: 1.1rem;
     line-height: 1.2;
-    font-weight: 900;
+    font-weight: 800;
     letter-spacing: -0.025em;
-    color: hsl(var(--foreground));
+    color: var(--tahoe-text-high);
   }
 
   .app-field-label {
     font-size: 0.625rem;
     line-height: 1;
-    font-weight: 900;
+    font-weight: 700;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: hsl(var(--muted-foreground) / 0.72);
+    color: var(--tahoe-text-low);
   }
 
   .app-action-primary {
-    border-radius: 0.9rem;
+    border: 1px solid var(--color-brand);
+    background: var(--color-brand);
+    color: var(--color-brand-foreground);
+    border-radius: 0.375rem;
     font-weight: 800;
     letter-spacing: 0.01em;
-    transition: all 300ms;
+    box-shadow: var(--shadow-card);
+    transition: all 120ms ease-out;
+  }
+
+  .app-action-primary:hover {
+    background: var(--color-brand-soft);
   }
 
   .app-action-primary:active {
@@ -327,9 +519,19 @@
   }
 
   .app-action-secondary {
-    border-radius: 0.8rem;
+    border: 1px solid var(--color-border-strong);
+    background: var(--color-shell-elevated);
+    color: var(--tahoe-text-mid);
+    border-radius: 0.375rem;
     font-weight: 700;
-    transition: all 300ms;
+    box-shadow: var(--shadow-card);
+    transition: all 120ms ease-out;
+  }
+
+  .app-action-secondary:hover {
+    background: var(--color-surface-hover);
+    color: var(--tahoe-text-high);
+    border-color: color-mix(in srgb, var(--color-shell-foreground) 22%, transparent);
   }
 
   .app-action-secondary:active {
@@ -337,18 +539,15 @@
   }
 
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .tahoe-level-1,
+    .tahoe-level-2,
     .tahoe-pane-l1,
     .tahoe-pane-l2,
     .tahoe-pane-l4,
-    .tahoe-action-island {
-      background-color: rgb(255 255 255 / 0.88);
-    }
-
-    .dark .tahoe-pane-l1,
-    .dark .tahoe-pane-l2,
-    .dark .tahoe-pane-l4,
-    .dark .tahoe-action-island {
-      background-color: rgb(2 6 23 / 0.8);
+    .tahoe-action-island,
+    .app-surface-shell,
+    .app-pane-card {
+      background-color: var(--tahoe-surface-fallback);
     }
   }
 
@@ -358,23 +557,23 @@
   }
 
   .shadow-glow-primary {
-    box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.5);
+    box-shadow: 0 2px 4px color-mix(in srgb, var(--color-brand) 16%, transparent);
   }
 
   .shadow-glow-emerald {
-    box-shadow: 0 0 20px -5px var(--color-emerald-500);
+    box-shadow: 0 2px 4px color-mix(in srgb, var(--color-success) 16%, transparent);
   }
 
-  .dark .scrollbar-thin {
-    scrollbar-color: oklch(0.4 0 0) transparent;
+  .scrollbar-thin {
+    scrollbar-color: var(--tahoe-scrollbar-thumb) transparent;
   }
 
-  .dark .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: oklch(0.4 0 0);
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--tahoe-scrollbar-thumb);
   }
   
   .shadow-dock {
-    box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.1), 0 4px 16px -2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 8px 32px -4px var(--tahoe-shadow-dock-main), 0 4px 16px -2px var(--tahoe-shadow-dock-sub);
   }
 
   .shadow-card {
@@ -431,12 +630,4 @@
       height: 0;
     }
   }
-}
-
-.dark .scrollbar-thin {
-  scrollbar-color: oklch(0.4 0 0) transparent;
-}
-
-.dark .scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: oklch(0.4 0 0);
 }

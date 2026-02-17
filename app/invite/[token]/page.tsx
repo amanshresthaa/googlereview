@@ -6,8 +6,8 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const { token } = await params
 
   return (
-    <div className="grid min-h-[100dvh] place-items-center bg-[linear-gradient(140deg,#dbe8ff_0%,#f4f7ff_48%,#d8f5f0_100%)] p-4 md:p-6">
-      <Card className="app-surface-shell w-full max-w-md rounded-[28px] border-border/55 shadow-floating">
+    <div className="bg-invite-gradient grid min-h-[100dvh] place-items-center p-4 md:p-6">
+      <Card className="app-surface-shell w-full max-w-md rounded-[28px] border-shell-foreground/10 shadow-floating">
         <CardHeader className="pb-2">
           <p className="app-kicker">Invite</p>
           <CardTitle className="text-xl font-black tracking-tight">Invite Link</CardTitle>

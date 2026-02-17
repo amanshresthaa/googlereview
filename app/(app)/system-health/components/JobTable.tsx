@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { MoreHorizontal } from "@/components/icons"
+import { SkeletonList } from "@/components/ui/progress"
+import { useSmoothLoading } from "@/lib/hooks/useSmoothLoading"
 
 export type JobListItem = {
   id: string
@@ -88,6 +90,8 @@ export function JobTable(props: {
   const [rescheduleJob, setRescheduleJob] = React.useState<JobListItem | null>(null)
   const [rescheduleLocal, setRescheduleLocal] = React.useState<string>("")
 
+  const smoothLoading = useSmoothLoading(props.loading, { delayMs: 120, minDurationMs: 520 })
+
   const openReschedule = (job: JobListItem) => {
     const runAt = safeDate(job.runAtIso)
     const local = runAt ? new Date(runAt.getTime() - runAt.getTimezoneOffset() * 60_000).toISOString().slice(0, 16) : ""
@@ -104,11 +108,22 @@ export function JobTable(props: {
   const nowMs = safeDate(props.nowIso)?.getTime() ?? 0
 
   return (
-    <Card className="app-surface-shell overflow-hidden rounded-[24px] border-border/55 bg-card/90 p-0 shadow-sm">
-      <div className="overflow-auto">
+    <Card className="app-surface-shell relative overflow-hidden rounded-[24px] border-shell-foreground/10 bg-shell-foreground/10 p-0 shadow-sm">
+      {smoothLoading ? (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/75 backdrop-blur-sm">
+          <div className="w-full px-6">
+            <SkeletonList count={props.kind === "backlog" ? 5 : 4} />
+          </div>
+        </div>
+      ) : null}
+
+      <div className={cn("overflow-auto", smoothLoading && "pointer-events-none opacity-60")}
+           aria-busy={smoothLoading}
+           aria-live="polite"
+      >
         <Table>
           <TableHeader>
-            <TableRow className="border-border/55 bg-muted/30 hover:bg-muted/35">
+            <TableRow className="border-shell-foreground/10 bg-muted/30 hover:bg-muted/35">
               {columns.map((c) => (
                 <TableHead key={c} className="whitespace-nowrap py-3 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground">{c}</TableHead>
               ))}
@@ -129,7 +144,7 @@ export function JobTable(props: {
                 const errorLabel = job.lastErrorCode ?? job.lastError ?? null
 
                 return (
-                  <TableRow key={job.id} className="hover:bg-muted/10 border-border/50 transition-colors">
+                  <TableRow key={job.id} className="hover:bg-muted/10 border-shell-foreground/10 transition-colors">
                     <TableCell className="whitespace-nowrap font-mono text-xs font-medium">{job.type}</TableCell>
                     <TableCell className="whitespace-nowrap">
                       <Badge variant="secondary" className="rounded-lg bg-muted/55 px-2 py-0.5 text-[10px] font-black">{job.status}</Badge>
@@ -169,7 +184,7 @@ export function JobTable(props: {
                             <MoreHorizontal className="size-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-xl border-border/60 bg-card/95">
+                        <DropdownMenuContent align="end" className="rounded-xl border-shell-foreground/10 bg-shell-foreground/10">
                           <DropdownMenuItem onClick={() => props.onViewDetails(job.id)}>View details</DropdownMenuItem>
                           <DropdownMenuSeparator />
 
@@ -240,7 +255,7 @@ export function JobTable(props: {
       </div>
 
       <Dialog open={rescheduleOpen} onOpenChange={setRescheduleOpen}>
-          <DialogContent className="rounded-2xl border-border/60 bg-card/95">
+          <DialogContent className="rounded-2xl border-shell-foreground/10 bg-shell-foreground/10">
           <DialogHeader>
             <DialogTitle>Reschedule Job</DialogTitle>
             <DialogDescription className="text-xs">
@@ -253,7 +268,7 @@ export function JobTable(props: {
               type="datetime-local"
               value={rescheduleLocal}
               onChange={(e) => setRescheduleLocal(e.target.value)}
-              className="rounded-xl border-border/55"
+              className="rounded-xl border-shell-foreground/10"
             />
             {rescheduleJob ? (
               <div className="text-[11px] text-muted-foreground font-mono">

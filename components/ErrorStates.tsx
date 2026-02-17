@@ -59,18 +59,18 @@ function DefaultErrorFallback({ error, reset }: { error: Error; reset: () => voi
         className="max-w-md text-center"
       >
         <div className="mb-6 flex justify-center">
-          <div className="app-pane-card grid h-20 w-20 place-items-center rounded-full bg-destructive/10">
+          <div className="grid h-20 w-20 place-items-center rounded-full border border-destructive/20 bg-destructive/10">
             <X className="h-10 w-10 text-destructive" />
           </div>
         </div>
-        <h2 className="mb-2 text-2xl font-black tracking-tight">Something went wrong</h2>
-        <p className="mb-6 text-sm text-muted-foreground">{error.message || "An unexpected error occurred."}</p>
+        <h2 className="mb-2 text-2xl font-black tracking-tight text-shell-foreground/90">Something went wrong</h2>
+        <p className="mb-6 text-sm text-shell-foreground/50">{error.message || "An unexpected error occurred."}</p>
         <div className="flex justify-center gap-3">
-            <Button onClick={reset} variant="outline" className="app-action-secondary rounded-xl border-border/55">
+            <Button onClick={reset} variant="outline" className="rounded-xl bg-shell-foreground/[0.05] border border-shell-foreground/[0.08] text-shell-foreground/70 hover:bg-shell-foreground/[0.08]">
               <RefreshCw className="mr-2 h-4 w-4" />
               Try Again
             </Button>
-            <Button onClick={() => window.location.reload()} className="app-action-primary rounded-xl">Reload</Button>
+            <Button onClick={() => window.location.reload()} className="rounded-xl bg-brand text-brand-foreground hover:bg-brand-soft shadow-lg shadow-brand/20">Reload</Button>
           </div>
         </motion.div>
       </div>
@@ -110,27 +110,27 @@ export function ErrorState({
     >
       <div className="max-w-md text-center">
           <div className="mb-5 flex justify-center">
-            <div className="app-pane-card grid h-16 w-16 place-items-center rounded-full bg-destructive/10">
+            <div className="grid h-16 w-16 place-items-center rounded-full border border-destructive/20 bg-destructive/10">
               <AlertTriangle className="h-8 w-8 text-destructive" />
             </div>
           </div>
-        <h3 className="mb-2 text-xl font-black tracking-tight">{title}</h3>
-        <p className="mb-1 text-sm text-muted-foreground">{description || message}</p>
+        <h3 className="mb-2 text-xl font-black tracking-tight text-shell-foreground/90">{title}</h3>
+        <p className="mb-1 text-sm text-shell-foreground/50">{description || message}</p>
         {isNotFound ? (
-          <p className="mt-2 text-xs text-muted-foreground/70">The review could not be found in this organization.</p>
+          <p className="mt-2 text-xs text-shell-foreground/30">The review could not be found in this organization.</p>
         ) : null}
         {isForbidden ? (
-          <p className="mt-2 text-xs text-muted-foreground/70">You do not have permission for this action.</p>
+          <p className="mt-2 text-xs text-shell-foreground/30">You do not have permission for this action.</p>
         ) : null}
         <div className="mt-6 flex justify-center gap-3">
           {showBackButton ? (
-            <Button variant="outline" onClick={() => window.history.back()} className="app-action-secondary rounded-xl border-border/55">
+            <Button variant="outline" onClick={() => window.history.back()} className="rounded-xl bg-shell-foreground/[0.05] border border-shell-foreground/[0.08] text-shell-foreground/70 hover:bg-shell-foreground/[0.08]">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Go Back
             </Button>
           ) : null}
           {onRetry ? (
-            <Button onClick={onRetry} className="app-action-primary rounded-xl">
+            <Button onClick={onRetry} className="rounded-xl bg-brand text-brand-foreground hover:bg-brand-soft shadow-lg shadow-brand/20">
               <RefreshCw className="mr-2 h-4 w-4" />
               Retry
             </Button>
@@ -150,17 +150,17 @@ function SessionExpiredError() {
     >
       <div className="max-w-md text-center">
           <div className="mb-5 flex justify-center">
-            <div className="app-pane-card grid h-16 w-16 place-items-center rounded-full bg-amber-500/10">
-              <AlertTriangle className="h-8 w-8 text-amber-600" />
+            <div className="grid h-16 w-16 place-items-center rounded-full border border-warning/20 bg-warning/10">
+              <AlertTriangle className="h-8 w-8 text-warning-soft" />
             </div>
           </div>
-        <h3 className="mb-2 text-xl font-black tracking-tight">Session expired</h3>
-        <p className="mb-6 text-sm text-muted-foreground">Please sign in again to continue.</p>
+        <h3 className="mb-2 text-xl font-black tracking-tight text-shell-foreground/90">Session expired</h3>
+        <p className="mb-6 text-sm text-shell-foreground/50">Please sign in again to continue.</p>
         <Button
           onClick={() => {
             window.location.href = "/signin"
           }}
-          className="app-action-primary rounded-xl"
+          className="rounded-xl bg-brand text-brand-foreground hover:bg-brand-soft shadow-lg shadow-brand/20"
         >
           Sign In
         </Button>
@@ -193,13 +193,13 @@ export function EmptyState({
     >
       <div className="max-w-md">
           <div className="mb-5 flex justify-center">
-            <div className="app-pane-card grid h-16 w-16 place-items-center rounded-full bg-muted/40">
-              <Icon className="h-8 w-8 text-muted-foreground/45" />
+            <div className="grid h-16 w-16 place-items-center rounded-full bg-shell-foreground/[0.05] border border-shell-foreground/[0.08]">
+              <Icon className="h-8 w-8 text-shell-foreground/30" />
             </div>
           </div>
-        <h3 className="mb-2 text-xl font-black tracking-tight">{title}</h3>
-        <p className="mb-6 text-sm leading-relaxed text-muted-foreground">{description}</p>
-        {action ? <Button onClick={action.onClick} className="app-action-primary rounded-xl">{action.label}</Button> : null}
+        <h3 className="mb-2 text-xl font-black tracking-tight text-shell-foreground/90">{title}</h3>
+        <p className="mb-6 text-sm leading-relaxed text-shell-foreground/50">{description}</p>
+        {action ? <Button onClick={action.onClick} className="rounded-xl bg-brand text-brand-foreground hover:bg-brand-soft shadow-lg shadow-brand/20">{action.label}</Button> : null}
       </div>
     </motion.div>
   )
@@ -228,8 +228,8 @@ export function LoadingState({
         >
           <RefreshCw className="h-8 w-8 text-primary" />
         </motion.div>
-        <p className="text-sm font-semibold text-foreground">{message}</p>
-        {description ? <p className="mt-1 text-xs text-muted-foreground">{description}</p> : null}
+        <p className="text-sm font-semibold text-shell-foreground/80">{message}</p>
+        {description ? <p className="mt-1 text-xs text-shell-foreground/40">{description}</p> : null}
       </div>
     </motion.div>
   )
@@ -264,13 +264,13 @@ export function NetworkError({ onRetry }: { onRetry: () => void }) {
     >
       <div className="max-w-md text-center">
           <div className="mb-5 flex justify-center">
-            <div className="app-pane-card grid h-16 w-16 place-items-center rounded-full bg-amber-500/10">
-              <AlertTriangle className="h-8 w-8 text-amber-600" />
+            <div className="grid h-16 w-16 place-items-center rounded-full border border-warning/20 bg-warning/10">
+              <AlertTriangle className="h-8 w-8 text-warning-soft" />
             </div>
           </div>
-        <h3 className="mb-2 text-xl font-black tracking-tight">Connection problem</h3>
-        <p className="mb-6 text-sm text-muted-foreground">We could not reach the server. Check your network and retry.</p>
-        <Button onClick={onRetry} className="app-action-primary rounded-xl">
+        <h3 className="mb-2 text-xl font-black tracking-tight text-shell-foreground/90">Connection problem</h3>
+        <p className="mb-6 text-sm text-shell-foreground/50">We could not reach the server. Check your network and retry.</p>
+        <Button onClick={onRetry} className="rounded-xl bg-brand text-brand-foreground hover:bg-brand-soft shadow-lg shadow-brand/20">
           <RefreshCw className="mr-2 h-4 w-4" />
           Retry Connection
         </Button>

@@ -1,49 +1,99 @@
 export const INBOX_THEME_CLASSES = {
   frame:
-    "relative flex h-full min-h-0 overflow-hidden rounded-[34px] border border-white/45 bg-white/40 p-2 shadow-[0_28px_80px_rgba(15,23,42,0.22)] tahoe-pane-l1 md:p-3",
+    "relative flex h-full min-h-0 overflow-hidden bg-shell text-shell-foreground font-sans selection:bg-brand/30",
   workspace:
-    "relative flex min-h-0 flex-1 gap-2 overflow-hidden rounded-[30px] bg-white/10 p-2 tahoe-canvas",
+    "relative flex min-h-0 flex-1 overflow-hidden",
 
-  feedPane: "min-h-0 rounded-[28px] border border-white/45 bg-white/20 tahoe-pane-l2",
+  feedPane:
+    "min-h-0 flex-1 flex flex-col overflow-hidden",
   feedListSection: "relative flex h-full min-h-0 flex-col",
-  feedListInner: "space-y-2 px-2 py-2 md:space-y-3 md:px-3 md:py-3",
-  detailPane: "min-h-0 flex-1 rounded-[28px] border border-white/45 bg-white/30 tahoe-pane-l3",
+  feedListInner: "space-y-4 px-4 py-4 sm:space-y-6 sm:px-6 sm:py-6 lg:px-12 lg:py-8",
+  detailPane:
+    "min-h-0 flex-1 border-l border-shell-foreground/10 bg-shell-foreground/5 backdrop-blur-xl",
 
   headerSection:
-    "rounded-[22px] border border-white/50 bg-white/30 px-3 pb-3 pt-3.5 tahoe-pane-l3 md:px-4 md:pb-3.5 md:pt-4",
+    "relative px-6 py-6 lg:px-12 lg:pt-12 lg:pb-8",
+  headerAccentRail:
+    "hidden",
+  headerPendingPill:
+    "inline-flex min-w-6 items-center justify-center rounded-full border border-shell-foreground/10 bg-shell-foreground/5 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest tabular-nums text-shell-foreground/70",
+  iconButton:
+    "h-10 w-10 rounded-xl border border-shell-foreground/10 bg-shell-foreground/5 text-shell-foreground/70 transition-all duration-300 hover:bg-shell-foreground/10 hover:text-shell-foreground/90 active:scale-95",
   searchInput:
-    "h-11 rounded-2xl border-white/55 bg-white/55 pl-10 text-sm font-medium text-slate-700 placeholder:text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition-all duration-300 focus-visible:border-[#007AFF]/35 focus-visible:ring-2 focus-visible:ring-[#007AFF]/25",
-  segmented: "rounded-2xl border border-white/55 bg-white/35 p-1 backdrop-blur-xl",
-  segmentedButton: "h-8 rounded-xl text-[11px] font-black uppercase tracking-[0.12em]",
+    "h-11 rounded-2xl border-shell-foreground/10 bg-shell-foreground/5 pl-10 text-[14px] font-medium text-shell-foreground/90 placeholder:text-shell-foreground/40 transition-all duration-300 focus-visible:border-brand/40 focus-visible:ring-2 focus-visible:ring-brand/20",
+  segmented: "flex items-center gap-2 overflow-x-auto pb-2",
+  segmentedButton: "whitespace-nowrap rounded-full border px-5 py-2 text-xs font-bold uppercase tracking-wider transition-all",
   segmentedButtonActive:
-    "bg-white/85 text-[#007AFF] shadow-[0_6px_18px_rgba(15,23,42,0.14)]",
-  segmentedButtonIdle: "text-slate-500 hover:bg-white/45 hover:text-slate-800",
+    "border-shell-foreground/15 bg-shell-foreground/10 text-shell-foreground/90",
+  segmentedButtonIdle: "border-shell-foreground/10 bg-shell-foreground/5 text-shell-foreground/70 hover:bg-shell-foreground/10",
 
   statusPending:
-    "rounded-full border border-orange-200/60 bg-orange-100/65 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.11em] text-orange-700",
+    "rounded-full border border-warning/30 bg-warning/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-warning-soft",
   statusReplied:
-    "rounded-full border border-emerald-200/60 bg-emerald-100/65 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.11em] text-emerald-700",
+    "rounded-full border border-success/30 bg-success/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-success-soft",
   draftBadge:
-    "inline-flex items-center gap-1 rounded-full border border-[#007AFF]/30 bg-[#007AFF]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#007AFF]",
+    "inline-flex items-center gap-1 rounded-full border border-brand/30 bg-brand/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-brand-muted",
   quickApproveEnabled:
-    "bg-black/90 text-white hover:bg-black disabled:hover:bg-black/90",
+    "border-brand/35 bg-brand text-brand-foreground shadow-lg shadow-brand/20 hover:bg-brand-soft",
   quickApproveIdle:
-    "bg-white/60 text-slate-500 hover:bg-white/80",
+    "border-shell-foreground/10 bg-shell-foreground/5 text-shell-foreground/70 hover:bg-shell-foreground/10",
 
   detailLocationChip:
-    "inline-flex items-center gap-1.5 rounded-full border border-white/60 bg-white/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#007AFF] tahoe-pane-l3",
+    "inline-flex items-center gap-1.5 rounded-full border border-shell-foreground/10 bg-shell-foreground/5 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-shell-foreground/70",
   detailBackButton:
-    "mb-3 h-9 rounded-full border border-white/60 bg-white/70 px-3 text-[#007AFF] transition-all duration-300 hover:bg-white focus-visible:ring-2 focus-visible:ring-[#007AFF]/30",
+    "mb-4 h-9 rounded-full border border-shell-foreground/10 bg-shell-foreground/5 px-3 text-shell-foreground/70 transition-all duration-300 hover:bg-shell-foreground/10 hover:text-shell-foreground/90",
 
   actionIslandWrap:
     "pointer-events-none absolute inset-x-3 bottom-4 z-30 pb-[calc(env(safe-area-inset-bottom)+2px)] md:inset-x-8",
   actionIsland:
-    "pointer-events-auto rounded-[32px] border border-white/20 bg-black/90 p-3 text-white shadow-[0_24px_50px_rgba(2,6,23,0.5)] tahoe-action-island",
+    "pointer-events-auto rounded-[24px] border border-shell-foreground/10 bg-shell-foreground/5 p-4 text-shell-foreground/90 shadow-2xl backdrop-blur-xl",
   islandSecondary:
-    "h-10 rounded-xl border border-white/15 bg-white/10 px-3 text-xs font-bold text-white/85 transition-all duration-300 hover:bg-white/20 active:scale-95",
+    "h-10 rounded-xl border border-shell-foreground/10 bg-shell-foreground/5 px-3 text-[11px] font-bold uppercase tracking-wider text-shell-foreground/80 transition-all duration-300 hover:bg-shell-foreground/10 active:scale-95",
   islandPrimary:
-    "h-11 rounded-2xl border border-white/20 bg-[#007AFF] px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,122,255,0.4)] transition-all duration-300 hover:bg-[#006ae0] active:scale-[0.97]",
-  islandSuccess: "flex items-center justify-center gap-2 text-emerald-300",
+    "h-11 rounded-2xl bg-brand px-5 text-[13px] font-bold text-brand-foreground shadow-lg shadow-brand/20 transition-all duration-300 hover:bg-brand-soft active:scale-[0.97]",
+  islandSuccess: "flex items-center justify-center gap-2 text-success-soft",
+
+  filterSection:
+    "border-t border-shell-foreground/10 bg-transparent px-6 pb-4 pt-3 lg:px-12",
+  filterToggle:
+    "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[10px] font-bold uppercase tracking-widest transition-all duration-300 active:scale-95",
+  filterToggleActive:
+    "border-brand/30 bg-brand/15 text-brand-muted",
+  filterToggleIdle:
+    "border-shell-foreground/10 bg-shell-foreground/5 text-shell-foreground/70 hover:bg-shell-foreground/10",
+  filterActivePill:
+    "inline-flex h-8 items-center gap-1 rounded-full border border-brand/30 bg-brand/15 px-2.5 text-[10px] font-bold uppercase tracking-widest text-brand-muted",
+  filterSelectTrigger:
+    "h-9 min-w-[110px] rounded-full border-shell-foreground/10 bg-shell-foreground/5 px-3 text-[11px] font-medium text-shell-foreground/70",
+  filterResetButton:
+    "shrink-0 rounded-full border border-shell-foreground/10 bg-shell-foreground/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-shell-foreground/70 transition-all duration-300 hover:bg-shell-foreground/10 hover:text-shell-foreground/90",
+  bulkApproveActive:
+    "h-9 rounded-full border border-brand/35 bg-brand px-4 text-[10px] font-bold uppercase tracking-widest text-brand-foreground shadow-lg shadow-brand/20 transition-all duration-300 hover:bg-brand-soft",
+  bulkApproveIdle:
+    "h-9 rounded-full border border-shell-foreground/10 bg-shell-foreground/5 px-4 text-[10px] font-bold uppercase tracking-widest text-shell-foreground/70 transition-all duration-300 hover:bg-shell-foreground/10",
+
+  listLoadMoreButton:
+    "h-10 w-full rounded-full border border-shell-foreground/10 bg-shell-foreground/5 text-[10px] font-bold uppercase tracking-widest text-shell-foreground/70 transition-all duration-300 hover:bg-shell-foreground/10 hover:text-shell-foreground/90",
+} as const
+
+export const INBOX_PAGE_THEME_CLASSES = {
+  page: "mx-auto w-full max-w-6xl space-y-8 p-4 sm:p-6 lg:p-10",
+  hero: "flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between",
+  heroLead: "flex items-center gap-5",
+  heroIcon:
+    "flex h-14 w-14 items-center justify-center rounded-2xl border border-shell-foreground/10 bg-shell-foreground/5 text-brand-muted shadow-floating",
+  heroTitle:
+    "bg-gradient-to-b from-shell-foreground to-shell-foreground/60 bg-clip-text text-2xl font-black tracking-tight text-transparent md:text-3xl",
+  heroKicker: "text-[10px] font-black uppercase tracking-[0.18em] text-shell-foreground/40",
+  tabList:
+    "inline-flex h-12 w-full items-center justify-start gap-1 overflow-x-auto rounded-2xl border border-shell-foreground/10 bg-shell-foreground/5 p-1.5 sm:w-auto",
+  tabTrigger:
+    "h-9 shrink-0 rounded-xl border border-transparent px-5 text-xs font-black uppercase tracking-[0.14em] text-shell-foreground/70 transition-all data-[state=active]:border-shell-foreground/10 data-[state=active]:bg-shell-foreground/10 data-[state=active]:text-shell-foreground/90 data-[state=active]:shadow-sm",
+  toolbar:
+    "app-surface-shell flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between",
+  metricCard: "app-surface-shell rounded-[24px] p-6",
+  metricLabel: "text-[10px] font-black uppercase tracking-[0.15em] text-shell-foreground/40",
+  metricValue: "mt-2 text-4xl font-black tabular-nums text-shell-foreground/90",
 } as const
 
 export function inboxStatusClass(status: "pending" | "replied") {
@@ -54,4 +104,14 @@ export function inboxSegmentedClass(active: boolean) {
   return active
     ? `${INBOX_THEME_CLASSES.segmentedButton} ${INBOX_THEME_CLASSES.segmentedButtonActive}`
     : `${INBOX_THEME_CLASSES.segmentedButton} ${INBOX_THEME_CLASSES.segmentedButtonIdle}`
+}
+
+export function inboxGoogleDotClass(index: number) {
+  const STATUS_DOT_CLASSES = ["bg-brand", "bg-destructive", "bg-warning", "bg-success"] as const
+  const normalized = ((index % STATUS_DOT_CLASSES.length) + STATUS_DOT_CLASSES.length) % STATUS_DOT_CLASSES.length
+  return STATUS_DOT_CLASSES[normalized]
+}
+
+export function inboxStarClass(filled: boolean) {
+  return filled ? "fill-star text-star" : "fill-shell-foreground/10 text-shell-foreground/10"
 }

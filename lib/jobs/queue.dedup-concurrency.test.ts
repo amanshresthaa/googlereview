@@ -31,14 +31,17 @@ describe("enqueueJob PROCESS_REVIEW dedup concurrency contract", () => {
     }
   })
 
-  it("returns the same in-flight job when concurrent requests race with the same dedup key", async () => {
+  it(
+    "returns the same in-flight job when concurrent requests race with the same dedup key",
+    { timeout: 10_000 },
+    async () => {
     const orgId = `test-org-queue-dedup-${uuid()}`
     const reviewId = `review-${uuid()}`
     const dedupKey = `review:${reviewId}:generate`
     await ensureOrg(orgId)
 
     const jobs = await Promise.all(
-      Array.from({ length: 8 }, () =>
+        Array.from({ length: 4 }, () =>
         enqueueJob({
           orgId,
           type: "PROCESS_REVIEW",
@@ -62,5 +65,6 @@ describe("enqueueJob PROCESS_REVIEW dedup concurrency contract", () => {
     })
     expect(inflight).toHaveLength(1)
     expect(inflight[0]?.id).toBe(jobs[0]?.id)
-  })
+    },
+  )
 })

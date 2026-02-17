@@ -4,6 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { withIdempotencyHeader } from "@/lib/api/client-idempotency"
+import { INBOX_PAGE_THEME_CLASSES } from "@/lib/design-system/inbox-theme"
 import { cn } from "@/lib/utils"
 import {
   CheckCircle2,
@@ -13,6 +14,7 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
+  StarFilled,
   X,
   Zap,
 } from "@/components/icons"
@@ -83,13 +85,13 @@ type SeoLocationProfileWithDspy = SeoLocationProfilePayload & {
 }
 
 const TONE_PRESETS = ["friendly", "professional", "empathetic", "concise", "upbeat"] as const
-const SETTINGS_SURFACE_CARD = "app-surface-shell overflow-hidden rounded-[30px] border-border/55 bg-card/85"
-const SETTINGS_CARD_HEADER = "border-b border-border/50 bg-muted/35 pb-6"
+const SETTINGS_SURFACE_CARD = "app-surface-shell overflow-hidden rounded-[30px]"
+const SETTINGS_CARD_HEADER = "border-b border-shell-foreground/[0.05] bg-shell-foreground/[0.02] pb-6"
 const SETTINGS_CARD_BODY = "space-y-8 p-7 md:p-8"
-const SETTINGS_FIELD_LABEL = "app-field-label px-1"
-const SETTINGS_INPUT = "h-11 rounded-2xl border-border/50 bg-background px-4 font-medium shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20"
-const SETTINGS_PRIMARY_ACTION = "app-action-primary h-12 w-full rounded-2xl bg-primary px-10 font-black text-primary-foreground shadow-glow-primary hover:bg-primary/90 sm:w-auto sm:min-w-[172px]"
-const SETTINGS_SECONDARY_PANEL = "app-pane-card rounded-[24px] bg-muted/25 p-6"
+const SETTINGS_FIELD_LABEL = "text-[10px] font-black uppercase tracking-[0.16em] text-shell-foreground/40 px-1"
+const SETTINGS_INPUT = "h-11 rounded-2xl border-shell-foreground/[0.08] bg-shell-foreground/[0.03] px-4 font-medium text-shell-foreground placeholder:text-shell-foreground/30 shadow-sm focus-visible:ring-2 focus-visible:ring-brand/20"
+const SETTINGS_PRIMARY_ACTION = "h-12 w-full rounded-2xl bg-brand px-10 font-black text-brand-foreground shadow-lg shadow-brand/20 hover:bg-brand-soft sm:w-auto sm:min-w-[172px]"
+const SETTINGS_SECONDARY_PANEL = "backdrop-blur-xl bg-shell-foreground/[0.02] border border-shell-foreground/[0.05] rounded-[24px] p-6"
 
 function isValidKeyword(raw: string) {
   const value = raw.trim().toLowerCase()
@@ -280,19 +282,21 @@ export function SettingsClient({
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 p-4 sm:p-6 lg:p-10">
-      <div className="flex items-center gap-5">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 shadow-sm transition-transform hover:scale-105">
-          <Settings className="size-7 text-primary" />
-        </div>
-        <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">Command Center</h1>
-          <p className="app-kicker">Configure intelligence & automation</p>
+    <div className={INBOX_PAGE_THEME_CLASSES.page}>
+      <div className={INBOX_PAGE_THEME_CLASSES.hero}>
+        <div className={INBOX_PAGE_THEME_CLASSES.heroLead}>
+          <div className={INBOX_PAGE_THEME_CLASSES.heroIcon}>
+            <Settings className="size-7" />
+          </div>
+          <div className="space-y-1">
+            <h1 className={INBOX_PAGE_THEME_CLASSES.heroTitle}>Command Center</h1>
+            <p className={INBOX_PAGE_THEME_CLASSES.heroKicker}>Configure intelligence & automation</p>
+          </div>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-        <TabsList className="inline-flex h-12 w-full max-w-full items-center justify-start gap-1 overflow-x-auto rounded-2xl border border-border/50 bg-muted/35 p-1.5 sm:w-auto">
+        <TabsList className={INBOX_PAGE_THEME_CLASSES.tabList}>
           {[
             { value: "general", label: "General", icon: Globe },
             { value: "automation", label: "Automation", icon: Zap },
@@ -302,7 +306,7 @@ export function SettingsClient({
             <TabsTrigger 
               key={tab.value}
               value={tab.value} 
-              className="h-9 shrink-0 rounded-xl px-5 text-xs font-black uppercase tracking-wider transition-all data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm"
+              className={INBOX_PAGE_THEME_CLASSES.tabTrigger}
             >
               <tab.icon className="mr-2 h-4 w-4" />
               {tab.label}
@@ -349,8 +353,8 @@ export function SettingsClient({
                       className={cn(
                         "rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm",
                         googleConnection.status === "ACTIVE"
-                          ? "bg-emerald-500/10 text-emerald-600 border-none"
-                          : "bg-rose-500/10 text-rose-600 border-none",
+                          ? "bg-success/10 text-success border-none"
+                          : "bg-destructive/10 text-destructive border-none",
                       )}
                     >
                       {googleConnection.status === "ACTIVE" ? (
@@ -364,8 +368,8 @@ export function SettingsClient({
                     </Badge>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-border/55 bg-muted/20 p-10 text-center transition-all hover:bg-muted/30">
-                    <div className="h-16 w-16 rounded-[24px] bg-background shadow-card border border-border/50 flex items-center justify-center mb-6">
+                  <div className="flex flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-shell-foreground/10 bg-muted/20 p-10 text-center transition-all hover:bg-muted/30">
+                    <div className="h-16 w-16 rounded-[24px] bg-background shadow-card border border-shell-foreground/10 flex items-center justify-center mb-6">
                       <Globe className="h-8 w-8 text-muted-foreground/30" />
                     </div>
                     <h3 className="text-lg font-bold text-foreground">No Google Connection</h3>
@@ -424,6 +428,7 @@ export function SettingsClient({
                 >
                   {ratings.map((rating) => {
                     const isActive = selectedRatings.has(rating)
+                    const StarIcon = isActive ? StarFilled : Star
                     return (
                       <ToggleGroupItem
                         key={rating}
@@ -432,11 +437,11 @@ export function SettingsClient({
                           "inline-flex h-12 w-20 items-center justify-center gap-2 rounded-2xl border-2 font-black transition-all",
                           isActive
                             ? "border-primary/30 bg-primary/10 text-primary shadow-sm"
-                            : "border-border/50 bg-background text-muted-foreground hover:bg-muted/50",
+                            : "border-shell-foreground/10 bg-background text-muted-foreground hover:bg-muted/50",
                         )}
                       >
                         {rating}
-                        <Star className="h-4 w-4" weight={isActive ? "fill" : "regular"} />
+                        <StarIcon className="h-4 w-4" />
                       </ToggleGroupItem>
                     )
                   })}
@@ -444,7 +449,7 @@ export function SettingsClient({
               </div>
 
               {showBulkApprove && (
-                <div className={cn(SETTINGS_SECONDARY_PANEL, "border-emerald-500/15 bg-emerald-500/[0.03] sm:flex-row sm:items-center sm:justify-between", "flex flex-col gap-6")}>
+                <div className={cn(SETTINGS_SECONDARY_PANEL, "border-success/15 bg-success/10 sm:flex-row sm:items-center sm:justify-between", "flex flex-col gap-6")}>
                   <div className="space-y-1.5">
                     <Label className="text-base font-bold text-foreground">Instant Bulk Publishing</Label>
                     <p className="text-sm font-medium text-muted-foreground">Enable one-click batch posting for verified 5-star responses.</p>
@@ -454,7 +459,7 @@ export function SettingsClient({
                     onCheckedChange={(value) =>
                       setDraft((prev) => ({ ...prev, bulkApproveEnabledForFiveStar: value }))
                     }
-                    className="data-[state=checked]:bg-emerald-500 shadow-sm"
+                    className="data-[state=checked]:bg-success shadow-sm"
                   />
                 </div>
               )}
@@ -503,7 +508,7 @@ export function SettingsClient({
                 </div>
               </div>
 
-              <div className="flex justify-end border-t border-border/50 pt-4">
+              <div className="flex justify-end border-t border-shell-foreground/10 pt-4">
                 <Button
                   disabled={saving}
                   onClick={() =>
@@ -591,7 +596,7 @@ export function SettingsClient({
                           "h-11 rounded-2xl border-2 px-6 text-xs font-black uppercase tracking-widest transition-all",
                           isActive
                             ? "border-primary/30 bg-primary/10 text-primary shadow-sm"
-                            : "border-border/50 bg-background text-muted-foreground hover:bg-muted/50",
+                            : "border-shell-foreground/10 bg-background text-muted-foreground hover:bg-muted/50",
                         )}
                       >
                         {tone}
@@ -606,7 +611,7 @@ export function SettingsClient({
                   Custom Brand Directives
                 </Label>
                 <Textarea
-                  className="min-h-[140px] resize-none rounded-[24px] border-border/50 bg-muted/25 p-6 text-base font-medium leading-relaxed transition-all shadow-inner focus-visible:ring-2 focus-visible:ring-primary/20"
+                  className="min-h-[140px] resize-none rounded-[24px] border-shell-foreground/10 bg-muted/25 p-6 text-base font-medium leading-relaxed transition-all shadow-inner focus-visible:ring-2 focus-visible:ring-primary/20"
                   value={draft.toneCustomInstructions ?? ""}
                   onChange={(event) =>
                     setDraft((prev) => ({ ...prev, toneCustomInstructions: event.target.value || null }))
@@ -628,7 +633,7 @@ export function SettingsClient({
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <div className="relative flex-1">
                     <Input
-                      className="h-12 rounded-2xl border-border/50 bg-background px-5 font-bold shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                      className="h-12 rounded-2xl border-shell-foreground/10 bg-background px-5 font-bold shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                       value={keywordInput}
                       placeholder="Add trigger word..."
                       onChange={(event) => setKeywordInput(event.target.value)}
@@ -655,7 +660,7 @@ export function SettingsClient({
                       <Badge
                         key={keyword}
                         variant="secondary"
-                        className="group flex items-center gap-2 rounded-full border-border/50 bg-background px-4 py-2 text-xs font-bold shadow-sm transition-all hover:border-primary/30"
+                        className="group flex items-center gap-2 rounded-full border-shell-foreground/10 bg-background px-4 py-2 text-xs font-bold shadow-sm transition-all hover:border-primary/30"
                       >
                         <span className="text-primary/60">#</span>
                         {keyword}
@@ -674,7 +679,7 @@ export function SettingsClient({
                 )}
               </div>
 
-              <div className="flex justify-end border-t border-border/50 pt-4">
+              <div className="flex justify-end border-t border-shell-foreground/10 pt-4">
                 <Button
                   disabled={saving}
                   onClick={() =>

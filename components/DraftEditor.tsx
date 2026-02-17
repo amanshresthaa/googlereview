@@ -188,7 +188,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
             Tone Preset
           </span>
           {isDirty && (
-            <Badge className="rounded-full bg-amber-500/10 text-amber-600 border-none px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+            <Badge className="rounded-full border-none bg-warning/10 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning">
               Unsaved Changes
             </Badge>
           )}
@@ -199,7 +199,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
           onValueChange={(value) => {
             if (value) setTone(value)
           }}
-          className="rounded-xl border border-border/55 bg-muted/35 p-1"
+          className="rounded-xl border border-shell-foreground/10 bg-muted/35 p-1"
         >
           {(["professional", "friendly", "apologetic"] as const).map((option) => (
             <ToggleGroupItem
@@ -220,10 +220,10 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
 
       <div
         className={cn(
-          "app-pane-card relative overflow-hidden rounded-[24px] border bg-card/90 shadow-inner transition-all duration-300",
+          "app-pane-card relative overflow-hidden rounded-[24px] border bg-shell-foreground/10 shadow-inner transition-all duration-300",
           isBlocked
             ? "border-destructive ring-4 ring-destructive/5"
-            : "border-border/50 focus-within:border-primary/30 focus-within:ring-4 focus-within:ring-primary/5",
+            : "border-shell-foreground/10 focus-within:border-primary/30 focus-within:ring-4 focus-within:ring-primary/5",
         )}
       >
         {!hasText && busy !== "generate" && (
@@ -243,7 +243,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
           className="min-h-[260px] resize-none border-0 bg-transparent p-6 text-base font-medium leading-relaxed text-foreground placeholder:text-transparent focus-visible:ring-0"
         />
 
-        <div className="flex flex-col gap-2 border-t border-border/50 bg-muted/20 px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 border-t border-shell-foreground/10 bg-muted/20 px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             {isBlocked ? (
               <span className="inline-flex items-center gap-2 text-xs font-bold text-destructive">
@@ -251,7 +251,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
                 {verifierIssue || "Verification Failed"}
               </span>
             ) : draft?.status === "READY" ? (
-              <span className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600">
+              <span className="inline-flex items-center gap-2 text-xs font-bold text-success">
                 <ShieldCheck className="h-4 w-4" />
                 Verified & Ready
               </span>
@@ -281,7 +281,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
         </div>
       </div>
 
-      <div className="app-pane-card flex flex-wrap items-center justify-between gap-4 rounded-[24px] border-border/55 bg-muted/35 p-4">
+      <div className="app-pane-card flex flex-wrap items-center justify-between gap-4 rounded-[24px] border-shell-foreground/10 bg-muted/35 p-4">
         <div className="flex w-full items-center gap-2 sm:w-auto">
           <Button
             type="button"
@@ -319,7 +319,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
             size="sm"
             onClick={handleVerify}
             disabled={!hasText || Boolean(busy)}
-            className="app-action-secondary h-10 w-full rounded-xl border-border/55 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50 sm:w-auto"
+            className="app-action-secondary h-10 w-full rounded-xl border-shell-foreground/10 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50 sm:w-auto"
           >
             {busy === "verify" ? (
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
@@ -336,7 +336,7 @@ export function DraftEditor({ reviewId, review, refresh }: Props) {
             size="sm"
             onClick={handleSave}
             disabled={!isDirty || Boolean(busy) || !hasText}
-            className="app-action-secondary h-10 w-full rounded-xl border-border/55 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50 sm:w-auto"
+            className="app-action-secondary h-10 w-full rounded-xl border-shell-foreground/10 bg-background px-5 text-xs font-bold shadow-sm transition-all hover:bg-muted/50 sm:w-auto"
           >
             {busy === "save" ? (
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>

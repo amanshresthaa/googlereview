@@ -4,7 +4,6 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
-import { useTheme } from "next-themes"
 
 import { SearchProvider } from "@/components/search-context"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -28,10 +27,8 @@ import {
   LayoutDashboard,
   LogOut,
   MessageSquare,
-  Moon,
   Settings,
   Sparkles,
-  Sun,
 } from "lucide-react"
 import { JobHealthWidget } from "@/components/JobHealthWidget"
 import { REPLYAI_UNANSWERED_COUNT_EVENT } from "@/lib/reviews/count-events"
@@ -167,8 +164,8 @@ function CountBadge({ active, count }: { active: boolean; count: number }) {
       className={cn(
         "rounded-full border px-1.5 py-0 text-[10px] font-black tabular-nums",
         active
-          ? "border-white/50 bg-white text-[#007AFF]"
-          : "border-white/30 bg-[#007AFF] text-white",
+          ? "border-brand-muted/50 bg-brand text-brand-foreground"
+          : "border-brand/30 bg-brand/20 text-brand-muted",
       )}
     >
       {count > 99 ? "99+" : count}
@@ -187,12 +184,6 @@ export function AppShell({
   const unanswered = useUnansweredCountPolling()
   const viewLabel = viewLabelForPath(pathname)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
-  const [mounted, setMounted] = React.useState(false)
-  const { theme, setTheme } = useTheme()
-
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
 
   React.useEffect(() => {
     try {
@@ -218,31 +209,30 @@ export function AppShell({
     { href: "/system-health", label: "System Health", shortLabel: "Health", Icon: BarChart },
   ]
 
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark")
-  }
-
   return (
     <SearchProvider>
       <TooltipProvider delayDuration={220}>
-        <div className="relative flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden bg-[linear-gradient(130deg,#dbe8ff_0%,#f4f7ff_42%,#d8f5f0_100%)] text-slate-900">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(255,255,255,0.95),transparent_48%),radial-gradient(circle_at_85%_20%,rgba(191,219,254,0.45),transparent_45%),radial-gradient(circle_at_70%_80%,rgba(221,250,247,0.65),transparent_42%)]" />
-          <div className="pointer-events-none absolute inset-0 opacity-[0.15] [background-image:radial-gradient(rgba(15,23,42,0.14)_0.6px,transparent_0.6px)] [background-size:8px_8px]" />
+        <div className="relative flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden bg-shell text-shell-foreground">
+          {/* Background orbs */}
+          <div className="pointer-events-none absolute -left-32 -top-32 h-[500px] w-[500px] rounded-full bg-brand/15 blur-[120px]" />
+          <div className="pointer-events-none absolute -bottom-40 -right-40 h-[450px] w-[450px] rounded-full bg-success/10 blur-[120px]" />
+          <div className="pointer-events-none absolute left-1/2 top-1/3 h-[350px] w-[350px] -translate-x-1/2 rounded-full bg-brand/5 blur-[100px]" />
 
+          {/* Desktop sidebar */}
           <aside
             className={cn(
               "relative z-20 hidden h-full p-3 lg:flex",
               sidebarCollapsed ? "w-[94px]" : "w-[290px]",
             )}
           >
-            <div className="tahoe-pane-l1 flex h-full w-full flex-col rounded-[34px] border border-white/55 bg-white/40 shadow-[0_24px_70px_rgba(15,23,42,0.2)]">
-              <div className="flex items-center justify-between border-b border-white/50 px-4 py-4">
+            <div className="flex h-full w-full flex-col rounded-[34px] border border-shell-foreground/[0.08] bg-shell-foreground/[0.03] shadow-floating backdrop-blur-2xl">
+              <div className="flex items-center justify-between border-b border-shell-foreground/[0.08] px-4 py-4">
                 <Link
                   href="/inbox"
                   className={cn("flex items-center", sidebarCollapsed ? "gap-0" : "gap-3")}
                   aria-label="Go to inbox"
                 >
-                    <div className="grid h-11 w-11 place-items-center rounded-2xl border border-white/40 bg-white/70 text-[#007AFF] shadow-[0_10px_22px_rgba(0,122,255,0.25)]">
+                    <div className="brand-duo-gradient grid h-11 w-11 place-items-center rounded-2xl text-brand-foreground shadow-glow-primary">
                      <Sparkles className="h-5 w-5" strokeWidth={ICON_STROKE} />
                   </div>
                   <div
@@ -251,8 +241,8 @@ export function AppShell({
                       sidebarCollapsed ? "max-w-0 opacity-0" : "max-w-[170px] opacity-100",
                     )}
                   >
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Tahoe</p>
-                    <p className="text-lg font-black tracking-[-0.03em] text-slate-900">ReplyAI</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-shell-foreground/40">Tahoe</p>
+                    <p className="text-lg font-black tracking-[-0.03em] text-shell-foreground">ReplyAI</p>
                   </div>
                 </Link>
 
@@ -264,7 +254,7 @@ export function AppShell({
                       size="icon"
                       onClick={() => setSidebarCollapsed((prev) => !prev)}
                       aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                      className="h-8 w-8 rounded-xl text-slate-500 hover:bg-white/70 hover:text-slate-800"
+                      className="h-8 w-8 rounded-xl text-shell-foreground/30 hover:bg-shell-foreground/[0.06] hover:text-shell-foreground/60"
                     >
                        {sidebarCollapsed ? <ChevronRight className="h-4 w-4" strokeWidth={ICON_STROKE} /> : <ChevronLeft className="h-4 w-4" strokeWidth={ICON_STROKE} />}
                     </Button>
@@ -287,11 +277,11 @@ export function AppShell({
                             prefetch={true}
                             aria-current={isActive ? "page" : undefined}
                             className={cn(
-                               "tahoe-nav-pill group flex items-center rounded-2xl border px-3 py-2.5 transition-all duration-300 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/35",
+                               "group flex items-center rounded-2xl border px-3 py-2.5 transition-all duration-300 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/35",
                               sidebarCollapsed ? "justify-center px-0" : "gap-3",
                               isActive
-                                ? "border-white/65 bg-white/80 text-[#007AFF] shadow-[0_14px_28px_rgba(15,23,42,0.12)]"
-                                : "border-transparent bg-white/0 text-slate-600 hover:border-white/50 hover:bg-white/45 hover:text-slate-900",
+                                ? "border-shell-foreground/[0.08] bg-brand/10 text-brand-muted shadow-elevated"
+                                : "border-transparent bg-transparent text-shell-foreground/30 hover:border-shell-foreground/[0.06] hover:bg-shell-foreground/[0.04] hover:text-shell-foreground/60",
                             )}
                           >
                             <item.Icon className={cn("h-5 w-5 shrink-0")} strokeWidth={isActive ? 2.9 : ICON_STROKE} />
@@ -316,10 +306,10 @@ export function AppShell({
                   })}
                 </nav>
 
-                <div className="mt-8 rounded-2xl border border-white/50 bg-white/45 p-3 backdrop-blur-2xl">
+                <div className="mt-8 rounded-2xl border border-shell-foreground/[0.08] bg-shell-foreground/[0.03] p-3 backdrop-blur-2xl">
                   <p
                     className={cn(
-                      "mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 transition-opacity duration-300",
+                      "mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-shell-foreground/30 transition-opacity duration-300",
                       sidebarCollapsed && "opacity-0",
                     )}
                   >
@@ -329,51 +319,38 @@ export function AppShell({
                 </div>
               </ScrollArea>
 
-              <div className="border-t border-white/45 p-3">
+              <div className="border-t border-shell-foreground/[0.08] p-3">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       type="button"
                       variant="ghost"
                       className={cn(
-                        "h-auto w-full rounded-2xl border border-transparent p-2 transition-all duration-300 hover:border-white/55 hover:bg-white/60",
+                        "h-auto w-full rounded-2xl border border-transparent p-2 transition-all duration-300 hover:border-shell-foreground/[0.08] hover:bg-shell-foreground/[0.04]",
                         sidebarCollapsed ? "justify-center" : "flex items-center justify-start gap-3",
                       )}
                       aria-label="User menu"
                     >
-                      <Avatar className="h-10 w-10 shrink-0 border border-white/60 shadow-sm">
+                      <Avatar className="h-10 w-10 shrink-0 border border-shell-foreground/[0.12] shadow-sm">
                         <AvatarImage src={user.image ?? undefined} alt={user.name ?? "User"} />
-                        <AvatarFallback className="bg-white text-xs font-black text-slate-700">
+                        <AvatarFallback className="bg-shell-foreground/[0.06] text-xs font-black text-shell-foreground/70">
                           {initials(user.name)}
                         </AvatarFallback>
                       </Avatar>
                       {!sidebarCollapsed ? (
                         <>
                           <div className="min-w-0 flex-1 text-left">
-                            <p className="truncate text-sm font-black tracking-tight text-slate-900 leading-none">
+                            <p className="truncate text-sm font-black tracking-tight text-shell-foreground leading-none">
                               {user.name ?? "User"}
                             </p>
-                            <p className="mt-1 truncate text-[11px] text-slate-500">{user.email ?? ""}</p>
+                            <p className="mt-1 truncate text-[11px] text-shell-foreground/40">{user.email ?? ""}</p>
                           </div>
-                          <ChevronDown className="h-4 w-4 text-slate-500" strokeWidth={ICON_STROKE} />
+                          <ChevronDown className="h-4 w-4 text-shell-foreground/30" strokeWidth={ICON_STROKE} />
                         </>
                       ) : null}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56 rounded-2xl border-white/60 bg-white/90 backdrop-blur-2xl">
-                    <DropdownMenuItem onSelect={toggleTheme}>
-                      {mounted && theme === "dark" ? (
-                        <>
-                           <Sun className="mr-2 size-4" strokeWidth={ICON_STROKE} />
-                          Light mode
-                        </>
-                      ) : (
-                        <>
-                           <Moon className="mr-2 size-4" strokeWidth={ICON_STROKE} />
-                          Dark mode
-                        </>
-                      )}
-                    </DropdownMenuItem>
+                  <DropdownMenuContent align="end" className="w-56 rounded-2xl border-shell-foreground/[0.1] bg-shell-elevated/95 backdrop-blur-2xl">
                     <DropdownMenuItem
                       onSelect={() => signOut({ callbackUrl: "/signin" })}
                       className="text-destructive focus:bg-destructive/10 focus:text-destructive"
@@ -387,12 +364,13 @@ export function AppShell({
             </div>
           </aside>
 
+          {/* Tablet sidebar */}
           <aside className="relative z-20 hidden h-full w-[92px] p-3 md:flex lg:hidden">
-            <div className="tahoe-pane-l1 flex h-full w-full flex-col items-center rounded-[30px] border border-white/55 bg-white/42 py-4 shadow-[0_18px_52px_rgba(15,23,42,0.18)]">
+            <div className="flex h-full w-full flex-col items-center rounded-[30px] border border-shell-foreground/[0.08] bg-shell-foreground/[0.03] py-4 shadow-floating backdrop-blur-2xl">
               <Link
                 href="/inbox"
                 aria-label="Go to inbox"
-                className="mb-5 grid h-11 w-11 place-items-center rounded-2xl border border-white/45 bg-white/75 text-[#007AFF]"
+                className="brand-duo-gradient mb-5 grid h-11 w-11 place-items-center rounded-2xl text-brand-foreground shadow-glow-primary"
               >
                 <Sparkles className="h-5 w-5" strokeWidth={ICON_STROKE} />
               </Link>
@@ -409,10 +387,10 @@ export function AppShell({
                           prefetch={true}
                           aria-current={isActive ? "page" : undefined}
                           className={cn(
-                             "relative grid h-11 w-11 place-items-center rounded-2xl border transition-all duration-300 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/35",
+                             "relative grid h-11 w-11 place-items-center rounded-2xl border transition-all duration-300 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/35",
                             isActive
-                              ? "border-white/70 bg-white/80 text-[#007AFF] shadow-[0_12px_24px_rgba(15,23,42,0.15)]"
-                              : "border-transparent bg-white/0 text-slate-600 hover:border-white/55 hover:bg-white/55",
+                              ? "border-shell-foreground/[0.08] bg-brand/10 text-brand-muted shadow-elevated"
+                              : "border-transparent bg-transparent text-shell-foreground/30 hover:border-shell-foreground/[0.06] hover:bg-shell-foreground/[0.04] hover:text-shell-foreground/60",
                           )}
                         >
                           <item.Icon className={cn("h-5 w-5")} strokeWidth={isActive ? 2.9 : ICON_STROKE} />
@@ -434,31 +412,18 @@ export function AppShell({
                   <Button
                     type="button"
                     variant="ghost"
-                    className="mt-3 h-11 w-11 rounded-2xl border border-white/45 bg-white/65 p-0"
+                    className="mt-3 h-11 w-11 rounded-2xl border border-shell-foreground/[0.08] bg-shell-foreground/[0.04] p-0"
                     aria-label="User menu"
                   >
-                    <Avatar className="h-9 w-9 border border-white/70">
+                    <Avatar className="h-9 w-9 border border-shell-foreground/[0.12]">
                       <AvatarImage src={user.image ?? undefined} alt={user.name ?? "User"} />
-                      <AvatarFallback className="bg-white text-xs font-black text-slate-700">
+                      <AvatarFallback className="bg-shell-foreground/[0.06] text-xs font-black text-shell-foreground/70">
                         {initials(user.name)}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 rounded-2xl border-white/60 bg-white/90 backdrop-blur-2xl">
-                  <DropdownMenuItem onSelect={toggleTheme}>
-                    {mounted && theme === "dark" ? (
-                      <>
-                         <Sun className="mr-2 size-4" strokeWidth={ICON_STROKE} />
-                        Light mode
-                      </>
-                    ) : (
-                      <>
-                         <Moon className="mr-2 size-4" strokeWidth={ICON_STROKE} />
-                        Dark mode
-                      </>
-                    )}
-                  </DropdownMenuItem>
+                <DropdownMenuContent align="end" className="w-56 rounded-2xl border-shell-foreground/[0.1] bg-shell-elevated/95 backdrop-blur-2xl">
                   <DropdownMenuItem
                     onSelect={() => signOut({ callbackUrl: "/signin" })}
                     className="text-destructive focus:bg-destructive/10 focus:text-destructive"
@@ -471,16 +436,17 @@ export function AppShell({
             </div>
           </aside>
 
+          {/* Main content area */}
           <main className="relative z-10 flex min-h-0 flex-1 flex-col p-2 pb-[5.5rem] md:p-3 md:pb-3">
-            <header className="tahoe-pane-l4 mb-2 flex h-14 shrink-0 items-center justify-between rounded-[24px] border border-white/60 bg-white/78 px-4 shadow-[0_16px_42px_rgba(15,23,42,0.15)] md:h-16 md:px-5">
+            <header className="mb-2 flex h-14 shrink-0 items-center justify-between rounded-[24px] border border-shell-foreground/[0.08] bg-shell-foreground/[0.03] px-4 shadow-elevated backdrop-blur-2xl md:h-16 md:px-5">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Tahoe Engine v1.0</p>
-                  <h1 className="truncate text-lg font-black tracking-[-0.03em] text-slate-900 md:text-2xl">{viewLabel}</h1>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-shell-foreground/30">Tahoe Engine v1.0</p>
+                  <h1 className="truncate text-lg font-black tracking-[-0.03em] text-shell-foreground md:text-2xl">{viewLabel}</h1>
                 </div>
-                <div className="hidden h-8 w-px bg-white/70 md:block" />
-                <div className="hidden items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 md:flex">
-                   <Globe className="h-3.5 w-3.5 text-[#007AFF]" strokeWidth={ICON_STROKE} />
+                <div className="hidden h-8 w-px bg-shell-foreground/[0.1] md:block" />
+                <div className="hidden items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-shell-foreground/30 md:flex">
+                   <Globe className="h-3.5 w-3.5 text-brand-muted" strokeWidth={ICON_STROKE} />
                   Google Business Profile
                 </div>
               </div>
@@ -490,33 +456,24 @@ export function AppShell({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="relative h-10 w-10 rounded-2xl border border-white/60 bg-white/65 text-slate-600 transition-all duration-300 hover:bg-white"
+                  className="relative h-10 w-10 rounded-2xl border border-shell-foreground/[0.08] bg-shell-foreground/[0.04] text-shell-foreground/50 transition-all duration-300 hover:bg-shell-foreground/[0.08] hover:text-shell-foreground/70"
                   aria-label="Notifications"
                 >
                   <Bell className="h-5 w-5" strokeWidth={ICON_STROKE} />
-                  <span className="absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full bg-[#007AFF] shadow-[0_0_0_2px_rgba(255,255,255,0.95)]" />
+                  <span className="absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full bg-brand ring-2 ring-shell/95" />
                 </Button>
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleTheme}
-                  className="h-10 w-10 rounded-2xl border border-white/60 bg-white/65 text-slate-600 transition-all duration-300 hover:bg-white"
-                  aria-label="Toggle theme"
-                >
-                  {mounted && theme === "dark" ? <Sun className="h-5 w-5" strokeWidth={ICON_STROKE} /> : <Moon className="h-5 w-5" strokeWidth={ICON_STROKE} />}
-                </Button>
               </div>
             </header>
 
-            <div className="tahoe-pane-l2 min-h-0 flex-1 overflow-hidden rounded-[26px] border border-white/55 bg-white/32 shadow-[0_20px_56px_rgba(15,23,42,0.14)]">
+            <div className="min-h-0 flex-1 overflow-hidden rounded-[26px] border border-shell-foreground/[0.08] bg-shell-foreground/[0.02] shadow-floating backdrop-blur-xl">
               <div className="h-full overflow-x-hidden overflow-y-auto">{children}</div>
             </div>
           </main>
 
+          {/* Mobile bottom nav */}
           <nav
-            className="tahoe-pane-l4 fixed inset-x-3 bottom-3 z-50 flex h-[72px] items-center justify-around rounded-[30px] border border-white/60 bg-white/80 px-2 shadow-[0_20px_48px_rgba(15,23,42,0.24)] md:hidden"
+            className="fixed inset-x-3 bottom-3 z-50 flex h-[72px] items-center justify-around rounded-[30px] border-t border-shell-foreground/10 bg-shell/80 px-2 shadow-floating backdrop-blur-2xl md:hidden"
             aria-label="Mobile navigation"
           >
             {items.map((item) => {
@@ -530,8 +487,8 @@ export function AppShell({
                   prefetch={true}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                     "relative flex h-full flex-1 flex-col items-center justify-center gap-1 rounded-2xl transition-all duration-300 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/35",
-                    isActive ? "bg-white/85 text-[#007AFF]" : "text-slate-500",
+                     "relative flex h-full flex-1 flex-col items-center justify-center gap-1 rounded-2xl transition-all duration-300 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/35",
+                    isActive ? "bg-brand/10 text-brand-muted" : "text-shell-foreground/30",
                   )}
                 >
                   <div className="relative">

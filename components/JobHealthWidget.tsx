@@ -84,8 +84,8 @@ export function JobHealthWidget({ compact = false }: { compact?: boolean }) {
               <Loader2 className="size-3 text-primary animate-spin" />
             </div>
           ) : (
-            <div className="size-6 rounded-md bg-emerald-500/10 grid place-items-center shrink-0">
-              <CheckCircle2 className="size-3 text-emerald-500" />
+            <div className="size-6 rounded-md bg-success/10 grid place-items-center shrink-0">
+              <CheckCircle2 className="size-3 text-success" />
             </div>
           )}
           <div className="flex-1 min-w-0">
@@ -95,7 +95,7 @@ export function JobHealthWidget({ compact = false }: { compact?: boolean }) {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-lg rounded-2xl border-border/60 bg-card/95">
+      <DialogContent className="max-w-lg rounded-2xl border-shell-foreground/10 bg-shell-foreground/10">
         <DialogHeader>
           <DialogTitle className="text-base">System Health</DialogTitle>
           <DialogDescription className="text-xs">
@@ -113,22 +113,22 @@ export function JobHealthWidget({ compact = false }: { compact?: boolean }) {
         ) : null}
 
         <div className={cn("grid gap-3", aiQuality ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2")}>
-          <Card className="app-pane-card rounded-xl border-border/55 p-4 shadow-card">
+          <Card className="app-pane-card rounded-xl border-shell-foreground/10 p-4 shadow-card">
             <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Backlog</div>
             <div className="mt-1.5 text-2xl font-bold tabular-nums">{backlog}</div>
           </Card>
-          <Card className="app-pane-card rounded-xl border-border/55 p-4 shadow-card">
+          <Card className="app-pane-card rounded-xl border-shell-foreground/10 p-4 shadow-card">
             <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Failed (24h)</div>
             <div className={cn("mt-1.5 text-2xl font-bold tabular-nums", failed24h > 0 && "text-destructive")}>{failed24h}</div>
           </Card>
           {aiQuality ? (
-            <Card className="app-pane-card rounded-xl border-border/55 p-4 shadow-card">
+            <Card className="app-pane-card rounded-xl border-shell-foreground/10 p-4 shadow-card">
               <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">SEO Coverage</div>
               <div className="mt-1.5 text-2xl font-bold tabular-nums">{(aiQuality.avgKeywordCoverage * 100).toFixed(0)}%</div>
             </Card>
           ) : null}
           {aiQuality ? (
-            <Card className="app-pane-card rounded-xl border-border/55 p-4 shadow-card">
+            <Card className="app-pane-card rounded-xl border-shell-foreground/10 p-4 shadow-card">
               <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Stuffing Risk</div>
               <div className={cn("mt-1.5 text-2xl font-bold tabular-nums", aiQuality.stuffingRisk > 0 && "text-destructive")}>
                 {(aiQuality.stuffingRiskRate * 100).toFixed(1)}%
@@ -147,7 +147,7 @@ export function JobHealthWidget({ compact = false }: { compact?: boolean }) {
             <div className="text-xs font-semibold">Recent Failures</div>
             <div className="max-h-[250px] overflow-auto scrollbar-thin space-y-1.5">
               {effectiveSummary.recentFailures.slice(0, 8).map((f) => (
-                <Card key={f.id} className="app-pane-card rounded-lg border-border/55 p-3 shadow-card">
+                <Card key={f.id} className="app-pane-card rounded-lg border-shell-foreground/10 p-3 shadow-card">
                   <div className="flex items-center justify-between gap-2">
                     <Badge variant="secondary" className="rounded-md text-[10px] h-5 px-1.5">{f.type}</Badge>
                     <span className="text-[9px] text-muted-foreground font-mono truncate max-w-[120px]">{f.id}</span>
@@ -163,13 +163,13 @@ export function JobHealthWidget({ compact = false }: { compact?: boolean }) {
           </div>
         ) : (
           <div className="rounded-xl border-2 border-dashed border-muted p-6 text-center">
-            <CheckCircle2 className="size-5 text-emerald-500 mx-auto mb-1.5" />
+            <CheckCircle2 className="size-5 text-success mx-auto mb-1.5" />
             <p className="text-xs text-muted-foreground">No failures recorded</p>
           </div>
         )}
 
         <div className="flex justify-end">
-          <Button asChild variant="secondary" className="app-action-secondary rounded-lg border-border/55">
+          <Button asChild variant="secondary" className="app-action-secondary rounded-lg border-shell-foreground/10">
             <Link href="/system-health">
               <ExternalLink className="size-4" />
               <span className="ml-2">View details</span>

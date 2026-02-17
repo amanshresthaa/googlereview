@@ -6,12 +6,8 @@ import { toast } from "sonner"
 
 import { ErrorBoundary, ErrorState } from "@/components/ErrorStates"
 import { NotificationProvider, useNotifications } from "@/components/NotificationCenter"
-import { INBOX_THEME_CLASSES } from "@/lib/design-system/inbox-theme"
-import { usePaginatedReviews, useReviewDetail, type ReviewFilter, type ReviewRow } from "@/lib/hooks"
-import { useMediaQuery } from "@/lib/hooks/useMediaQuery"
-import { cn } from "@/lib/utils"
+import { usePaginatedReviews, type ReviewFilter, type ReviewRow } from "@/lib/hooks"
 
-import { InboxDetailPanel } from "./components/InboxDetailPanel"
 import { InboxFilterBar } from "./components/InboxFilterBar"
 import { InboxHeader, type InboxTab } from "./components/InboxHeader"
 import { InboxReviewList } from "./components/InboxReviewList"
@@ -81,7 +77,6 @@ export default function InboxClient({ ssrBootstrap }: InboxClientProps) {
 
 function InboxClientBody({ ssrBootstrap }: InboxClientProps) {
   const searchParams = useSearchParams()
-  const isTabletUp = useMediaQuery("(min-width: 768px)")
   const { addNotification } = useNotifications()
 
   const initialParams = React.useMemo(() => {
@@ -188,8 +183,6 @@ function InboxClientBody({ ssrBootstrap }: InboxClientProps) {
     initialPage: bootstrap?.initialPage ?? null,
   })
 
-  const { review: activeDetail, loading: detailLoading, error: detailError, refresh: refreshDetail } = useReviewDetail(activeReviewId)
-
   const handleQueuedJob = React.useCallback(
     (event: { jobId: string; reviewId: string; operation: "generate" | "verify" | "publish" }) => {
       const title =
@@ -225,33 +218,29 @@ function InboxClientBody({ ssrBootstrap }: InboxClientProps) {
   const handleGenerate = React.useCallback(
     async (reviewId: string) => {
       await generateDraft(reviewId)
-      if (reviewId === activeReviewId) refreshDetail()
     },
-    [activeReviewId, generateDraft, refreshDetail],
+    [generateDraft],
   )
 
   const handleSave = React.useCallback(
     async (reviewId: string, text: string, options?: { silent?: boolean }) => {
       await saveDraft(reviewId, text, options)
-      if (reviewId === activeReviewId) refreshDetail()
     },
-    [activeReviewId, refreshDetail, saveDraft],
+    [saveDraft],
   )
 
   const handleVerify = React.useCallback(
     async (reviewId: string) => {
       await verifyDraft(reviewId)
-      if (reviewId === activeReviewId) refreshDetail()
     },
-    [activeReviewId, refreshDetail, verifyDraft],
+    [verifyDraft],
   )
 
   const handlePublish = React.useCallback(
     async (reviewId: string, text: string, row: ReviewRow) => {
       await publishReply(reviewId, text, row)
-      if (reviewId === activeReviewId) refreshDetail()
     },
-    [activeReviewId, publishReply, refreshDetail],
+    [publishReply],
   )
 
   React.useEffect(() => {
@@ -263,26 +252,10 @@ function InboxClientBody({ ssrBootstrap }: InboxClientProps) {
     toast.error(error === "SESSION_EXPIRED" ? "Session expired. Please sign in again." : error)
   }, [error])
 
-  React.useEffect(() => {
-    if (!activeReviewId) return
-    if (!rows.some((row) => row.id === activeReviewId)) {
-      setActiveReviewId(null)
-    }
-  }, [activeReviewId, rows])
-
-  React.useEffect(() => {
-    if (!detailError) return
-    toast.error(detailError === "SESSION_EXPIRED" ? "Session expired. Please sign in again." : detailError)
-  }, [detailError])
-
-  React.useEffect(() => {
-    if (!isTabletUp) return
-    if (activeReviewId || rows.length === 0 || loading) return
-    setActiveReviewId(rows[0].id)
-  }, [activeReviewId, isTabletUp, loading, rows])
-
-  const activeRow = React.useMemo(() => rows.find((row) => row.id === activeReviewId) ?? null, [rows, activeReviewId])
-  const pendingCount = counts?.unanswered ?? rows.filter((row) => row.status === "pending").length
+  const pendingCount = React.useMemo(
+    () => counts?.unanswered ?? rows.filter((row) => row.status === "pending").length,
+    [counts?.unanswered, rows],
+  )
   const eligibleBulkRows = React.useMemo(() => rows.filter((row) => canBulkApprove(row)), [rows])
 
   const activeFiltersCount =
@@ -302,8 +275,12 @@ function InboxClientBody({ ssrBootstrap }: InboxClientProps) {
   }, [mentionKeywords])
 
   const openReview = React.useCallback((reviewId: string) => {
-    setActiveReviewId(reviewId)
+    setActiveReviewId((prev) => (prev === reviewId ? null : reviewId))
   }, [])
+
+  const handleRefresh = React.useCallback(() => {
+    void refresh()
+  }, [refresh])
 
   const handleQuickApprove = React.useCallback(
     async (reviewId: string) => {
@@ -375,100 +352,64 @@ function InboxClientBody({ ssrBootstrap }: InboxClientProps) {
     [activeTab, mentionKeywords.length],
   )
 
-  const showFeedPane = isTabletUp || !activeReviewId
-  const showInlineDetailPane = isTabletUp
-  const showMobileDetailOverlay = !isTabletUp && Boolean(activeReviewId)
+  const isFeedLoading = loading || bootstrapLoading
 
   return (
-    <>
-      <div className={INBOX_THEME_CLASSES.frame}>
-        <div className={INBOX_THEME_CLASSES.workspace}>
-          <aside
-            className={cn(
-              `${INBOX_THEME_CLASSES.feedPane} w-full md:w-[42%] md:min-w-[340px] md:max-w-[420px] lg:min-w-[380px] lg:max-w-[460px]`,
-              !showFeedPane && "hidden",
-            )}
-          >
-            <div className="flex h-full min-h-0 flex-col">
-              <InboxHeader
-                pendingCount={pendingCount}
-                tab={activeTab}
-                onTabChange={setActiveTab}
-                search={search}
-                onSearchChange={setSearch}
-                refreshing={loading || bootstrapLoading}
-                onRefresh={() => void refresh()}
-              />
+    <div className="relative min-h-full bg-shell text-shell-foreground font-sans selection:bg-brand/30">
+      {/* Background Orbs */}
+      <div className="fixed top-[-10%] left-[-10%] h-[40%] w-[40%] rounded-full bg-brand/10 blur-[120px] pointer-events-none" />
+      <div className="fixed bottom-[-10%] right-[-10%] h-[40%] w-[40%] rounded-full bg-success/5 blur-[120px] pointer-events-none" />
 
-              <InboxFilterBar
-                filter={baseFilter}
-                onFilterChange={handleFilterChange}
-                mentionFilter={mentionFilter}
-                onMentionFilterChange={setMentionFilter}
-                mentionKeywords={mentionKeywords}
-                locationFilter={locationFilter}
-                onLocationFilterChange={setLocationFilter}
-                locations={bootstrap?.locations ?? []}
-                ratingFilter={ratingFilter}
-                onRatingFilterChange={setRatingFilter}
-                activeFiltersCount={activeFiltersCount}
-                onReset={clearFilters}
-                onBulkApprove={handleBulkApprove}
-                bulkApproveCount={eligibleBulkRows.length}
-                bulkApproveLoading={bulkApproveLoading}
-                bulkApproveEnabled={Boolean(bootstrap?.bulkApproveEnabled)}
-              />
+      <main className="relative z-10 flex flex-col min-h-full max-w-4xl mx-auto w-full">
+        <InboxHeader
+          pendingCount={pendingCount}
+          tab={activeTab}
+          onTabChange={setActiveTab}
+          refreshing={isFeedLoading}
+          onRefresh={handleRefresh}
+        />
 
-              <div className="min-h-0 flex-1">
-                <InboxReviewList
-                  rows={rows}
-                  activeReviewId={activeReviewId}
-                  loading={loading || bootstrapLoading}
-                  error={error}
-                  hasMore={hasMore}
-                  loadingMore={loadingMore}
-                  showQuickApprove
-                  quickApproveLoadingId={quickApproveLoadingId}
-                  onOpenReview={openReview}
-                  onQuickApprove={handleQuickApprove}
-                  onLoadMore={loadMore}
-                  onRetry={() => void refresh()}
-                />
-              </div>
-            </div>
-          </aside>
+        <InboxFilterBar
+          filter={baseFilter}
+          onFilterChange={handleFilterChange}
+          mentionFilter={mentionFilter}
+          onMentionFilterChange={setMentionFilter}
+          mentionKeywords={mentionKeywords}
+          locationFilter={locationFilter}
+          onLocationFilterChange={setLocationFilter}
+          locations={bootstrap?.locations ?? []}
+          ratingFilter={ratingFilter}
+          onRatingFilterChange={setRatingFilter}
+          activeFiltersCount={activeFiltersCount}
+          onReset={clearFilters}
+          onBulkApprove={handleBulkApprove}
+          bulkApproveCount={eligibleBulkRows.length}
+          bulkApproveLoading={bulkApproveLoading}
+          bulkApproveEnabled={Boolean(bootstrap?.bulkApproveEnabled)}
+        />
 
-          {showInlineDetailPane ? (
-            <main className={cn(INBOX_THEME_CLASSES.detailPane, "animate-in fade-in slide-in-from-right-8 duration-500")}>
-              <InboxDetailPanel
-                row={activeRow}
-                detail={activeDetail}
-                detailLoading={detailLoading}
-                onGenerate={handleGenerate}
-                onSave={handleSave}
-                onVerify={handleVerify}
-                onPublish={handlePublish}
-              />
-            </main>
-          ) : null}
-        </div>
-      </div>
-
-      {showMobileDetailOverlay ? (
-        <div className="fixed inset-0 z-[80] bg-[linear-gradient(140deg,#dbe8ff_0%,#f4f7ff_50%,#d8f5f0_100%)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-8 md:hidden">
-          <InboxDetailPanel
-            row={activeRow}
-            detail={activeDetail}
-            detailLoading={detailLoading}
-            showMobileBack
-            onBack={() => setActiveReviewId(null)}
-            onGenerate={handleGenerate}
-            onSave={handleSave}
-            onVerify={handleVerify}
-            onPublish={handlePublish}
+        <div className="flex-1 pb-24">
+          <InboxReviewList
+            activeTab={activeTab}
+            rows={rows}
+            activeReviewId={activeReviewId}
+            loading={isFeedLoading}
+            error={error}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            showQuickApprove
+            quickApproveLoadingId={quickApproveLoadingId}
+            onOpenReview={openReview}
+            onQuickApprove={handleQuickApprove}
+            onGenerateDraft={handleGenerate}
+            onSaveDraft={handleSave}
+            onVerifyDraft={handleVerify}
+            onPublishReply={handlePublish}
+            onLoadMore={loadMore}
+            onRetry={handleRefresh}
           />
         </div>
-      ) : null}
-    </>
+      </main>
+    </div>
   )
 }

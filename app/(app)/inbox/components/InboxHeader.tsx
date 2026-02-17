@@ -4,12 +4,10 @@ import { motion } from "framer-motion"
 
 import { NotificationCenter } from "@/components/NotificationCenter"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { RefreshCw, Search, Sparkles } from "lucide-react"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { RefreshCw } from "lucide-react"
 import { INBOX_THEME_CLASSES, inboxSegmentedClass } from "@/lib/design-system/inbox-theme"
 import { cn } from "@/lib/utils"
-
-const ICON_STROKE = 2.6
 
 export type InboxTab = "pending" | "replied" | "all"
 
@@ -17,8 +15,6 @@ type InboxHeaderProps = {
   pendingCount: number
   tab: InboxTab
   onTabChange: (value: InboxTab) => void
-  search: string
-  onSearchChange: (value: string) => void
   refreshing: boolean
   onRefresh: () => void
 }
@@ -29,12 +25,12 @@ const TAB_OPTIONS: Array<{ value: InboxTab; label: string }> = [
   { value: "all", label: "All" },
 ]
 
+const TABLIST_ID = "inbox-tablist"
+
 export function InboxHeader({
   pendingCount,
   tab,
   onTabChange,
-  search,
-  onSearchChange,
   refreshing,
   onRefresh,
 }: InboxHeaderProps) {
@@ -45,65 +41,61 @@ export function InboxHeader({
       transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
       className={INBOX_THEME_CLASSES.headerSection}
     >
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Tahoe Inbox</p>
-          <div className="flex items-center gap-2.5">
-            <h2 className="truncate text-3xl font-black tracking-[-0.04em] text-slate-900">Reviews</h2>
-            {pendingCount > 0 ? (
-              <span className="inline-flex min-w-6 items-center justify-center rounded-full border border-white/55 bg-white/75 px-2 py-0.5 text-[10px] font-black tabular-nums text-[#007AFF]">
-                {pendingCount}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="bg-gradient-to-b from-shell-foreground to-shell-foreground/60 bg-clip-text text-3xl font-black tracking-tight text-transparent lg:text-4xl">
+            Reviews
+          </h2>
+          <p className="text-sm text-shell-foreground/40 mt-1 font-medium">
+            Manage your reputation
+            {pendingCount > 0 && (
+              <span className="ml-2 text-shell-foreground/60">
+                • {pendingCount} pending
               </span>
-            ) : null}
-          </div>
+            )}
+          </p>
         </div>
-
-        <div className="flex items-center gap-1.5">
-          <NotificationCenter className="h-10 w-10 rounded-2xl border-white/60 bg-white/75 backdrop-blur-xl" />
+        <div className="flex items-center gap-2">
+          <NotificationCenter className={INBOX_THEME_CLASSES.iconButton} />
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="h-10 w-10 rounded-2xl border border-white/60 bg-white/75 text-slate-600 transition-all duration-300 hover:bg-white hover:text-[#007AFF]"
+            className={INBOX_THEME_CLASSES.iconButton}
             onClick={onRefresh}
             aria-label="Refresh inbox"
           >
-            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} strokeWidth={ICON_STROKE} />
+            <RefreshCw className={cn("h-4 w-4 text-shell-foreground/60", refreshing && "animate-spin")} />
           </Button>
         </div>
       </div>
 
-      <div className="relative mb-3">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" strokeWidth={ICON_STROKE} />
-        <Input
-          type="search"
-          placeholder="Search reviewer, content, or location"
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-          className={INBOX_THEME_CLASSES.searchInput}
-          aria-label="Search inbox reviews"
-        />
-      </div>
-
-      <div className={INBOX_THEME_CLASSES.segmented}>
-        <div className="grid grid-cols-3 gap-1">
+      <Tabs value={tab} onValueChange={(value) => onTabChange(value as InboxTab)}>
+        <TabsList
+          className={cn(INBOX_THEME_CLASSES.segmented, "h-auto w-full justify-start rounded-none bg-transparent p-0")}
+          aria-label="Review status tabs"
+          id={TABLIST_ID}
+        >
           {TAB_OPTIONS.map((option) => (
-            <button
+            <TabsTrigger
               key={option.value}
-                type="button"
-                onClick={() => onTabChange(option.value)}
-                className={cn(inboxSegmentedClass(option.value === tab), "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/30")}
-              >
-                {option.label}
-              </button>
+              value={option.value}
+              id={`inbox-tab-${option.value}`}
+              aria-controls="inbox-review-list-panel"
+              className={cn(
+                inboxSegmentedClass(option.value === tab),
+                "data-[state=active]:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30",
+              )}
+            >
+              {option.label}
+            </TabsTrigger>
           ))}
-        </div>
-      </div>
+        </TabsList>
+      </Tabs>
 
-      <div className="mt-2.5 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-        <Sparkles className="h-3.5 w-3.5 text-[#007AFF]" strokeWidth={ICON_STROKE} />
-        AI responses adapt to brand tone and reviewer sentiment
-      </div>
+      <p className="sr-only" role="status" aria-live="polite">
+        {pendingCount} pending reviews.
+      </p>
     </motion.header>
   )
 }

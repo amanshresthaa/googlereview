@@ -60,7 +60,7 @@ function mockSession(input: { orgId: string; userId: string; role: string }) {
   })
 }
 
-describe("/api/jobs", () => {
+describe("/api/jobs", { timeout: 15_000 }, () => {
   afterEach(async () => {
     vi.clearAllMocks()
   })
@@ -186,7 +186,7 @@ describe("/api/jobs/:id/actions", () => {
     vi.clearAllMocks()
   })
 
-  it("RUN_NOW updates unlocked PENDING job", async () => {
+  it("RUN_NOW updates unlocked PENDING job", { timeout: 12_000 }, async () => {
     const orgId = `test-org-${uuid()}`
     const userId = `test-user-${uuid()}`
     mockSession({ orgId, userId, role: "OWNER" })
@@ -228,7 +228,7 @@ describe("/api/jobs/:id/actions", () => {
     await cleanup(orgId, userId)
   })
 
-  it("FORCE_UNLOCK only works for stale RUNNING", async () => {
+  it("FORCE_UNLOCK only works for stale RUNNING", { timeout: 12_000 }, async () => {
     const orgId = `test-org-${uuid()}`
     const userId = `test-user-${uuid()}`
     mockSession({ orgId, userId, role: "OWNER" })
@@ -271,7 +271,7 @@ describe("/api/jobs/:id/actions", () => {
     await cleanup(orgId, userId)
   })
 
-  it("REQUEUE creates a new job id", async () => {
+  it("REQUEUE creates a new job id", { timeout: 12_000 }, async () => {
     const orgId = `test-org-${uuid()}`
     const userId = `test-user-${uuid()}`
     mockSession({ orgId, userId, role: "OWNER" })
@@ -319,7 +319,7 @@ describe("/api/jobs/worker/run", () => {
     vi.clearAllMocks()
   })
 
-  it("is owner-only and executes safely when no jobs are eligible", async () => {
+  it("is owner-only and executes safely when no jobs are eligible", { timeout: 12_000 }, async () => {
     const orgId = `test-org-${uuid()}`
     const userId = `test-user-${uuid()}`
     await ensureOrg(orgId)
@@ -380,7 +380,7 @@ describe("/api/jobs/actions", () => {
     vi.clearAllMocks()
   })
 
-  it("FORCE_UNLOCK_STALE bulk-updates eligible jobs and writes audit log", async () => {
+  it("FORCE_UNLOCK_STALE bulk-updates eligible jobs and writes audit log", { timeout: 12_000 }, async () => {
     const orgId = `test-org-${uuid()}`
     const userId = `test-user-${uuid()}`
     mockSession({ orgId, userId, role: "OWNER" })

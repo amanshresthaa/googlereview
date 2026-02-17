@@ -184,6 +184,12 @@ export function useReviewMutations({ rows, updateRow, refresh, onQueuedJob }: Us
   }, [updateRow])
 
   const verifyDraft = React.useCallback(async (reviewId: string) => {
+    const currentRow = rows.find((row) => row.id === reviewId)
+    if (currentRow?.currentDraft?.status === "READY") {
+      toast.success("Draft already verified")
+      return
+    }
+
     const result = await apiCall<ReviewMutationResponse>(`/api/reviews/${reviewId}/drafts/verify`, "POST")
     if (applyDetailSnapshot(reviewId, result.review, updateRow)) {
       if (result.review?.currentDraft?.status === "BLOCKED_BY_VERIFIER") {
@@ -229,7 +235,7 @@ export function useReviewMutations({ rows, updateRow, refresh, onQueuedJob }: Us
       throw new Error(getVerifierBlockedMessage(verified))
     }
     toast.success("Draft verified")
-  }, [getJobId, settleQueuedJob, syncRowFromSnapshotOrServer, updateRow])
+  }, [getJobId, rows, settleQueuedJob, syncRowFromSnapshotOrServer, updateRow])
 
   const publishReply = React.useCallback(async (reviewId: string, text: string, row: ReviewRow) => {
     if (!text.trim()) throw new Error("Draft is empty.")
@@ -237,6 +243,7 @@ export function useReviewMutations({ rows, updateRow, refresh, onQueuedJob }: Us
     const current = row.currentDraft?.text.trim() ?? ""
     const incoming = text.trim()
     let verified: ReviewDetail | null = null
+    const canSkipVerify = current === incoming && row.currentDraft?.status === "READY"
 
     if (current !== incoming) {
       const editResult = await apiCall<ReviewMutationResponse>(`/api/reviews/${reviewId}/drafts/edit`, "POST", { text: incoming })
@@ -262,7 +269,7 @@ export function useReviewMutations({ rows, updateRow, refresh, onQueuedJob }: Us
       }
     }
 
-    if (!verified) {
+    if (!verified && !canSkipVerify) {
       const verifyResult = await apiCall<ReviewMutationResponse>(`/api/reviews/${reviewId}/drafts/verify`, "POST")
       if (applyDetailSnapshot(reviewId, verifyResult.review, updateRow)) {
         verified = verifyResult.review ?? null
@@ -299,8 +306,8 @@ export function useReviewMutations({ rows, updateRow, refresh, onQueuedJob }: Us
       }
     }
 
-    if (!verified) throw new Error("Verification is still processing. Please try publishing again in a few seconds.")
-    const verifiedDetail = verified
+    const verifiedDetail = verified ?? (canSkipVerify ? await syncRowFromServer(reviewId) : null)
+    if (!verifiedDetail) throw new Error("Verification is still processing. Please try publishing again in a few seconds.")
 
     updateRow(reviewId, (nextRow) => mapDetailToRow(nextRow, verifiedDetail))
     if (verifiedDetail.currentDraft?.status !== "READY") {
@@ -350,7 +357,7 @@ export function useReviewMutations({ rows, updateRow, refresh, onQueuedJob }: Us
     }
 
     void refresh()
-  }, [getJobId, refresh, settleQueuedJob, syncRowFromSnapshotOrServer, updateRow])
+  }, [getJobId, refresh, settleQueuedJob, syncRowFromServer, syncRowFromSnapshotOrServer, updateRow])
 
   return {
     generateDraft,
