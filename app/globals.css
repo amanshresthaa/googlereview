@@ -157,11 +157,52 @@
 
   /* Spacing tokens */
   --spacing-safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* ── Motion tokens ── */
+  --motion-duration-instant: 80ms;
+  --motion-duration-fast: 120ms;
+  --motion-duration-normal: 200ms;
+  --motion-duration-slow: 300ms;
+  --motion-duration-slower: 500ms;
+  --motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-easing-decelerate: cubic-bezier(0, 0, 0, 1);
+  --motion-easing-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --motion-easing-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Typography scale ── */
+  --type-size-xs: 0.625rem;   /* 10px – kickers, micro labels */
+  --type-size-sm: 0.75rem;    /* 12px – captions, metadata */
+  --type-size-base: 0.875rem; /* 14px – body text */
+  --type-size-md: 1rem;       /* 16px – emphasized body */
+  --type-size-lg: 1.125rem;   /* 18px – section titles */
+  --type-size-xl: 1.5rem;     /* 24px – page titles */
+  --type-size-2xl: 2rem;      /* 32px – hero headings */
+  --type-size-3xl: 2.5rem;    /* 40px – display headings */
+  --type-leading-tight: 1.2;
+  --type-leading-snug: 1.35;
+  --type-leading-normal: 1.5;
+  --type-leading-relaxed: 1.65;
+  --type-tracking-tight: -0.025em;
+  --type-tracking-normal: 0;
+  --type-tracking-wide: 0.01em;
+  --type-tracking-wider: 0.06em;
+  --type-tracking-widest: 0.16em;
+
+  /* ── Focus ring ── */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --focus-ring-color: var(--color-brand);
+
+  /* ── Container / layout ── */
+  --layout-max-width: 72rem; /* 1152px – page content max */
+  --layout-gutter-sm: 1rem;
+  --layout-gutter-md: 1.5rem;
+  --layout-gutter-lg: 2.5rem;
 }
 
 @layer base {
   :root {
-    /* D1 Conservative Enterprise */
+    /* D1 Conservative Enterprise – Light palette */
     --background: 220 16% 96%;
     --foreground: 218 54% 20%;
     --card: 0 0% 100%;
@@ -227,6 +268,72 @@
     --tahoe-shadow-dock-sub: rgb(23 43 77 / 0.06);
   }
 
+  /* ── Dark mode palette ── */
+  .dark {
+    --background: 222 22% 10%;
+    --foreground: 210 20% 90%;
+    --card: 222 20% 13%;
+    --card-foreground: 210 20% 90%;
+    --popover: 222 20% 13%;
+    --popover-foreground: 210 20% 90%;
+    --primary: 216 90% 58%;
+    --primary-foreground: 222 22% 10%;
+    --secondary: 222 18% 16%;
+    --secondary-foreground: 210 15% 72%;
+    --muted: 222 18% 16%;
+    --muted-foreground: 210 15% 60%;
+    --accent: 216 50% 18%;
+    --accent-foreground: 216 90% 68%;
+    --destructive: 12 80% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 14% 22%;
+    --input: 222 14% 22%;
+    --ring: 216 90% 58%;
+
+    /* Dark depth – reversed opacity logic */
+    --shadow-glass: 0 1px 2px rgb(0 0 0 / 0.25);
+    --shadow-card: 0 1px 3px rgb(0 0 0 / 0.3);
+    --shadow-elevated: 0 2px 6px rgb(0 0 0 / 0.35), 0 0 1px rgb(0 0 0 / 0.2);
+    --shadow-floating: 0 4px 12px rgb(0 0 0 / 0.45), 0 1px 3px rgb(0 0 0 / 0.3);
+
+    /* Sidebar */
+    --sidebar: var(--card);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-muted: var(--muted);
+    --sidebar-border: var(--border);
+
+    /* Legacy compat */
+    --shadow-google-sm: var(--shadow-card);
+    --shadow-google-md: var(--shadow-elevated);
+    --shadow-google-lg: var(--shadow-floating);
+    --shadow-google-xl: 0 8px 20px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.3);
+
+    --tahoe-action-blue: var(--color-brand);
+    --tahoe-glass-l1: hsl(222 20% 13%);
+    --tahoe-glass-l2: hsl(222 18% 16%);
+    --tahoe-glass-l3: hsl(216 30% 18%);
+    --tahoe-glass-l4: hsl(222 20% 13%);
+    --tahoe-pane-border: hsl(var(--border));
+    --tahoe-pane-border-outer: hsl(222 14% 28%);
+    --tahoe-text-high: hsl(var(--foreground));
+    --tahoe-text-mid: hsl(var(--muted-foreground));
+    --tahoe-text-low: hsl(210 12% 45%);
+    --tahoe-inset-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.04);
+    --tahoe-canvas-brand: color-mix(in srgb, hsl(216 90% 58%) 10%, transparent);
+    --tahoe-canvas-success: color-mix(in srgb, hsl(160 80% 45%) 10%, transparent);
+    --tahoe-canvas-sheen-start: color-mix(in srgb, hsl(210 20% 90%) 3%, transparent);
+    --tahoe-canvas-sheen-end: transparent;
+    --tahoe-dot-grid: color-mix(in srgb, hsl(210 20% 90%) 6%, transparent);
+    --tahoe-stage-strong-start: hsl(222 20% 13%);
+    --tahoe-stage-strong-end: hsl(222 18% 16%);
+    --tahoe-stage-soft-start: hsl(222 20% 13%);
+    --tahoe-stage-soft-end: hsl(222 22% 10%);
+    --tahoe-surface-fallback: hsl(222 20% 13%);
+    --tahoe-scrollbar-thumb: color-mix(in srgb, hsl(210 20% 90%) 12%, transparent);
+    --tahoe-shadow-dock-main: rgb(0 0 0 / 0.25);
+    --tahoe-shadow-dock-sub: rgb(0 0 0 / 0.18);
+  }
+
   html {
     font-size: 15px;
   }
@@ -266,6 +373,55 @@
       transition-duration: 1ms !important;
       scroll-behavior: auto !important;
     }
+  }
+
+  /* Dark mode semantic overrides for @theme inline tokens */
+  .dark {
+    --color-shell: hsl(222 22% 10%);
+    --color-shell-elevated: hsl(222 20% 13%);
+    --color-shell-foreground: hsl(210 20% 90%);
+    --color-surface-alt: hsl(222 18% 16%);
+    --color-surface-hover: hsl(222 18% 19%);
+    --color-border-strong: hsl(222 14% 28%);
+
+    --color-brand: hsl(216 90% 58%);
+    --color-brand-soft: hsl(216 85% 52%);
+    --color-brand-muted: hsl(216 70% 62%);
+    --color-brand-subtle: hsl(216 50% 18%);
+    --color-brand-foreground: hsl(222 22% 10%);
+
+    --color-success: hsl(160 80% 45%);
+    --color-success-soft: hsl(160 65% 50%);
+    --color-warning: hsl(35 85% 55%);
+    --color-warning-soft: hsl(40 80% 52%);
+
+    --color-state-pending-fg: hsl(35 85% 60%);
+    --color-state-pending-bg: hsl(35 40% 14%);
+    --color-state-pending-border: hsl(35 50% 28%);
+    --color-state-ready-fg: hsl(160 70% 52%);
+    --color-state-ready-bg: hsl(160 30% 14%);
+    --color-state-ready-border: hsl(160 40% 28%);
+    --color-state-posted-fg: hsl(216 80% 65%);
+    --color-state-posted-bg: hsl(216 35% 16%);
+    --color-state-posted-border: hsl(216 45% 32%);
+    --color-state-error-fg: hsl(12 80% 60%);
+    --color-state-error-bg: hsl(12 30% 14%);
+    --color-state-error-border: hsl(12 40% 30%);
+    --color-state-blocked-fg: hsl(249 55% 65%);
+    --color-state-blocked-bg: hsl(249 25% 16%);
+    --color-state-blocked-border: hsl(249 30% 32%);
+    --color-state-needs-edit-fg: hsl(40 80% 55%);
+    --color-state-needs-edit-bg: hsl(40 30% 14%);
+    --color-state-needs-edit-border: hsl(40 40% 28%);
+
+    --color-ink-strong: hsl(210 20% 90%);
+    --color-ink: hsl(210 15% 65%);
+    --color-ink-soft: hsl(210 12% 48%);
+    --color-ink-muted: hsl(210 12% 45%);
+
+    --color-invite-start: hsl(216 50% 18%);
+    --color-invite-mid: hsl(222 18% 16%);
+    --color-invite-end: hsl(160 30% 14%);
   }
 }
 
@@ -610,6 +766,118 @@
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+  }
+
+  /* ── Composable focus ring ── */
+  .focus-ring {
+    outline: none;
+  }
+
+  .focus-ring:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 var(--focus-ring-offset) hsl(var(--background)),
+      0 0 0 calc(var(--focus-ring-offset) + var(--focus-ring-width)) color-mix(in srgb, var(--focus-ring-color) 40%, transparent);
+  }
+
+  /* ── Typography scale utilities ── */
+  .type-display {
+    font-size: var(--type-size-3xl);
+    line-height: var(--type-leading-tight);
+    letter-spacing: var(--type-tracking-tight);
+    font-weight: 900;
+  }
+
+  .type-hero {
+    font-size: var(--type-size-2xl);
+    line-height: var(--type-leading-tight);
+    letter-spacing: var(--type-tracking-tight);
+    font-weight: 900;
+  }
+
+  .type-title {
+    font-size: var(--type-size-xl);
+    line-height: var(--type-leading-tight);
+    letter-spacing: var(--type-tracking-tight);
+    font-weight: 800;
+  }
+
+  .type-section {
+    font-size: var(--type-size-lg);
+    line-height: var(--type-leading-snug);
+    letter-spacing: var(--type-tracking-tight);
+    font-weight: 800;
+  }
+
+  .type-body-lg {
+    font-size: var(--type-size-md);
+    line-height: var(--type-leading-normal);
+    font-weight: 500;
+  }
+
+  .type-body {
+    font-size: var(--type-size-base);
+    line-height: var(--type-leading-normal);
+    font-weight: 500;
+  }
+
+  .type-caption {
+    font-size: var(--type-size-sm);
+    line-height: var(--type-leading-snug);
+    font-weight: 500;
+  }
+
+  .type-kicker {
+    font-size: var(--type-size-xs);
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: var(--type-tracking-widest);
+    text-transform: uppercase;
+  }
+
+  /* ── Motion utilities ── */
+  .motion-standard {
+    transition-duration: var(--motion-duration-normal);
+    transition-timing-function: var(--motion-easing-standard);
+  }
+
+  .motion-fast {
+    transition-duration: var(--motion-duration-fast);
+    transition-timing-function: var(--motion-easing-standard);
+  }
+
+  .motion-slow {
+    transition-duration: var(--motion-duration-slow);
+    transition-timing-function: var(--motion-easing-decelerate);
+  }
+
+  .motion-spring {
+    transition-duration: var(--motion-duration-normal);
+    transition-timing-function: var(--motion-easing-spring);
+  }
+
+  .motion-all {
+    transition-property: all;
+  }
+
+  /* ── Container utility ── */
+  .app-container {
+    width: 100%;
+    max-width: var(--layout-max-width);
+    margin-inline: auto;
+    padding-inline: var(--layout-gutter-sm);
+  }
+
+  @media (min-width: 640px) {
+    .app-container {
+      padding-inline: var(--layout-gutter-md);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .app-container {
+      padding-inline: var(--layout-gutter-lg);
+    }
   }
 
   /* Radix Accordion: height animation without JS (uses Radix CSS vars). */

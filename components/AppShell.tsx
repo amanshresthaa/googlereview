@@ -31,6 +31,7 @@ import {
   Sparkles,
 } from "lucide-react"
 import { JobHealthWidget } from "@/components/JobHealthWidget"
+import { ThemeToggle } from "@/components/ThemeToggle"
 import { REPLYAI_UNANSWERED_COUNT_EVENT } from "@/lib/reviews/count-events"
 import { cn } from "@/lib/utils"
 
@@ -232,8 +233,8 @@ export function AppShell({
                   className={cn("flex items-center", sidebarCollapsed ? "gap-0" : "gap-3")}
                   aria-label="Go to inbox"
                 >
-                    <div className="brand-duo-gradient grid h-11 w-11 place-items-center rounded-2xl text-brand-foreground shadow-glow-primary">
-                     <Sparkles className="h-5 w-5" strokeWidth={ICON_STROKE} />
+                  <div className="brand-duo-gradient grid h-11 w-11 place-items-center rounded-2xl text-brand-foreground shadow-glow-primary">
+                    <Sparkles className="h-5 w-5" strokeWidth={ICON_STROKE} />
                   </div>
                   <div
                     className={cn(
@@ -256,7 +257,7 @@ export function AppShell({
                       aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                       className="h-8 w-8 rounded-xl text-shell-foreground/30 hover:bg-shell-foreground/[0.06] hover:text-shell-foreground/60"
                     >
-                       {sidebarCollapsed ? <ChevronRight className="h-4 w-4" strokeWidth={ICON_STROKE} /> : <ChevronLeft className="h-4 w-4" strokeWidth={ICON_STROKE} />}
+                      {sidebarCollapsed ? <ChevronRight className="h-4 w-4" strokeWidth={ICON_STROKE} /> : <ChevronLeft className="h-4 w-4" strokeWidth={ICON_STROKE} />}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="right">{sidebarCollapsed ? "Expand" : "Collapse"}</TooltipContent>
@@ -277,7 +278,7 @@ export function AppShell({
                             prefetch={true}
                             aria-current={isActive ? "page" : undefined}
                             className={cn(
-                               "group flex items-center rounded-2xl border px-3 py-2.5 transition-all duration-300 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/35",
+                              "group flex items-center rounded-2xl border px-3 py-2.5 transition-all duration-300 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/35",
                               sidebarCollapsed ? "justify-center px-0" : "gap-3",
                               isActive
                                 ? "border-shell-foreground/[0.08] bg-brand/10 text-brand-muted shadow-elevated"
@@ -355,7 +356,7 @@ export function AppShell({
                       onSelect={() => signOut({ callbackUrl: "/signin" })}
                       className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                     >
-                       <LogOut className="mr-2 size-4" strokeWidth={ICON_STROKE} />
+                      <LogOut className="mr-2 size-4" strokeWidth={ICON_STROKE} />
                       Sign out
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -387,7 +388,7 @@ export function AppShell({
                           prefetch={true}
                           aria-current={isActive ? "page" : undefined}
                           className={cn(
-                             "relative grid h-11 w-11 place-items-center rounded-2xl border transition-all duration-300 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/35",
+                            "relative grid h-11 w-11 place-items-center rounded-2xl border transition-all duration-300 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/35",
                             isActive
                               ? "border-shell-foreground/[0.08] bg-brand/10 text-brand-muted shadow-elevated"
                               : "border-transparent bg-transparent text-shell-foreground/30 hover:border-shell-foreground/[0.06] hover:bg-shell-foreground/[0.04] hover:text-shell-foreground/60",
@@ -428,7 +429,7 @@ export function AppShell({
                     onSelect={() => signOut({ callbackUrl: "/signin" })}
                     className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                   >
-                     <LogOut className="mr-2 size-4" strokeWidth={ICON_STROKE} />
+                    <LogOut className="mr-2 size-4" strokeWidth={ICON_STROKE} />
                     Sign out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -446,12 +447,13 @@ export function AppShell({
                 </div>
                 <div className="hidden h-8 w-px bg-shell-foreground/[0.1] md:block" />
                 <div className="hidden items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-shell-foreground/30 md:flex">
-                   <Globe className="h-3.5 w-3.5 text-brand-muted" strokeWidth={ICON_STROKE} />
+                  <Globe className="h-3.5 w-3.5 text-brand-muted" strokeWidth={ICON_STROKE} />
                   Google Business Profile
                 </div>
               </div>
 
               <div className="flex items-center gap-2 md:gap-2.5">
+                <ThemeToggle />
                 <Button
                   type="button"
                   variant="ghost"
@@ -487,7 +489,7 @@ export function AppShell({
                   prefetch={true}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                     "relative flex h-full flex-1 flex-col items-center justify-center gap-1 rounded-2xl transition-all duration-300 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/35",
+                    "relative flex h-full flex-1 flex-col items-center justify-center gap-1 rounded-2xl transition-all duration-300 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/35",
                     isActive ? "bg-brand/10 text-brand-muted" : "text-shell-foreground/30",
                   )}
                 >

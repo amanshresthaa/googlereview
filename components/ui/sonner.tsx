@@ -2,11 +2,14 @@
 
 import * as React from "react"
 import { Toaster as Sonner } from "sonner"
+import { useTheme } from "@/components/ThemeProvider"
 
 export function Toaster() {
+  const { resolvedTheme } = useTheme()
+
   return (
     <Sonner
-      theme="light"
+      theme={(resolvedTheme as "light" | "dark") ?? "light"}
       richColors
       closeButton
       toastOptions={{
